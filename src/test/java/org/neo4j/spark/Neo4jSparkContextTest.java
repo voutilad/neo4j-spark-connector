@@ -94,7 +94,7 @@ public class Neo4jSparkContextTest {
     }
     @Test
     public void runMatrixQueryDFSchema() {
-        DataFrame found = csc.queryDF(QUERY, PARAMS,Tuple2.apply("released", TYPE_SYSTEM.INTEGER()),Tuple2.apply("tagline", TYPE_SYSTEM.STRING()));
+        DataFrame found = csc.queryDF(QUERY, PARAMS,"released", "integer","tagline", "string");
         assertEquals(1, found.count());
         StructType schema = found.schema();
         assertEquals("long", schema.apply("released").dataType().typeName());

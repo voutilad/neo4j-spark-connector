@@ -4,7 +4,7 @@ import java.util.NoSuchElementException
 
 import org.apache.spark._
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.types.{StructField, StructType}
+import org.apache.spark.sql.types.{DataType, StructField, StructType}
 import org.apache.spark.sql.{Row, SQLContext, types}
 import org.neo4j.driver.internal.types.InternalTypeSystem
 import org.neo4j.driver.v1._
@@ -44,10 +44,19 @@ class CypherResultRdd(@transient sc: SparkContext, result : ResultCursor)
 }
 
 object CypherDataFrame {
-  def apply(sqlContext: SQLContext, query: String, parameters: java.util.Map[String, Any], resultSchema: Array[(String, Type)]) = {
+  def apply(sqlContext: SQLContext, query: String, parameters: java.util.Map[String, Any], resultSchema: (String, types.DataType)*) = {
 
-    val fields = resultSchema.toSeq.map( field =>
-      StructField(field._1, toSparkType(InternalTypeSystem.TYPE_SYSTEM,field._2), nullable = true) )
+    val fields = resultSchema.map( field =>
+      StructField(field._1, field._2, nullable = true) )
+    val schema = StructType(fields)
+    val rowRdd = new CypherRowRDD(sqlContext.sparkContext, query, parameters.asScala.toSeq)
+    sqlContext.createDataFrame(rowRdd, schema)
+  }
+
+  def apply(sqlContext: SQLContext, query: String, parameters: java.util.Map[String, Any], resultSchema: Array[(String, String)]) = {
+
+    val fields = resultSchema.map( field =>
+      StructField(field._1, CypherType(field._2), nullable = true) )
     val schema = StructType(fields)
     val rowRdd = CypherRowRDD.apply(sqlContext.sparkContext, query, parameters)
     sqlContext.createDataFrame(rowRdd, schema)
@@ -67,12 +76,12 @@ object CypherDataFrame {
   }
 
   def toSparkType(typeSystem : TypeSystem, typ : Type): org.apache.spark.sql.types.DataType =
-    if (typ == typeSystem.BOOLEAN) types.BooleanType
-    else if (typ == typeSystem.STRING) types.StringType
-    else if (typ == typeSystem.INTEGER()) types.LongType
-    else if (typ == typeSystem.FLOAT) types.DoubleType
-    else if (typ == typeSystem.NULL) types.NullType
-    else types.StringType
+    if (typ == typeSystem.BOOLEAN) CypherType.BOOLEAN
+    else if (typ == typeSystem.STRING) CypherType.STRING
+    else if (typ == typeSystem.INTEGER()) CypherType.INTEGER
+    else if (typ == typeSystem.FLOAT) CypherType.FlOAT
+    else if (typ == typeSystem.NULL) CypherType.NULL
+    else CypherType.STRING
 //    type match {
 //    case typeSystem.MAP => types.MapType(types.StringType,types.ObjectType)
 //    case typeSystem.LIST => types.ArrayType(types.ObjectType, containsNull = false)
@@ -81,4 +90,23 @@ object CypherDataFrame {
 //    case typeSystem.PATH => types.GraphType
 //    case _ => types.StringType
 //  }
+}
+object CypherType {
+  val INTEGER = types.LongType
+  val FlOAT = types.DoubleType
+  val STRING = types.StringType
+  val BOOLEAN = types.BooleanType
+  val NULL = types.NullType
+
+  def apply(typ:String) = typ match {
+    case "INTEGER" => INTEGER
+    case "FLOAT" => FlOAT
+    case "STRING" => STRING
+    case "BOOLEAN" => BOOLEAN
+    case "NULL" => NULL
+    case _ => STRING
+  }
+//  val MAP = types.MapType(types.StringType,types.AnyDataType)
+//  val LIST = types.ArrayType(types.AnyDataType)
+// , MAP, LIST, NODE, RELATIONSHIP, PATH
 }

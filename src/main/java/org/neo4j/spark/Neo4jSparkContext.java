@@ -43,8 +43,13 @@ public class Neo4jSparkContext {
     public JavaRDD<Row> queryRow(final String query, final Map<String,Object> parameters) {
         return CypherRowRDD.apply(sc, query, parameters).toJavaRDD();
     }
-    public DataFrame queryDF(final String query, final Map<String,Object> parameters, Tuple2<String,Type>...resultSchema) {
-        return CypherDataFrame.apply(sqlContext, query,parameters,resultSchema);
+    public DataFrame queryDF(final String query, final Map<String,Object> parameters, String...resultSchema) {
+        if (resultSchema.length %2 != 0) throw new RuntimeException("Schema information has to be supplied as pairs of columnName,cypherTypeName (INTEGER,FLOAT,BOOLEAN,STRING,NULL)");
+        Tuple2[] schema = new Tuple2[resultSchema.length / 2];
+        for (int i = 0; i < schema.length; i++) {
+            schema[i] = Tuple2.apply(resultSchema[i*2],resultSchema[i*2+1].toUpperCase());
+        }
+        return CypherDataFrame.apply(sqlContext, query,parameters, schema);
     }
     public DataFrame queryDF(final String query, final Map<String,Object> parameters) {
         return CypherDataFrame.apply(sqlContext, query,parameters);

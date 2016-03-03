@@ -5,11 +5,11 @@ import java.util.{Collections, NoSuchElementException}
 
 import org.apache.spark._
 import org.apache.spark.rdd.RDD
-import org.neo4j.driver.v1.{GraphDatabase, Values}
+import org.neo4j.driver.v1.{Value, GraphDatabase, Values}
 
 import scala.collection.JavaConverters._
 
-class CypherRDD(@transient sc: SparkContext, val query: String, val parameters: java.util.Map[String,Any])
+class CypherRDD(@transient sc: SparkContext, val query: String, val parameters: Seq[(String,Any)])
   extends RDD[java.util.Map[String,AnyRef]](sc, Nil)
     with Logging {
 
@@ -18,7 +18,8 @@ class CypherRDD(@transient sc: SparkContext, val query: String, val parameters: 
   override def compute(split: Partition, context: TaskContext): Iterator[java.util.Map[String,AnyRef]] = {
     val session = GraphDatabase.driver(config.url).session()
 
-    val result = session.run(query,parameters.asScala.mapValues( Values.value ).asJava)
+    val params: Map[String,Value] = parameters.map( (p) => (p._1, Values.value(p._2))).toMap
+    val result = session.run(query,params.asJava)
     var keys : Array[String] = null
     var keyCount : Int = 0
     new Iterator[java.util.Map[String,AnyRef]]() {
@@ -51,7 +52,7 @@ class CypherRDD(@transient sc: SparkContext, val query: String, val parameters: 
 
 object CypherRDD {
   // java apply
-  def apply(sc: SparkContext, query: String, parameters:java.util.Map[String,Any]) = new CypherRDD(sc, query, parameters)
+  def apply(sc: SparkContext, query: String, parameters:java.util.Map[String,Any]) = new CypherRDD(sc, query, parameters.asScala.toSeq)
   // scala apply
 //  def apply(sc: SparkContext, query: String, parameters:Map[String,Any]) = new CypherRDD(sc, query, parameters )
 }
