@@ -1,0 +1,41 @@
+= Neo4j-Spark-Connector based on Neo4j 3.0's Bolt protocol
+:repo: http://github.com/jexp/neo4j-spark-connector
+
+These are the beginnings / experiments of a Neo4j-Spark-Connector using the new binary protocol for Neo4j, Bolt.
+
+Find http://alpha.neohq.net[more information] about the Bolt protocol, available drivers and documentation.
+
+[NOTE]
+Please note that I still know very little about Apache Spark and might have done really dumb things.
+Please let me know by {repo}/issues[creating an issue] or even better {repo}/pulls[submitting a pull request] to this repo.
+
+== License
+
+This neo4j-spark-connector is Apache 2 Licensed
+
+== Config
+
+You provide the `neo4j.bolt.url` in your `SparkConf` pointing e.g. to `bolt://localhost`.
+
+== RDD's
+
+There are a few different RDD's all named `CypherXxxRDD`
+
+* `CypherTupleRDD` returns a Seq[(String,AnyRef)] per row
+* CypherRowRDD returns a spark-sql Row per row
+
+== DataFrames
+
+* `CypherDataFrame`, a SparkSQL `DataFrame` that you construct either with explicit type information about result names and types
+* or inferred from the first result-row
+
+
+== Driver
+
+The project uses the http://github.com/neo4j/neo4j-java-driver[java driver] for Neo4j's Bolt protocol.
+You add it via the `org.neo4j.driver:neo4j-java-driver:1.0.0-M04` dependency.
+
+== Testing
+
+Testing is done using `neo4j-harness`, a http://neo4j.com/docs/stable/server-unmanaged-extensions-testing.html[test library] for starting an in-process Neo4j-Server which you can use either with a JUnit `@Rule` or directly.
+I only start one server and one SparkContext per test-class to avoid the lifecycle overhead.
