@@ -43,7 +43,7 @@ There are a few different RDD's all named `CypherXxxRDD`
 
 == Example Usage
 
----
+----
 bin/spark-shell --jars neo4j-spark-connector-1.0-SNAPSHOT_2.10-jar-with-dependencies.jar
 
 import org.neo4j.spark._
@@ -61,7 +61,7 @@ res0: org.apache.spark.sql.DataFrame = [id: bigint]
 
 scala> res0.count()
 res1: Long = 1000177
----
+----
 
 
 == Driver
