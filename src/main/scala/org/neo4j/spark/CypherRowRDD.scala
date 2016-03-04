@@ -33,16 +33,22 @@ class CypherRowRDD(@transient sc: SparkContext, val query: String, val parameter
             keyCount = keysList.size()
             keys = keysList.toArray(new Array[String](keyCount))
           }
-          if (keyCount == 0) return Row.empty
-          if (keyCount == 1) return Row(record.get(0).asObject())
-          val builder = Seq.newBuilder[AnyRef]
-          var i = 0
-          while (i < keyCount) {
-            builder += record.get(i).asObject()
-            i = i + 1
+          val res = if (keyCount == 0)  Row.empty
+          else if (keyCount == 1)  Row(record.get(0).asObject())
+          else {
+            val builder = Seq.newBuilder[AnyRef]
+            var i = 0
+            while (i < keyCount) {
+              builder += record.get(i).asObject()
+              i = i + 1
+            }
+            Row.fromSeq(builder.result())
           }
           hasNext = result.next()
-          Row.fromSeq(builder.result())
+          if (!hasNext) {
+            session.close()
+          }
+          res
         } else throw new NoSuchElementException
       }
     }
@@ -51,5 +57,5 @@ class CypherRowRDD(@transient sc: SparkContext, val query: String, val parameter
 }
 
 object CypherRowRDD {
-  def apply(sc: SparkContext, query: String, parameters:java.util.Map[String,Any]) = new CypherRowRDD(sc, query, parameters.asScala.toSeq)
+  def apply(sc: SparkContext, query: String, parameters:java.util.Map[String,Any]) = new CypherRowRDD(sc, query, if (parameters==null) Seq.empty else parameters.asScala.toSeq)
 }

@@ -47,7 +47,8 @@ public class Neo4jSparkContext {
         if (resultSchema.length %2 != 0) throw new RuntimeException("Schema information has to be supplied as pairs of columnName,cypherTypeName (INTEGER,FLOAT,BOOLEAN,STRING,NULL)");
         Tuple2[] schema = new Tuple2[resultSchema.length / 2];
         for (int i = 0; i < schema.length; i++) {
-            schema[i] = Tuple2.apply(resultSchema[i*2],resultSchema[i*2+1].toUpperCase());
+            Tuple2<String, String> tuple2 = new Tuple2<>(resultSchema[i * 2], resultSchema[i * 2 + 1].toUpperCase());
+            schema[i] = tuple2;
         }
         return CypherDataFrame.apply(sqlContext, query,parameters, schema);
     }

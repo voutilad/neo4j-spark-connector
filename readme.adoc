@@ -13,6 +13,18 @@ Please let me know by {repo}/issues[creating an issue] or even better {repo}/pul
 
 This neo4j-spark-connector is Apache 2 Licensed
 
+== Building
+
+Build `target/neo4j-spark-connector-1.0-SNAPSHOT_2.10-jar-with-dependencies.jar` for Scala 2.10
+----
+mvn clean compile assembly:single -DskipTests -Pscala_2.10
+----
+
+Build `target/neo4j-spark-connector-1.0-SNAPSHOT_2.11-jar-with-dependencies.jar` for Scala 2.11
+----
+mvn clean install assembly:single
+----
+
 == Config
 
 You provide the `neo4j.bolt.url` in your `SparkConf` pointing e.g. to `bolt://localhost`.
@@ -28,6 +40,28 @@ There are a few different RDD's all named `CypherXxxRDD`
 
 * `CypherDataFrame`, a SparkSQL `DataFrame` that you construct either with explicit type information about result names and types
 * or inferred from the first result-row
+
+== Example Usage
+
+---
+bin/spark-shell --jars neo4j-spark-connector-1.0-SNAPSHOT_2.10-jar-with-dependencies.jar
+
+import org.neo4j.spark._
+import org.apache.spark.sql.types._
+
+scala> new CypherTupleRDD(sc,"cypher runtime=compiled MATCH (n) return id(n)",Seq.empty).count()
+res46: Long = 1000177
+
+scala> new CypherRowRDD(sc,"cypher runtime=compiled MATCH (n) return id(n)",Seq.empty).count()
+res47: Long = 1000177
+
+
+scala> CypherDataFrame(sqlContext, "cypher runtime=compiled MATCH (n) return id(n) as id",null,schema = ("id",LongType))
+res0: org.apache.spark.sql.DataFrame = [id: bigint]
+
+scala> res0.count()
+res1: Long = 1000177
+---
 
 
 == Driver
