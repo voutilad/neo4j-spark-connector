@@ -72,4 +72,8 @@ You add it via the `org.neo4j.driver:neo4j-java-driver:1.0.0-M04` dependency.
 == Testing
 
 Testing is done using `neo4j-harness`, a http://neo4j.com/docs/stable/server-unmanaged-extensions-testing.html[test library] for starting an in-process Neo4j-Server which you can use either with a JUnit `@Rule` or directly.
-I only start one server and one SparkContext per test-class to avoid the lifecycle overhead.
+I only start one server and one SparkContext per test-class to avoid the lifecycle overhead. 
+
+[NOTE]
+Please note that Neo4j running an in-process server pulls in Scala 2.11 for Cypher, so you need to run the tests with spark_2.11.
+That's why I had to add two profiles for the different Scala versions.
