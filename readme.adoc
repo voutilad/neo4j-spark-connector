@@ -43,26 +43,50 @@ There are a few different RDD's all named `CypherXxxRDD`
 
 == Example Usage
 
-----
-bin/spark-shell --jars neo4j-spark-connector-1.0-SNAPSHOT_2.10-jar-with-dependencies.jar
+=== RDD & DataFrame Usage
 
+.bin/spark-shell --jars neo4j-spark-connector-1.0-SNAPSHOT_2.10-jar-with-dependencies.jar
+[source,scala]
+----
 import org.neo4j.spark._
 import org.apache.spark.sql.types._
 
-scala> new CypherTupleRDD(sc,"cypher runtime=compiled MATCH (n) return id(n)",Seq.empty).count()
-res46: Long = 1000177
+CypherTupleRDD(sc,"cypher runtime=compiled MATCH (n) return id(n)",Seq.empty).count()
+// res46: Long = 1000177
 
-scala> new CypherRowRDD(sc,"cypher runtime=compiled MATCH (n) return id(n)",Seq.empty).count()
-res47: Long = 1000177
+CypherRowRDD(sc,"cypher runtime=compiled MATCH (n) return id(n)",Seq.empty).count()
+// res47: Long = 1000177
 
+CypherDataFrame(sqlContext, "cypher runtime=compiled MATCH (n) return id(n) as id",Seq.empty,schema = ("id",LongType))
+// res0: org.apache.spark.sql.DataFrame = [id: bigint]
 
-scala> CypherDataFrame(sqlContext, "cypher runtime=compiled MATCH (n) return id(n) as id",null,schema = ("id",LongType))
-res0: org.apache.spark.sql.DataFrame = [id: bigint]
-
-scala> res0.count()
-res1: Long = 1000177
+res0.count()
+// res1: Long = 1000177
 ----
 
+=== Neo4j Graph Operations
+
+.bin/spark-shell --jars neo4j-spark-connector-1.0-SNAPSHOT_2.10-jar-with-dependencies.jar
+[source,scala]
+----
+import org.neo4j.spark._
+
+val g = Neo4jGraph.loadGraph(sc, "Person", Seq("KNOWS"), "Person")
+// g: org.apache.spark.graphx.Graph[Any,Int] = org.apache.spark.graphx.impl.GraphImpl@574985d8
+g.vertices.count()
+// res0: Long = 999937
+g.edges.count()
+// res1: Long = 999906
+import org.apache.spark.graphx._
+import org.apache.spark.graphx.lib._
+
+val g2 = PageRank.run(g, 5)
+
+val v = g2.vertices.take(5)
+// v: Array[(org.apache.spark.graphx.VertexId, Double)] = Array((185012,0.15), (612052,1.0153273593749998), (354796,0.15), (182316,0.15), (199516,0.38587499999999997))
+
+Neo4jGraph.saveGraph(sc, g2, "rank")
+----
 
 == Driver
 

@@ -61,6 +61,7 @@ class CypherTupleRDD(@transient sc: SparkContext, val query: String, val paramet
 
 object CypherTupleRDD {
   def apply(sc: SparkContext, query: String, parameters: java.util.Map[String, Any]) = new CypherTupleRDD(sc, query, if (parameters==null) Seq.empty else parameters.asScala.toSeq)
+  def apply(sc: SparkContext, query: String, parameters: Seq[(String,Any)] = Seq.empty) = new CypherTupleRDD(sc, query, parameters)
 }
 
 

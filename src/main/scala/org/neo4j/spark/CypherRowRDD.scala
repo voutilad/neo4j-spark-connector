@@ -58,4 +58,5 @@ class CypherRowRDD(@transient sc: SparkContext, val query: String, val parameter
 
 object CypherRowRDD {
   def apply(sc: SparkContext, query: String, parameters:java.util.Map[String,Any]) = new CypherRowRDD(sc, query, if (parameters==null) Seq.empty else parameters.asScala.toSeq)
+  def apply(sc: SparkContext, query: String, parameters:Seq[(String,Any)] = Seq.empty) = new CypherRowRDD(sc, query, parameters)
 }

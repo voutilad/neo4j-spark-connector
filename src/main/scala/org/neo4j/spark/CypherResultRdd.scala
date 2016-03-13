@@ -68,6 +68,15 @@ object CypherDataFrame {
     sqlContext.createDataFrame(rowRdd, schema)
   }
 
+  def apply(sqlContext: SQLContext, query: String, parameters: Seq[(String, Any)], schemaInfo: Array[(String, String)]) = {
+
+    val fields = schemaInfo.map(field =>
+      StructField(field._1, CypherType(field._2), nullable = true) )
+    val schema = StructType(fields)
+    val rowRdd = CypherRowRDD.apply(sqlContext.sparkContext, query, parameters)
+    sqlContext.createDataFrame(rowRdd, schema)
+  }
+
   def apply(sqlContext: SQLContext, query: String, parameters: java.util.Map[String, Any]) = {
     val config = Neo4jConfig(sqlContext.sparkContext.getConf)
     val session = GraphDatabase.driver(config.url).session()
