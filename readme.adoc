@@ -34,16 +34,27 @@ You provide the `neo4j.bolt.url` in your `SparkConf` pointing e.g. to `bolt://lo
 There are a few different RDD's all named `CypherXxxRDD`
 
 * `CypherTupleRDD` returns a Seq[(String,AnyRef)] per row
-* CypherRowRDD returns a spark-sql Row per row
+* `CypherRowRDD` returns a spark-sql Row per row
 
 == DataFrames
 
 * `CypherDataFrame`, a SparkSQL `DataFrame` that you construct either with explicit type information about result names and types
 * or inferred from the first result-row
 
+== GraphX - Neo4jGraph
+
+* `Neo4jGraph` has methods to load and save a GraphX graph
+* `Neo4jGraph.execute` runs a Cypher statement and returns a `CypherResult` with the `keys` and an `rows` Iterator of `Array[Any]`
+
+* `Neo4jGraph.loadGraph(sc, label,rel-types,label2)` loads a graph via the relationships between those labeled nodes
+* `Neo4jGraph.saveGraph(g, nodeProp, relProp)` saves a graph object to Neo4j by updating the given node- and relationship-properties
+* `Neo4jGraph.loadGraphFromNodePairs(sc,stmt,params)` loads a graph from pairs of node-id's
+* `Neo4jGraph.loadGraphFromRels(sc,stmt,params)` loads a graph from pairs of start- and end-node-id's and and additional value per relationship
+* `Neo4jGraph.loadGraph(sc, (stmt,params), (stmt,params))` loads a graph with two dedicated statements first for nodes, second for relationships
+
 == Example Usage
 
-=== RDD & DataFrame Usage
+=== RDD & DataFrame
 
 .bin/spark-shell --jars neo4j-spark-connector-1.0-SNAPSHOT_2.10-jar-with-dependencies.jar
 [source,scala]
@@ -64,7 +75,7 @@ res0.count()
 // res1: Long = 1000177
 ----
 
-=== Neo4j Graph Operations
+=== Neo4jGraph Operations
 
 .bin/spark-shell --jars neo4j-spark-connector-1.0-SNAPSHOT_2.10-jar-with-dependencies.jar
 [source,scala]
@@ -86,6 +97,7 @@ val v = g2.vertices.take(5)
 // v: Array[(org.apache.spark.graphx.VertexId, Double)] = Array((185012,0.15), (612052,1.0153273593749998), (354796,0.15), (182316,0.15), (199516,0.38587499999999997))
 
 Neo4jGraph.saveGraph(sc, g2, "rank")
+// res2: (Long, Long) = (999937,0)                                                 
 ----
 
 == Driver

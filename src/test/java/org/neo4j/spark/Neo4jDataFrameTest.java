@@ -46,6 +46,7 @@ public class Neo4jDataFrameTest {
         conf = new SparkConf()
                 .setAppName("neoTest")
                 .setMaster("local[*]")
+                .set("spark.driver.allowMultipleContexts","true")
                 .set("neo4j.bolt.url", server.boltURI().toString());
         sc = new JavaSparkContext(conf);
         csc = Neo4jSparkContext.neo4jContext(sc);

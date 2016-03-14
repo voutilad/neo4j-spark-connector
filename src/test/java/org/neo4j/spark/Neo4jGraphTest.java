@@ -18,6 +18,7 @@ import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
 import scala.collection.Seq;
+import scala.collection.Seq$;
 
 /**
  * @author mh
@@ -41,6 +42,7 @@ public class Neo4jGraphTest {
         conf = new SparkConf()
                 .setAppName("neoTest")
                 .setMaster("local[*]")
+                .set("spark.driver.allowMultipleContexts","true")
                 .set("neo4j.bolt.url", server.boltURI().toString());
         sc = new JavaSparkContext(conf);
         csc = Neo4jSparkContext.neo4jContext(sc);
@@ -52,7 +54,7 @@ public class Neo4jGraphTest {
     }
 
     @Test public void runMatrixQuery() {
-        Graph graph = Neo4jGraph.loadGraph(sc.sc(), "A", new Seq<String>() , "B");
+        Graph graph = Neo4jGraph.loadGraph(sc.sc(), "A", Seq$.MODULE$.empty() , "B");
         assertEquals(2,graph.vertices().count());
         assertEquals(1,graph.edges().count());
     }

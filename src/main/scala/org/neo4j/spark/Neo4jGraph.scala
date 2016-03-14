@@ -14,20 +14,20 @@ import scala.reflect.ClassTag
   */
 object Neo4jGraph {
 
-  // vertexStmt: MATCH (n:Label) RETURN id(n) as id UNION MATCH (m:Label2) return id(m) as id
-  // MATCH (n:Label1)-[r:REL]->(m:Label2) RETURN id(n), id(m), r.foo // or id(r) or type(r) or ...
-  def loadGraph[VD:ClassTag,ED:ClassTag](sc: SparkContext, vertexStmt: (String,Seq[(String, Any)]), edgeStmt: (String,Seq[(String, Any)])) :Graph[VD,ED] = {
-    val vertices: RDD[(VertexId, VD)] =
-      sc.makeRDD(execute(sc,vertexStmt._1,vertexStmt._2).rows.toSeq)
+  // nodeStmt: MATCH (n:Label) RETURN id(n) as id UNION MATCH (m:Label2) return id(m) as id
+  // relStmt: MATCH (n:Label1)-[r:REL]->(m:Label2) RETURN id(n), id(m), r.foo // or id(r) or type(r) or ...
+  def loadGraph[VD:ClassTag,ED:ClassTag](sc: SparkContext, nodeStmt: (String,Seq[(String, Any)]), relStmt: (String,Seq[(String, Any)])) :Graph[VD,ED] = {
+    val nodes: RDD[(VertexId, VD)] =
+      sc.makeRDD(execute(sc,nodeStmt._1,nodeStmt._2).rows.toSeq)
       .map(row => (row(0).asInstanceOf[Long],row(1).asInstanceOf[VD]))
-    val edges: RDD[Edge[ED]] =
-      sc.makeRDD(execute(sc,edgeStmt._1,edgeStmt._2).rows.toSeq)
+    val rels: RDD[Edge[ED]] =
+      sc.makeRDD(execute(sc,relStmt._1,relStmt._2).rows.toSeq)
       .map(row => new Edge[ED](row(0).asInstanceOf[VertexId],row(1).asInstanceOf[VertexId],row(2).asInstanceOf[ED]))
-    Graph[VD,ED](vertices, edges)
+    Graph[VD,ED](nodes, rels)
   }
 
-  def loadGraph[VD:ClassTag,ED:ClassTag](sc: SparkContext, vertexStmt: String, edgeStmt: String) :Graph[VD,ED] = {
-    loadGraph(sc, (vertexStmt,Seq.empty),(edgeStmt,Seq.empty))
+  def loadGraph[VD:ClassTag,ED:ClassTag](sc: SparkContext, nodeStmt: String, relStmt: String) :Graph[VD,ED] = {
+    loadGraph(sc, (nodeStmt,Seq.empty),(relStmt,Seq.empty))
   }
 
   // label1, label2, relTypes are optional
@@ -36,25 +36,25 @@ object Neo4jGraph {
     def label(l : String) = if (l == null) "" else ":`"+l+"`"
     def rels(relTypes : Seq[String]) = relTypes.map(":`"+_+"`").mkString("|")
 
-    val edgeStmt = s"MATCH (n${label(label1)})-[via${rels(relTypes)}]->(m${label(label2)}) RETURN id(n) as from, id(m) as to"
+    val relStmt = s"MATCH (n${label(label1)})-[via${rels(relTypes)}]->(m${label(label2)}) RETURN id(n) as from, id(m) as to"
 
-    loadGraphFromVertexPairs[Any](sc,edgeStmt, Seq.empty)
+    loadGraphFromNodePairs[Any](sc,relStmt)
   }
 
   // MATCH (..)-[r:....]->(..) RETURN id(startNode(r)), id(endNode(r)), r.foo
-  def loadGraphFromEdges[VD:ClassTag,ED:ClassTag](sc: SparkContext, statement: String, parameters: Seq[(String, Any)],defaultValue : VD = Nil) :Graph[VD,ED] = {
-    val edges =
+  def loadGraphFromRels[VD:ClassTag,ED:ClassTag](sc: SparkContext, statement: String, parameters: Seq[(String, Any)], defaultValue : VD = Nil) :Graph[VD,ED] = {
+    val rels =
       sc.makeRDD(execute(sc, statement, parameters).rows.toSeq)
         .map(row => new Edge[ED](row(0).asInstanceOf[VertexId], row(1).asInstanceOf[VertexId],row(2).asInstanceOf[ED]))
-      Graph.fromEdges[VD,ED](edges, defaultValue)
+      Graph.fromEdges[VD,ED](rels, defaultValue)
   }
 
   // MATCH (..)-[r:....]->(..) RETURN id(startNode(r)), id(endNode(r))
-  def loadGraphFromVertexPairs[VD:ClassTag](sc: SparkContext, statement: String, parameters: Seq[(String, Any)], defaultValue : VD = Nil) :Graph[VD, Int] = {
-    val rawEdges: RDD[(VertexId, VertexId)] =
+  def loadGraphFromNodePairs[VD:ClassTag](sc: SparkContext, statement: String, parameters: Seq[(String, Any)] = Seq.empty, defaultValue : VD = Nil) :Graph[VD, Int] = {
+    val rels: RDD[(VertexId, VertexId)] =
       sc.makeRDD(execute(sc,statement,parameters).rows.toSeq)
         .map(row => (row(0).asInstanceOf[Long],row(1).asInstanceOf[Long]))
-    Graph.fromEdgeTuples[VD](rawEdges, defaultValue = defaultValue)
+    Graph.fromEdgeTuples[VD](rels, defaultValue = defaultValue)
   }
 
   def saveGraph[VD:ClassTag,ED:ClassTag](sc: SparkContext, graph: Graph[VD,ED], nodeProp : String = null, relProp: String = null) : (Long,Long) = {
