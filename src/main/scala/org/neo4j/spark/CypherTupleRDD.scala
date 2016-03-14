@@ -5,7 +5,7 @@ import java.util.{Collections, NoSuchElementException}
 
 import org.apache.spark._
 import org.apache.spark.rdd.RDD
-import org.neo4j.driver.v1.{Value, GraphDatabase, Values}
+import org.neo4j.driver.v1.{Driver, Value, GraphDatabase, Values}
 
 import scala.collection.JavaConverters._
 
@@ -16,7 +16,8 @@ class CypherTupleRDD(@transient sc: SparkContext, val query: String, val paramet
   private val config = Neo4jConfig(sc.getConf)
 
   override def compute(split: Partition, context: TaskContext): Iterator[Seq[(String, AnyRef)]] = {
-    val session = GraphDatabase.driver(config.url).session()
+    val driver: Driver = GraphDatabase.driver(config.url)
+    val session = driver.session()
 
     val params: Map[String, Value] = parameters.map((p) => (p._1, Values.value(p._2))).toMap
     val result = session.run(query, params.asJava)
@@ -24,7 +25,15 @@ class CypherTupleRDD(@transient sc: SparkContext, val query: String, val paramet
     var keys: Array[String] = null
     var keyCount: Int = 0
     new Iterator[Seq[(String, AnyRef)]]() {
-      var hasNext: Boolean = result.next()
+      def advance = {
+        val r = result.next()
+        if (!r) {
+          session.close()
+          driver.close()
+        }
+        r
+      }
+      var hasNext: Boolean = advance
 
       override def next(): Seq[(String, AnyRef)] = {
         if (hasNext) {
@@ -46,10 +55,7 @@ class CypherTupleRDD(@transient sc: SparkContext, val query: String, val paramet
               }
               builder.result()
             }
-          hasNext = result.next()
-          if (!hasNext) {
-            session.close()
-          }
+          hasNext = advance
           res
         } else throw new NoSuchElementException
       }

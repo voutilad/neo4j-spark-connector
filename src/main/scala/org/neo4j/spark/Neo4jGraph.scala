@@ -66,7 +66,7 @@ object Neo4jGraph {
         val batchSize = ((graph.vertices.count() / 100) + 1).toInt
         graph.vertices.repartition(batchSize).mapPartitions[Long](
           p => {
-            // TODO was toIterable but bug in java-driver
+            // TODO was toIterable instead of toList but bug in java-driver
             val rows: Any = p.map(v => Seq(("id", v._1), ("value", v._2)).toMap.asJava).toList.asJava
             val res1: Iterator[Array[Any]] = execute(config, updateNodes, Seq(("data", rows))).rows
             val sum: Long = res1.map( x => x(0).asInstanceOf[Long]).sum
@@ -97,12 +97,14 @@ object Neo4jGraph {
     execute(Neo4jConfig(sc.getConf), query, parameters)
   }
   def execute(config: BoltConfig, query: String, parameters: Seq[(String, Any)]): CypherResult = {
-    val session = GraphDatabase.driver(config.url).session()
+    val driver: Driver = GraphDatabase.driver(config.url)
+    val session = driver.session()
 
     val params = parameters.toMap.mapValues(Values.value).asJava
     val result = session.run(query, params)
     if (!result.next()) {
       session.close()
+      driver.close()
       return new CypherResult(Vector.empty, Iterator.empty)
     }
 
@@ -131,6 +133,7 @@ object Neo4jGraph {
           hasNext = result.next()
           if (!hasNext) {
             session.close()
+            driver.close()
           }
           res
         } else throw new NoSuchElementException

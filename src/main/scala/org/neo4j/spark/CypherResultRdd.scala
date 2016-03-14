@@ -11,16 +11,22 @@ import org.neo4j.driver.v1._
 
 import scala.collection.JavaConverters._
 
-class CypherResultRdd(@transient sc: SparkContext, result : ResultCursor, session: Session)
+class CypherResultRdd(@transient sc: SparkContext, result : ResultCursor, session: Session, driver:Driver)
   extends RDD[Row](sc, Nil)
     with Logging {
-
-  private val config = Neo4jConfig(sc.getConf)
 
   override def compute(split: Partition, context: TaskContext): Iterator[Row] = {
     val keyCount = result.size()
 
     new Iterator[Row]() {
+      def advance = {
+        val r = result.next()
+        if (!r) {
+          session.close()
+          driver.close()
+        }
+        r
+      }
       var hasNext: Boolean = true
 
       override def next(): Row = {
@@ -38,10 +44,7 @@ class CypherResultRdd(@transient sc: SparkContext, result : ResultCursor, sessio
             }
             Row.fromSeq(builder.result())
           }
-          hasNext = result.next()
-          if (!hasNext) {
-            session.close()
-          }
+          hasNext = advance
           res
         } else throw new NoSuchElementException
       }
@@ -79,7 +82,8 @@ object CypherDataFrame {
 
   def apply(sqlContext: SQLContext, query: String, parameters: java.util.Map[String, Any]) = {
     val config = Neo4jConfig(sqlContext.sparkContext.getConf)
-    val session = GraphDatabase.driver(config.url).session()
+    val driver: Driver = GraphDatabase.driver(config.url)
+    val session = driver.session()
 
     val params = if (parameters==null) Map[String,Value]().asJava else parameters.asScala.mapValues( Values.value ).asJava
     val result = session.run(query,params)
@@ -87,7 +91,7 @@ object CypherDataFrame {
 
     val fields = result.keys().asScala.map( k => StructField(k, toSparkType(InternalTypeSystem.TYPE_SYSTEM, result.get(k).`type`() )))
     val schema = StructType(fields)
-    val rowRdd = new CypherResultRdd(sqlContext.sparkContext, result, session)
+    val rowRdd = new CypherResultRdd(sqlContext.sparkContext, result, session, driver)
     sqlContext.createDataFrame(rowRdd, schema)
   }
 
