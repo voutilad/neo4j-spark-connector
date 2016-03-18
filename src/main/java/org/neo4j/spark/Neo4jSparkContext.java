@@ -6,7 +6,6 @@ import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.sql.DataFrame;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SQLContext;
-import org.neo4j.driver.v1.Type;
 import scala.Tuple2;
 import scala.collection.Seq;
 
@@ -35,7 +34,7 @@ public class Neo4jSparkContext {
     }
 
     public JavaRDD<Map<String,Object>> query(final String query, final Map<String,Object> parameters) {
-        return CypherRDD.apply(sc, query, parameters).toJavaRDD();
+        return CypherTupleRDD.queryMap(sc, query, parameters).toJavaRDD();
     }
     public JavaRDD<Seq<Tuple2<String, Object>>> queryTuple(final String query, final Map<String,Object> parameters) {
         return CypherTupleRDD.apply(sc, query, parameters).toJavaRDD();

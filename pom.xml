@@ -9,7 +9,8 @@
     <name>neo4j-spark-connector</name>
 
     <properties>
-        <neo4j.version>3.0.0-M04</neo4j.version>
+        <neo4j.version>3.0.0-SNAPSHOT</neo4j.version>
+        <driver.version>1.0.0-M05</driver.version>
     </properties>
 
     <build>
@@ -149,7 +150,7 @@
         <dependency>
             <groupId>org.neo4j.driver</groupId>
             <artifactId>neo4j-java-driver</artifactId>
-            <version>1.0.0-M04</version>
+            <version>${driver.version}</version>
         </dependency>
     </dependencies>
 

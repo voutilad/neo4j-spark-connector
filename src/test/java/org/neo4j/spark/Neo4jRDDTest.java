@@ -9,6 +9,7 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.Test;
+import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 import org.neo4j.harness.ServerControls;
 import org.neo4j.harness.TestServerBuilders;
 import scala.Tuple2;
@@ -41,6 +42,8 @@ public class Neo4jRDDTest {
     @BeforeClass
     public static void setUp() throws Exception {
         server = TestServerBuilders.newInProcessBuilder()
+                .withConfig(GraphDatabaseSettings.boltConnector("0").enabled, "TRUE" )
+                .withConfig(GraphDatabaseSettings.boltConnector("0").encryption_level, "OPTIONAL" )
                 .withFixture(FIXTURE)
                 .newServer();
         conf = new SparkConf()

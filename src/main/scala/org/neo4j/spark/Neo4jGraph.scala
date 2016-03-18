@@ -1,5 +1,7 @@
 package org.neo4j.spark
 
+import java.util
+
 import org.apache.spark._
 import org.apache.spark.graphx._
 import org.apache.spark.rdd.RDD
@@ -16,7 +18,7 @@ object Neo4jGraph {
 
   // nodeStmt: MATCH (n:Label) RETURN id(n) as id UNION MATCH (m:Label2) return id(m) as id
   // relStmt: MATCH (n:Label1)-[r:REL]->(m:Label2) RETURN id(n), id(m), r.foo // or id(r) or type(r) or ...
-  def loadGraph[VD:ClassTag,ED:ClassTag](sc: SparkContext, nodeStmt: (String,Seq[(String, Any)]), relStmt: (String,Seq[(String, Any)])) :Graph[VD,ED] = {
+  def loadGraph[VD:ClassTag,ED:ClassTag](sc: SparkContext, nodeStmt: (String,Seq[(String, AnyRef)]), relStmt: (String,Seq[(String, AnyRef)])) :Graph[VD,ED] = {
     val nodes: RDD[(VertexId, VD)] =
       sc.makeRDD(execute(sc,nodeStmt._1,nodeStmt._2).rows.toSeq)
       .map(row => (row(0).asInstanceOf[Long],row(1).asInstanceOf[VD]))
@@ -42,7 +44,7 @@ object Neo4jGraph {
   }
 
   // MATCH (..)-[r:....]->(..) RETURN id(startNode(r)), id(endNode(r)), r.foo
-  def loadGraphFromRels[VD:ClassTag,ED:ClassTag](sc: SparkContext, statement: String, parameters: Seq[(String, Any)], defaultValue : VD = Nil) :Graph[VD,ED] = {
+  def loadGraphFromRels[VD:ClassTag,ED:ClassTag](sc: SparkContext, statement: String, parameters: Seq[(String, AnyRef)], defaultValue : VD = Nil) :Graph[VD,ED] = {
     val rels =
       sc.makeRDD(execute(sc, statement, parameters).rows.toSeq)
         .map(row => new Edge[ED](row(0).asInstanceOf[VertexId], row(1).asInstanceOf[VertexId],row(2).asInstanceOf[ED]))
@@ -50,7 +52,7 @@ object Neo4jGraph {
   }
 
   // MATCH (..)-[r:....]->(..) RETURN id(startNode(r)), id(endNode(r))
-  def loadGraphFromNodePairs[VD:ClassTag](sc: SparkContext, statement: String, parameters: Seq[(String, Any)] = Seq.empty, defaultValue : VD = Nil) :Graph[VD, Int] = {
+  def loadGraphFromNodePairs[VD:ClassTag](sc: SparkContext, statement: String, parameters: Seq[(String, AnyRef)] = Seq.empty, defaultValue : VD = Nil) :Graph[VD, Int] = {
     val rels: RDD[(VertexId, VertexId)] =
       sc.makeRDD(execute(sc,statement,parameters).rows.toSeq)
         .map(row => (row(0).asInstanceOf[Long],row(1).asInstanceOf[Long]))
@@ -67,8 +69,8 @@ object Neo4jGraph {
         graph.vertices.repartition(batchSize).mapPartitions[Long](
           p => {
             // TODO was toIterable instead of toList but bug in java-driver
-            val rows: Any = p.map(v => Seq(("id", v._1), ("value", v._2)).toMap.asJava).toList.asJava
-            val res1: Iterator[Array[Any]] = execute(config, updateNodes, Seq(("data", rows))).rows
+            val rows = p.map(v => Seq(("id", v._1), ("value", v._2)).toMap.asJava).toList.asJava
+            val res1 = execute(config, updateNodes, Seq(("data", rows))).rows
             val sum: Long = res1.map( x => x(0).asInstanceOf[Long]).sum
             Iterator.apply[Long](sum)
           }
@@ -83,8 +85,8 @@ object Neo4jGraph {
 
         graph.edges.repartition(batchSize).mapPartitions[Long](
           p => {
-            val rows: Any = p.map(e => Seq(("from", e.srcId), ("to", e.dstId), ("value", e.attr))).toList.asJava
-            val res1: Iterator[Array[Any]] = execute(config, updateRels, Seq(("data", rows))).rows
+            val rows = p.map(e => Seq(("from", e.srcId), ("to", e.dstId), ("value", e.attr))).toList.asJava
+            val res1 = execute(config, updateRels, Seq(("data", rows))).rows
             val sum : Long = res1.map(x => x(0).asInstanceOf[Long]).sum
             Iterator.apply[Long](sum)
           }
@@ -93,54 +95,39 @@ object Neo4jGraph {
     (nodesUpdated,relsUpdated) // todo
   }
 
-  def execute(sc: SparkContext, query: String, parameters: Seq[(String, Any)]): CypherResult = {
+  def execute(sc: SparkContext, query: String, parameters: Seq[(String, AnyRef)]): CypherResult = {
     execute(Neo4jConfig(sc.getConf), query, parameters)
   }
-  def execute(config: BoltConfig, query: String, parameters: Seq[(String, Any)]): CypherResult = {
-    val driver: Driver = GraphDatabase.driver(config.url)
+  def execute(config: BoltConfig, query: String, parameters: Seq[(String, AnyRef)]): CypherResult = {
+    val driver: Driver = Neo4jConfig.driver(config.url)
     val session = driver.session()
 
-    val params = parameters.toMap.mapValues(Values.value).asJava
-    val result = session.run(query, params)
-    if (!result.next()) {
+    val result = session.run(query, parameters.toMap.asJava)
+    if (!result.hasNext()) {
       session.close()
       driver.close()
       return new CypherResult(Vector.empty, Iterator.empty)
     }
+    val peek = result.peek()
+    val keyCount = peek.size()
+    val keys = peek.keys().asScala
 
-    val keyCount = result.size()
-    val it = new Iterator[Array[Any]]() {
-      var hasNext: Boolean = true
-
-      def recordToArray(record : Record) : Array[Any] = keyCount match {
-        case 0 => Array.empty[Any]
-        case 1 => Array(record.get(0).asObject())
-        case 2 => Array(record.get(0).asObject(), record.get(1).asObject())
-        case 3 => Array(record.get(0).asObject(), record.get(1).asObject(), record.get(2).asObject())
-        case _ =>
-          val array = new Array[Any](keyCount)
-          var i = 0
-          while (i < keyCount) {
-            array.update(i, record.get(i).asObject())
-            i = i + 1
-          }
-          array
-      }
-
-      override def next(): Array[Any] = {
-        if (hasNext) {
-          val res = recordToArray(result.record())
-          hasNext = result.next()
-          if (!hasNext) {
-            session.close()
-            driver.close()
-          }
-          res
-        } else throw new NoSuchElementException
-      }
-    }
+    val it = result.asScala.map((record) => { keyCount match {
+      case 0 => Array.empty[Any]
+      case 1 => Array(record.get(0).asObject())
+      case 2 => Array(record.get(0).asObject(), record.get(1).asObject())
+      case 3 => Array(record.get(0).asObject(), record.get(1).asObject(), record.get(2).asObject())
+      case _ =>
+        val array = new Array[Any](keyCount)
+        var i = 0
+        while (i < keyCount) {
+          array.update(i, record.get(i).asObject())
+          i = i + 1
+        }
+        array
+    }})
     new CypherResult(result.keys().asScala.toVector, it)
   }
 }
 
-class CypherResult(val cols: IndexedSeq[String], val rows: Iterator[Array[Any]])
+class CypherResult(val cols: IndexedSeq[String], val rows: Iterator[Array[_ >: AnyRef]])

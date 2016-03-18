@@ -1,6 +1,7 @@
 package org.neo4j.spark
 
 import org.apache.spark.SparkConf
+import org.neo4j.driver.v1.{GraphDatabase, Config}
 
 /**
   * @author mh
@@ -14,5 +15,9 @@ object Neo4jConfig {
     // val password: Option[String] = sparkConf.getOption("neo4j.bolt.password")
     BoltConfig(url)
   }
+
+  def boltConfig() = Config.build.withEncryptionLevel(Config.EncryptionLevel.NONE).toConfig
+
+  def driver(url: String) = GraphDatabase.driver( url, boltConfig() )
 }
 case class BoltConfig(val url:String)
