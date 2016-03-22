@@ -1,7 +1,5 @@
 package org.neo4j.spark
 
-import java.util.NoSuchElementException
-
 import org.apache.spark._
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.Row
@@ -9,7 +7,7 @@ import org.neo4j.driver.v1._
 
 import scala.collection.JavaConverters._
 
-class CypherRowRDD(@transient sc: SparkContext, val query: String, val parameters: Seq[(String,AnyRef)])
+class Neo4jRowRDD(@transient sc: SparkContext, val query: String, val parameters: Seq[(String,Any)])
   extends RDD[Row](sc, Nil)
     with Logging {
 
@@ -19,7 +17,7 @@ class CypherRowRDD(@transient sc: SparkContext, val query: String, val parameter
     val driver = Neo4jConfig.driver(config.url)
     val session = driver.session()
 
-    val result : StatementResult = session.run(query,parameters.toMap.asJava)
+    val result : StatementResult = session.run(query,parameters.toMap.mapValues(_.asInstanceOf[AnyRef]).asJava)
 
     result.asScala.map( (record) => {
       val keyCount = record.size()
@@ -45,7 +43,6 @@ class CypherRowRDD(@transient sc: SparkContext, val query: String, val parameter
   override protected def getPartitions: Array[Partition] = Array(new DummyPartition())
 }
 
-object CypherRowRDD {
-  def apply(sc: SparkContext, query: String, parameters:java.util.Map[String,AnyRef]) = new CypherRowRDD(sc, query, if (parameters==null) Seq.empty else parameters.asScala.toSeq)
-  def apply(sc: SparkContext, query: String, parameters:Seq[(String,AnyRef)] = Seq.empty) = new CypherRowRDD(sc, query, parameters)
+object Neo4jRowRDD {
+  def apply(sc: SparkContext, query: String, parameters:Seq[(String,Any)] = Seq.empty) = new Neo4jRowRDD(sc, query, parameters)
 }

@@ -12,12 +12,8 @@ import org.junit.Test;
 import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 import org.neo4j.harness.ServerControls;
 import org.neo4j.harness.TestServerBuilders;
-import scala.Tuple2;
-import scala.collection.Iterator;
-import scala.collection.Seq;
 
 import java.util.Collections;
-import java.util.List;
 import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
@@ -36,7 +32,7 @@ public class Neo4jDataFrameTest {
 
     private static SparkConf conf;
     private static JavaSparkContext sc;
-    private static Neo4jSparkContext csc;
+    private static Neo4JavaSparkContext csc;
     private static ServerControls server;
 
     @BeforeClass
@@ -52,7 +48,7 @@ public class Neo4jDataFrameTest {
                 .set("spark.driver.allowMultipleContexts","true")
                 .set("neo4j.bolt.url", server.boltURI().toString());
         sc = new JavaSparkContext(conf);
-        csc = Neo4jSparkContext.neo4jContext(sc);
+        csc = Neo4JavaSparkContext.neo4jContext(sc);
     }
 
     @AfterClass
