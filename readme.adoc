@@ -56,7 +56,7 @@ There are a few different RDD's all named `Neo4jXxxRDD`
 
 === Setup
 
-Download and install Neo4j 3.0.0-RC1 or later
+Download and install Neo4j 3.0.0-RC1 or later (e.g. from http://neo4j.com/download/other-releases/ or http://alpha.neohq.net)
 
 For a simple dataset of connected people run the two following Cypher statements, that create 1M people and 1M relationships in about a minute.
 
@@ -70,7 +70,7 @@ CREATE (n)-[:KNOWS]->(m);
 
 === Neo4j(Row|Tuple)RDD
 
-.bin/spark-shell --jars neo4j-spark-connector-1.0-SNAPSHOT_2.10-jar-with-dependencies.jar
+.bin/spark-shell --jars neo4j-spark-connector-1.0-SNAPSHOT_2.10-jar-with-dependencies.jar [--conf spark.neo4j.bolt.password=test]
 [source,scala]
 ----
 import org.neo4j.spark._

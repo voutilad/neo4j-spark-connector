@@ -35,9 +35,11 @@ public class Neo4JavaSparkContext {
     public JavaRDD<Map<String,Object>> query(final String query, final Map<String,Object> parameters) {
         return Neo4jJavaIntegration.tupleRDD(sc, query, parameters);
     }
+
     public JavaRDD<Row> queryRow(final String query, final Map<String,Object> parameters) {
         return Neo4jJavaIntegration.rowRDD(sc, query, parameters);
     }
+
     public DataFrame queryDF(final String query, final Map<String,Object> parameters, String...resultSchema) {
         if (resultSchema.length %2 != 0) throw new RuntimeException("Schema information has to be supplied as pairs of columnName,cypherTypeName (INTEGER,FLOAT,BOOLEAN,STRING,NULL)");
         int entries = resultSchema.length / 2;
@@ -47,6 +49,7 @@ public class Neo4JavaSparkContext {
         }
         return Neo4jJavaIntegration.dataFrame(sqlContext, query,parameters, schema);
     }
+
     public DataFrame queryDF(final String query, final Map<String,Object> parameters) {
         return Neo4jDataFrame.apply(sqlContext, query,parameters);
     }

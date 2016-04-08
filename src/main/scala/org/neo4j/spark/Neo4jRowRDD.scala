@@ -14,7 +14,7 @@ class Neo4jRowRDD(@transient sc: SparkContext, val query: String, val parameters
   private val config = Neo4jConfig(sc.getConf)
 
   override def compute(split: Partition, context: TaskContext): Iterator[Row] = {
-    val driver = Neo4jConfig.driver(config.url)
+    val driver = config.driver()
     val session = driver.session()
 
     val result : StatementResult = session.run(query,parameters.toMap.mapValues(_.asInstanceOf[AnyRef]).asJava)

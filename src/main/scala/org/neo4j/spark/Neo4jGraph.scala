@@ -98,8 +98,8 @@ object Neo4jGraph {
   def execute(sc: SparkContext, query: String, parameters: Seq[(String, AnyRef)]): CypherResult = {
     execute(Neo4jConfig(sc.getConf), query, parameters)
   }
-  def execute(config: BoltConfig, query: String, parameters: Seq[(String, AnyRef)]): CypherResult = {
-    val driver: Driver = Neo4jConfig.driver(config.url)
+  def execute(config: Neo4jConfig, query: String, parameters: Seq[(String, AnyRef)]): CypherResult = {
+    val driver: Driver = config.driver()
     val session = driver.session()
 
     val result = session.run(query, parameters.toMap.asJava)

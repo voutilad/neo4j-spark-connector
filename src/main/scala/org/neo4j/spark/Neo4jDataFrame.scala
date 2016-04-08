@@ -35,7 +35,7 @@ object Neo4jDataFrame {
 
   def apply(sqlContext: SQLContext, query: String, parameters: java.util.Map[String, AnyRef]) = {
     val config = Neo4jConfig(sqlContext.sparkContext.getConf)
-    val driver: Driver = Neo4jConfig.driver(config.url)
+    val driver: Driver = config.driver()
     val session = driver.session()
 
     val result = session.run(query,parameters)

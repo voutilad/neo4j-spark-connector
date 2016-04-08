@@ -1,23 +1,33 @@
 package org.neo4j.spark
 
 import org.apache.spark.SparkConf
-import org.neo4j.driver.v1.{GraphDatabase, Config}
+import org.neo4j.driver.v1.{Driver, AuthTokens, Config, GraphDatabase}
 
 /**
   * @author mh
   * @since 02.03.16
   */
-object Neo4jConfig {
-  def apply(sparkConf: SparkConf) : BoltConfig = {
-    val url = sparkConf.get("neo4j.bolt.url", "bolt://localhost")
-    // todo
-    // val user = sparkConf.get("neo4j.bolt.user", "neo4j")
-    // val password: Option[String] = sparkConf.getOption("neo4j.bolt.password")
-    BoltConfig(url)
-  }
+case class Neo4jConfig(val url: String, val user: String = "neo4j", val password: Option[String] = None) {
 
   def boltConfig() = Config.build.withEncryptionLevel(Config.EncryptionLevel.NONE).toConfig
 
-  def driver(url: String) = GraphDatabase.driver( url, boltConfig() )
+  def driver(config: Neo4jConfig) : Driver = config.password match {
+    case Some(pwd) => GraphDatabase.driver(config.url, AuthTokens.basic(config.user, pwd), boltConfig())
+    case _ => GraphDatabase.driver(config.url, boltConfig())
+  }
+
+  def driver() : Driver = driver(this)
+
+  def driver(url: String): Driver = GraphDatabase.driver(url, boltConfig())
+
 }
-case class BoltConfig(val url:String)
+
+object Neo4jConfig {
+  val prefix = "spark.neo4j.bolt."
+  def apply(sparkConf: SparkConf): Neo4jConfig = {
+    val url = sparkConf.get(prefix + "url", "bolt://localhost")
+    val user = sparkConf.get(prefix + "user", "neo4j")
+    val password: Option[String] = sparkConf.getOption(prefix + "password")
+    Neo4jConfig(url, user, password)
+  }
+}

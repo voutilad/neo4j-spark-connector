@@ -39,8 +39,6 @@ public class Neo4jRDDTest {
     @BeforeClass
     public static void setUp() throws Exception {
         server = TestServerBuilders.newInProcessBuilder()
-                .withConfig(GraphDatabaseSettings.boltConnector("0").enabled, "TRUE" )
-                .withConfig(GraphDatabaseSettings.boltConnector("0").encryption_level, "OPTIONAL" )
                 .withFixture(FIXTURE)
                 .newServer();
         conf = new SparkConf()
@@ -69,18 +67,13 @@ public class Neo4jRDDTest {
     @Test
     public void runMatrixQueryTuple() {
 
-        List<Seq<Tuple2<String, Object>>> found = csc.queryTuple(QUERY, PARAMS).collect();
+        List<Map<String, Object>> found = csc.query(QUERY, PARAMS).collect();
 
         assertEquals(1, found.size());
-        Iterator<Tuple2<String, Object>> row = found.get(0).iterator();
+        Map<String, Object> row = found.get(0);
 
-        Tuple2<String, Object> first = row.next();
-        assertEquals("released", first._1);
-        assertEquals(1999L, first._2);
-        Tuple2<String, Object> next = row.next();
-        assertEquals("tagline", next._1);
-        assertEquals("Welcome to the Real World", next._2);
-        assertEquals(false, row.hasNext());
+        assertEquals(1999L, row.get("released"));
+        assertEquals("Welcome to the Real World", row.get("tagline"));
     }
 
     @Test

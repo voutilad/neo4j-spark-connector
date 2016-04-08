@@ -16,7 +16,7 @@ class Neo4jTupleRDD(@transient sc: SparkContext, val query: String, val paramete
   private val config = Neo4jConfig(sc.getConf)
 
   override def compute(split: Partition, context: TaskContext): Iterator[Seq[(String, AnyRef)]] = {
-    val driver: Driver = Neo4jConfig.driver(config.url)
+    val driver: Driver = config.driver()
     val session = driver.session()
 
     val result = session.run(query, parameters.toMap.asJava)

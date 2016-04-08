@@ -6,13 +6,11 @@ import org.apache.spark.graphx.Graph;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 import org.neo4j.harness.ServerControls;
 import org.neo4j.harness.TestServerBuilders;
+import scala.collection.Seq$;
 
 import static org.junit.Assert.assertEquals;
-
-import scala.collection.Seq$;
 
 /**
  * @author mh
@@ -31,8 +29,6 @@ public class Neo4jGraphTest {
     @BeforeClass
     public static void setUp() throws Exception {
         server = TestServerBuilders.newInProcessBuilder()
-                .withConfig(GraphDatabaseSettings.boltConnector("0").enabled, "TRUE" )
-                .withConfig(GraphDatabaseSettings.boltConnector("0").encryption_level, "OPTIONAL" )
                 .withFixture(FIXTURE)
                 .newServer();
         conf = new SparkConf()
