@@ -143,7 +143,10 @@ To build the `neo4j-spark-connector with GraphFrames support build and install G
 ----
 git clone https://github.com/graphframes/graphframes
 cd graphframes
+# scala 2.10
 sbt -Dspark.version=1.6.0 assembly publishM2
+# scala 2.11 you have to patch build.sbt to scalatest 2.13 -> "org.scalatest" %% "scalatest" % "2.1.3" % "test"
+sbt -Dspark.version=1.6.0 assembly publishM2 -Dscala.version=2.11.7
 ----
 
 Or pull the most recent [neo4j-spark-connector jar from here].

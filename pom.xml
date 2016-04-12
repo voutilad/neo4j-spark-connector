@@ -10,7 +10,7 @@
 
     <properties>
         <neo4j.version>3.0.0-M05</neo4j.version>
-        <driver.version>1.0.0-RC1</driver.version>
+        <driver.version>1.0.0-RC2</driver.version>
         <spark.version>1.6.0</spark.version>
         <graphframes.version>0.1.0-spark1.6-SNAPSHOT</graphframes.version>
     </properties>
@@ -136,6 +136,12 @@
                     <groupId>org.apache.spark</groupId>
                     <artifactId>spark-sql_2.11</artifactId>
                     <version>${spark.version}</version>
+                    <scope>provided</scope>
+                </dependency>
+                <dependency>
+                    <groupId>default</groupId> <!-- todo -->
+                    <artifactId>graphframes_2.11</artifactId>
+                    <version>${graphframes.version}</version>
                     <scope>provided</scope>
                 </dependency>
             </dependencies>
