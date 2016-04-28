@@ -1,9 +1,9 @@
 = Neo4j-Spark-Connector based on Neo4j 3.0's Bolt protocol
-:repo: http://github.com/jexp/neo4j-spark-connector
+:repo: http://github.com/neo4j-contrib/neo4j-spark-connector
 
-These are the beginnings / experiments of a Neo4j-Spark-Connector using the new binary protocol for Neo4j, Bolt.
+These are the beginnings of a Neo4j-Spark-Connector using the new binary protocol for Neo4j, Bolt.
 
-Find http://alpha.neohq.net[more information] about the Bolt protocol, available drivers and documentation.
+Find http://neo4j.com/docs/developer-manual/current/#driver-manual-index[more information] about the Bolt protocol, available drivers and documentation.
 
 [NOTE]
 Please note that I still know very little about Apache Spark and might have done really dumb things.
@@ -17,6 +17,8 @@ This neo4j-spark-connector is Apache 2 Licensed
 
 Build `target/neo4j-spark-connector-1.0-SNAPSHOT_2.10-jar-with-dependencies.jar` for Scala 2.10
 ----
+git clone https://github.com/neo4j-contrib/neo4j-spark-connector
+cd neo4j-spark-connector
 mvn clean compile assembly:single -DskipTests -Pscala_2.10
 ----
 
@@ -28,6 +30,7 @@ mvn clean install assembly:single
 == Config
 
 You provide the `neo4j.bolt.url` in your `SparkConf` pointing e.g. to `bolt://localhost`.
+You can provide username and password as part of the URL `bolt://neo4j:<password>:localhost`
 
 == RDD's
 
@@ -52,11 +55,25 @@ There are a few different RDD's all named `Neo4jXxxRDD`
 * `Neo4jGraph.loadGraphFromRels(sc,stmt,params)` loads a graph from pairs of start- and end-node-id's and and additional value per relationship
 * `Neo4jGraph.loadGraph(sc, (stmt,params), (stmt,params))` loads a graph with two dedicated statements first for nodes, second for relationships
 
+== Graph Frames
+
+GraphFrames are a new Spark API to process graph data.
+
+It is similar and based on DataFrames, you can create GraphFrames from DataFrames and also from GraphX graphs.
+
+GraphFrames are still early in development and had no release, so you have to build it yourself.
+
+* `Neo4jGraphFrame(sqlContext, (srcNodeLabel,nodeProp), (relType,relProp), dst:(dstNodeLabel,dstNodeProp)` loads a graph with the given source and destination nodes and the relationships in between, the relationship-property is optional and can be null
+* `Neo4jGraphFrame.fromGraphX(sc,label,Seq(rel-type),label)` loads a graph with the given pattern
+* `Neo4jGraphFrame.fromEdges(sqlContext, srcNodeLabel, Seq(relType), dstNodeLabel)`
+
+
+
 == Example Usage
 
 === Setup
 
-Download and install Neo4j 3.0.0-RC1 or later (e.g. from http://neo4j.com/download/other-releases/ or http://alpha.neohq.net)
+Download and install Neo4j 3.0.0 or later (e.g. from http://neo4j.com/download/)
 
 For a simple dataset of connected people run the two following Cypher statements, that create 1M people and 1M relationships in about a minute.
 
