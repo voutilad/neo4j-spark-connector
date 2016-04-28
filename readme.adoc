@@ -89,12 +89,32 @@ Neo4jRowRDD(sc,"cypher runtime=compiled MATCH (n) where id(n) < {maxId} return i
 ----
 import org.neo4j.spark._
 import org.apache.spark.sql.types._
+import org.apache.spark.sql.functions._
 
 val df = Neo4jDataFrame.withDataType(sqlContext, "cypher runtime=compiled MATCH (n) return id(n) as id",Seq.empty, ("id",LongType))
 // df: org.apache.spark.sql.DataFrame = [id: bigint]
 
 df.count
 // res0: Long = 1000000
+
+
+val query = "cypher runtime=compiled MATCH (n:Person) return n.age as age"
+val df = Neo4jDataFrame.withDataType(sqlContext,query, Seq.empty, ("age",LongType))
+// df: org.apache.spark.sql.DataFrame = [age: bigint]
+df.agg(sum(df.col("age"))).collect()
+// res31: Array[org.apache.spark.sql.Row] = Array([49500000])
+
+query: String = cypher runtime=compiled MATCH (n:Person) return n.age as age
+
+// val query = "cypher runtime=compiled MATCH (n:Person)-[:KNOWS]->(m:Person) where n.id = {x} return m.age as age"
+val query = "cypher runtime=compiled MATCH (n:Person) where n.id = {x} return n.age as age"
+val rdd = sc.makeRDD(1.to(1000000))
+val ages = rdd.map( i => {
+    val df = Neo4jDataFrame.withDataType(sqlContext,query, Seq("x"->i.asInstanceOf[AnyRef]), ("age",LongType))
+    df.agg(sum(df("age"))).first().getLong(0)
+    })
+// TODO
+val ages.reduce( _ + _ )
 
 
 val df = Neo4jDataFrame(sqlContext, "cypher runtime=compiled MATCH (n) WHERE id(n) < {maxId} return n.name as name",Seq(("maxId",100000)),("name","string"))

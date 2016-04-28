@@ -9,8 +9,8 @@
     <name>neo4j-spark-connector</name>
 
     <properties>
-        <neo4j.version>3.0.0-M05</neo4j.version>
-        <driver.version>1.0.0-RC2</driver.version>
+        <neo4j.version>3.0.0</neo4j.version>
+        <driver.version>1.0.0</driver.version>
         <spark.version>1.6.0</spark.version>
         <graphframes.version>0.1.0-spark1.6-SNAPSHOT</graphframes.version>
     </properties>
