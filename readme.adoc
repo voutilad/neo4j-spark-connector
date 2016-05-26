@@ -1,5 +1,5 @@
 = Neo4j-Spark-Connector based on Neo4j 3.0's Bolt protocol
-:repo: http://github.com/neo4j-contrib/neo4j-spark-connector
+:repo: https://github.com/neo4j-contrib/neo4j-spark-connector
 
 These are the beginnings of a Neo4j-Spark-Connector using the new binary protocol for Neo4j, Bolt.
 
@@ -16,6 +16,7 @@ This neo4j-spark-connector is Apache 2 Licensed
 == Building
 
 Build `target/neo4j-spark-connector-1.0-SNAPSHOT_2.10-jar-with-dependencies.jar` for Scala 2.10
+
 ----
 git clone https://github.com/neo4j-contrib/neo4j-spark-connector
 cd neo4j-spark-connector
@@ -29,8 +30,8 @@ mvn clean install assembly:single
 
 == Config
 
-You provide the `neo4j.bolt.url` in your `SparkConf` pointing e.g. to `bolt://localhost`.
-You can provide username and password as part of the URL `bolt://neo4j:<password>:localhost`
+You provide the `spark.neo4j.bolt.url` in your `SparkConf` pointing e.g. to `bolt://localhost`.
+You can provide username and password as part of the URL `bolt://neo4j:<password>@localhost`
 
 == RDD's
 
@@ -57,16 +58,16 @@ There are a few different RDD's all named `Neo4jXxxRDD`
 
 == Graph Frames
 
-GraphFrames are a new Spark API to process graph data.
+http://graphframes.github.io/[GraphFrames] (http://spark-packages.org/package/graphframes/graphframes[Spark Packages]) are a new Spark API to process graph data.
 
 It is similar and based on DataFrames, you can create GraphFrames from DataFrames and also from GraphX graphs.
 
-GraphFrames are still early in development and had no release, so you have to build it yourself.
+[NOTE]
+GraphFrames are still early in development and had only a first release 0.1.0, which is currently only available for Scala 2.10.
 
 * `Neo4jGraphFrame(sqlContext, (srcNodeLabel,nodeProp), (relType,relProp), dst:(dstNodeLabel,dstNodeProp)` loads a graph with the given source and destination nodes and the relationships in between, the relationship-property is optional and can be null
 * `Neo4jGraphFrame.fromGraphX(sc,label,Seq(rel-type),label)` loads a graph with the given pattern
 * `Neo4jGraphFrame.fromEdges(sqlContext, srcNodeLabel, Seq(relType), dstNodeLabel)`
-
 
 
 == Example Usage
@@ -173,20 +174,8 @@ GraphFrames are a new Spark API to process graph data.
 
 It is similar and based on DataFrames, you can create GraphFrames from DataFrames and also from GraphX graphs.
 
-As it is currently developing you have to https://github.com/graphframes/graphframes[build it yourself] or pull the http://spark-packages.org/package/graphframes/graphframes[Spark 1.6 jar from here].
 
-To build the `neo4j-spark-connector with GraphFrames support build and install GraphFrames locally with:
-
-----
-git clone https://github.com/graphframes/graphframes
-cd graphframes
-# scala 2.10
-sbt -Dspark.version=1.6.0 assembly publishM2
-# scala 2.11 you have to patch build.sbt to scalatest 2.13 -> "org.scalatest" %% "scalatest" % "2.1.3" % "test"
-sbt -Dspark.version=1.6.0 assembly publishM2 -Dscala.version=2.11.7
-----
-
-Or pull the most recent [neo4j-spark-connector jar from here].
+There was a first release (0.1.0) of GraphFrames which is only available for Scala 2.10 which is available on the http://dl.bintray.com/spark-packages/maven/graphframes/graphframes[Maven repository for Spark Packages].
 
 Resources:
 
@@ -235,18 +224,31 @@ val results = gdf.find("(A)-[]->(B); (B)-[]->(C); !(A)-[]->(C)").filter("A.id !=
 val results = results.select("A", "C").take(3)
 
 gdf.labelPropagation.maxIter(3).run().take(3)
-
-
 ----
 
-== Driver
+
+You can also https://github.com/graphframes/graphframes[build it yourself] or pull the http://spark-packages.org/package/graphframes/graphframes[Spark 1.6 jar from the Spark Packages page].
+
+To build the `neo4j-spark-connector with GraphFrames support build and install GraphFrames locally with:
+
+----
+git clone https://github.com/graphframes/graphframes
+cd graphframes
+# scala 2.10
+sbt -Dspark.version=1.6.0 assembly publishM2
+# scala 2.11 you have to patch build.sbt to scalatest 2.13 -> "org.scalatest" %% "scalatest" % "2.1.3" % "test"
+sbt -Dspark.version=1.6.0 assembly publishM2 -Dscala.version=2.11.7
+----
+
+
+== Neo4j-Java-Driver
 
 The project uses the http://github.com/neo4j/neo4j-java-driver[java driver] for Neo4j's Bolt protocol.
-You add it via the `org.neo4j.driver:neo4j-java-driver:1.0.0-M04` dependency.
+We use its `org.neo4j.driver:neo4j-java-driver:1.0.1` version.
 
 == Testing
 
-Testing is done using `neo4j-harness`, a http://neo4j.com/docs/stable/server-unmanaged-extensions-testing.html[test library] for starting an in-process Neo4j-Server which you can use either with a JUnit `@Rule` or directly.
+Testing is done using `neo4j-harness`, a http://neo4j.com/docs/java-reference/current/#server-unmanaged-extensions-testing[test library] for starting an in-process Neo4j-Server which you can use either with a JUnit `@Rule` or directly.
 I only start one server and one SparkContext per test-class to avoid the lifecycle overhead. 
 
 [NOTE]
