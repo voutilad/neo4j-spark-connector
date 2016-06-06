@@ -25,8 +25,8 @@
     </licenses>
 
     <properties>
-        <neo4j.version>3.0.1</neo4j.version>
-        <driver.version>1.0.1</driver.version>
+        <neo4j.version>3.0.2</neo4j.version>
+        <driver.version>1.0.2</driver.version>
         <spark.version>1.6.0</spark.version>
         <graphframes.version>0.1.0-spark1.6</graphframes.version>
     </properties>
