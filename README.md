@@ -13,7 +13,7 @@ This neo4j-spark-connector is Apache 2 Licensed
 
 ## Building
 
-Build `target/neo4j-spark-connector-1.0-SNAPSHOT_2.10-jar-with-dependencies.jar` for Scala 2.10
+Build `target/neo4j-spark-connector_2.10-1.0.0-RC1-full.jar` for Scala 2.10
 
 
     git clone https://github.com/neo4j-contrib/neo4j-spark-connector
@@ -21,7 +21,7 @@ Build `target/neo4j-spark-connector-1.0-SNAPSHOT_2.10-jar-with-dependencies.jar`
     mvn clean compile assembly:single -DskipTests -Pscala_2.10
 
 
-Build `target/neo4j-spark-connector-1.0-SNAPSHOT_2.11-jar-with-dependencies.jar` for Scala 2.11
+Build `target/neo4j-spark-connector_2.11-full-1.0.0-RC1.jar` for Scala 2.11
 
 
     mvn clean install assembly:single
@@ -29,8 +29,12 @@ Build `target/neo4j-spark-connector-1.0-SNAPSHOT_2.11-jar-with-dependencies.jar`
 
 ## Config
 
-You provide the `spark.neo4j.bolt.url` in your `SparkConf` pointing e.g. to `bolt://localhost`.
-You can provide username and password as part of the URL `bolt://neo4j:<password>@localhost`
+If you're running Neo4j on localhost with the default ports, you onl have to configure your password in `spark.neo4j.bolt.password=<password>`.
+	
+Otherwise set the `spark.neo4j.bolt.url` in your `SparkConf` pointing e.g. to `bolt://host:port`.
+
+You can provide user and password as part of the URL `bolt://neo4j:<password>@localhost` or individually in `spark.neo4j.bolt.user` and `spark.neo4j.bolt.password`.
+
 
 ## RDD's
 
@@ -83,10 +87,17 @@ For a simple dataset of connected people run the two following Cypher statements
     MATCH (n),(m) WHERE id(n) = x AND id(m)=toInt(rand()*1000000)
     CREATE (n)-[:KNOWS]->(m);
 
+### Dependencies
+
+You can also provide the dependencies to spark-shell or spark-submit via `--packages` and `--repositories`.
+
+    bin/spark-shell \
+    --packages org.neo4j.spark:neo4j-spark-connector_2.10:1.0.0-RC1,graphframes:graphframes:0.1.0-spark1.6 \
+    --repositories https://m2.neo4j.org/content/repositories/releases,http://dl.bintray.com/spark-packages/maven
 
 ### Neo4j(Row|Tuple)RDD
 
-`bin/spark-shell --jars neo4j-spark-connector-1.0-SNAPSHOT_2.10-jar-with-dependencies.jar [--conf spark.neo4j.bolt.password=test]`
+`bin/spark-shell --jars neo4j-spark-connector_2.10-1.0.0-RC1-full.jar [--conf spark.neo4j.bolt.password=test]`
 
 
     import org.neo4j.spark._
@@ -100,7 +111,7 @@ For a simple dataset of connected people run the two following Cypher statements
 
 ### Neo4jDataFrame
 
-`bin/spark-shell --jars neo4j-spark-connector-1.0-SNAPSHOT_2.10-jar-with-dependencies.jar`
+`bin/spark-shell --jars neo4j-spark-connector_2.10-1.0.0-RC1-full.jar`
 
 
     import org.neo4j.spark._
@@ -140,7 +151,7 @@ For a simple dataset of connected people run the two following Cypher statements
 
 ### Neo4jGraph Operations
 
-`bin/spark-shell --jars neo4j-spark-connector-1.0-SNAPSHOT_2.10-jar-with-dependencies.jar`
+`bin/spark-shell --jars neo4j-spark-connector_2.10-1.0.0-RC1-full.jar`
 
 
     import org.neo4j.spark._
@@ -183,7 +194,7 @@ Resources:
 // * [SparkSummit Video](https://spark-summit.org/east-2016/speakers/ankur-dave/)
 
 
-`bin/spark-shell --jars neo4j-spark-connector-1.0-SNAPSHOT_2.10-jar-with-dependencies.jar,graphframes-0.1.0-spark1.6.jar --total-executor-cores 3 --executor-cores 1`
+`bin/spark-shell --jars neo4j-spark-connector_2.10-1.0.0-RC1-full.jar,graphframes-0.1.0-spark1.6.jar --total-executor-cores 3 --executor-cores 1`
 
 
     import org.neo4j.spark._
