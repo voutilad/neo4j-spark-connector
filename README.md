@@ -199,7 +199,7 @@ Resources:
 
     import org.neo4j.spark._
     
-    val gdf = Neo4jGraphFrame(sqlContext,("Person","name"),("KNOWS","none"),("Person","name"))
+    val gdf = Neo4jGraphFrame(sqlContext,("Person","name"),("KNOWS",null),("Person","name"))
     // gdf: org.graphframes.GraphFrame = GraphFrame(v:[id: bigint, prop: string], e:[src: bigint, dst: bigint, prop: string])
     
     val gdf = Neo4jGraphFrame.fromGraphX(sc,"Person",Seq("KNOWS"),"Person")
