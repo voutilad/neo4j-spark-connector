@@ -89,11 +89,12 @@ For a simple dataset of connected people run the two following Cypher statements
 
 ### Dependencies
 
-You can also provide the dependencies to spark-shell or spark-submit via `--packages` and `--repositories`.
+You can also provide the dependencies to spark-shell or spark-submit via `--packages` and optionally `--repositories`.
 
     bin/spark-shell \
-    --packages org.neo4j.spark:neo4j-spark-connector_2.10:1.0.0-RC1,graphframes:graphframes:0.1.0-spark1.6 \
-    --repositories https://m2.neo4j.org/content/repositories/releases,http://dl.bintray.com/spark-packages/maven
+    $SPARK_HOME/bin/spark-shell \
+          --conf spark.neo4j.bolt.password=<neo4j-password> \
+          --packages neo4j-contrib:neo4j-spark-connector:1.0.0-RC1,graphframes:graphframes:0.1.0-spark1.6
 
 ### Neo4j(Row|Tuple)RDD
 
