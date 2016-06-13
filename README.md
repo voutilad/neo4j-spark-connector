@@ -91,14 +91,14 @@ For a simple dataset of connected people run the two following Cypher statements
 
 You can also provide the dependencies to spark-shell or spark-submit via `--packages` and optionally `--repositories`.
 
-    bin/spark-shell \
     $SPARK_HOME/bin/spark-shell \
           --conf spark.neo4j.bolt.password=<neo4j-password> \
           --packages neo4j-contrib:neo4j-spark-connector:1.0.0-RC1,graphframes:graphframes:0.1.0-spark1.6
 
 ### Neo4j(Row|Tuple)RDD
 
-`bin/spark-shell --jars neo4j-spark-connector_2.10-1.0.0-RC1-full.jar [--conf spark.neo4j.bolt.password=test]`
+    $SPARK_HOME/bin/spark-shell --conf spark.neo4j.bolt.password=<neo4j-password> \
+    --packages neo4j-contrib:neo4j-spark-connector:1.0.0-RC1
 
 
     import org.neo4j.spark._
@@ -112,7 +112,8 @@ You can also provide the dependencies to spark-shell or spark-submit via `--pack
 
 ### Neo4jDataFrame
 
-`bin/spark-shell --jars neo4j-spark-connector_2.10-1.0.0-RC1-full.jar`
+    $SPARK_HOME/bin/spark-shell --conf spark.neo4j.bolt.password=<neo4j-password> \
+    --packages neo4j-contrib:neo4j-spark-connector:1.0.0-RC1
 
 
     import org.neo4j.spark._
@@ -152,7 +153,8 @@ You can also provide the dependencies to spark-shell or spark-submit via `--pack
 
 ### Neo4jGraph Operations
 
-`bin/spark-shell --jars neo4j-spark-connector_2.10-1.0.0-RC1-full.jar`
+    $SPARK_HOME/bin/spark-shell --conf spark.neo4j.bolt.password=<neo4j-password> \
+    --packages neo4j-contrib:neo4j-spark-connector:1.0.0-RC1
 
 
     import org.neo4j.spark._
@@ -195,7 +197,8 @@ Resources:
 // * [SparkSummit Video](https://spark-summit.org/east-2016/speakers/ankur-dave/)
 
 
-`bin/spark-shell --jars neo4j-spark-connector_2.10-1.0.0-RC1-full.jar,graphframes-0.1.0-spark1.6.jar --total-executor-cores 3 --executor-cores 1`
+    $SPARK_HOME/bin/spark-shell --conf spark.neo4j.bolt.password=<neo4j-password> \
+    --packages neo4j-contrib:neo4j-spark-connector:1.0.0-RC1,graphframes:graphframes:0.1.0-spark1.6
 
 
     import org.neo4j.spark._
@@ -204,8 +207,6 @@ Resources:
     // gdf: org.graphframes.GraphFrame = GraphFrame(v:[id: bigint, prop: string], e:[src: bigint, dst: bigint, prop: string])
     
     val gdf = Neo4jGraphFrame.fromGraphX(sc,"Person",Seq("KNOWS"),"Person")
-    val gdf = Neo4jGraphFrame.fromGraphX(sc,"Person",Seq("KNOWS"),"Person")
-    
     
     gdf.vertices.count
     // res0: Long = 1000000
