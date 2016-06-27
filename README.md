@@ -103,10 +103,10 @@ You can also provide the dependencies to spark-shell or spark-submit via `--pack
 
     import org.neo4j.spark._
     
-    Neo4jTupleRDD(sc,"cypher runtime=compiled MATCH (n) return id(n)",Seq.empty).count
+    Neo4jTupleRDD(sc,"MATCH (n) return id(n)",Seq.empty).count
     // res46: Long = 1000000
     
-    Neo4jRowRDD(sc,"cypher runtime=compiled MATCH (n) where id(n) < {maxId} return id(n)",Seq(("maxId",100000))).count
+    Neo4jRowRDD(sc,"MATCH (n) where id(n) < {maxId} return id(n)",Seq(("maxId",100000))).count
     // res47: Long = 100000
 
 
@@ -120,23 +120,21 @@ You can also provide the dependencies to spark-shell or spark-submit via `--pack
     import org.apache.spark.sql.types._
     import org.apache.spark.sql.functions._
     
-    val df = Neo4jDataFrame.withDataType(sqlContext, "cypher runtime=compiled MATCH (n) return id(n) as id",Seq.empty, ("id",LongType))
+    val df = Neo4jDataFrame.withDataType(sqlContext, "MATCH (n) return id(n) as id",Seq.empty, ("id",LongType))
     // df: org.apache.spark.sql.DataFrame = [id: bigint]
     
     df.count
     // res0: Long = 1000000
     
     
-    val query = "cypher runtime=compiled MATCH (n:Person) return n.age as age"
+    val query = "MATCH (n:Person) return n.age as age"
     val df = Neo4jDataFrame.withDataType(sqlContext,query, Seq.empty, ("age",LongType))
     // df: org.apache.spark.sql.DataFrame = [age: bigint]
     df.agg(sum(df.col("age"))).collect()
     // res31: Array[org.apache.spark.sql.Row] = Array([49500000])
     
-    query: String = cypher runtime=compiled MATCH (n:Person) return n.age as age
-    
-    // val query = "cypher runtime=compiled MATCH (n:Person)-[:KNOWS]->(m:Person) where n.id = {x} return m.age as age"
-    val query = "cypher runtime=compiled MATCH (n:Person) where n.id = {x} return n.age as age"
+    // val query = "MATCH (n:Person)-[:KNOWS]->(m:Person) where n.id = {x} return m.age as age"
+    val query = "MATCH (n:Person) where n.id = {x} return n.age as age"
     val rdd = sc.makeRDD(1.to(1000000))
     val ages = rdd.map( i => {
         val df = Neo4jDataFrame.withDataType(sqlContext,query, Seq("x"->i.asInstanceOf[AnyRef]), ("age",LongType))
@@ -146,7 +144,7 @@ You can also provide the dependencies to spark-shell or spark-submit via `--pack
     val ages.reduce( _ + _ )
     
     
-    val df = Neo4jDataFrame(sqlContext, "cypher runtime=compiled MATCH (n) WHERE id(n) < {maxId} return n.name as name",Seq(("maxId",100000)),("name","string"))
+    val df = Neo4jDataFrame(sqlContext, "MATCH (n) WHERE id(n) < {maxId} return n.name as name",Seq(("maxId",100000)),("name","string"))
     df.count
     // res0: Long = 100000
 
