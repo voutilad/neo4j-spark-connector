@@ -101,14 +101,18 @@ You can also provide the dependencies to spark-shell or spark-submit via `--pack
     --packages neo4j-contrib:neo4j-spark-connector:1.0.0-RC1
 
 ```scala
+<!-- tag::example_rdd[] -->
+
     import org.neo4j.spark._
     
     Neo4jTupleRDD(sc,"MATCH (n) return id(n)",Seq.empty).count
     // res46: Long = 1000000
     
-    Neo4jRowRDD(sc,"MATCH (n) where id(n) < {maxId} return id(n)",Seq(("maxId",100000))).count
+    Neo4jRowRDD(sc,"MATCH (n) where id(n) < {maxId} return id(n)",Seq("maxId" -> 100000)).count
     // res47: Long = 100000
+<!-- end::example_rdd[] -->
 ```
+
 
 ### Neo4jDataFrame
 
@@ -120,7 +124,7 @@ You can also provide the dependencies to spark-shell or spark-submit via `--pack
     import org.apache.spark.sql.types._
     import org.apache.spark.sql.functions._
     
-    val df = Neo4jDataFrame.withDataType(sqlContext, "MATCH (n) return id(n) as id",Seq.empty, ("id",LongType))
+    val df = Neo4jDataFrame.withDataType(sqlContext, "MATCH (n) return id(n) as id",Seq.empty, "id" -> LongType)
     // df: org.apache.spark.sql.DataFrame = [id: bigint]
     
     df.count
@@ -128,23 +132,24 @@ You can also provide the dependencies to spark-shell or spark-submit via `--pack
     
     
     val query = "MATCH (n:Person) return n.age as age"
-    val df = Neo4jDataFrame.withDataType(sqlContext,query, Seq.empty, ("age",LongType))
+    val df = Neo4jDataFrame.withDataType(sqlContext,query, Seq.empty, "age" -> LongType)
     // df: org.apache.spark.sql.DataFrame = [age: bigint]
     df.agg(sum(df.col("age"))).collect()
     // res31: Array[org.apache.spark.sql.Row] = Array([49500000])
+    
+    query: String = MATCH (n:Person) return n.age as age
     
     // val query = "MATCH (n:Person)-[:KNOWS]->(m:Person) where n.id = {x} return m.age as age"
     val query = "MATCH (n:Person) where n.id = {x} return n.age as age"
     val rdd = sc.makeRDD(1.to(1000000))
     val ages = rdd.map( i => {
-        val df = Neo4jDataFrame.withDataType(sqlContext,query, Seq("x"->i.asInstanceOf[AnyRef]), ("age",LongType))
+        val df = Neo4jDataFrame.withDataType(sqlContext,query, Seq("x"->i.asInstanceOf[AnyRef]), "age" -> LongType)
         df.agg(sum(df("age"))).first().getLong(0)
         })
     // TODO
     val ages.reduce( _ + _ )
     
-    
-    val df = Neo4jDataFrame(sqlContext, "MATCH (n) WHERE id(n) < {maxId} return n.name as name",Seq(("maxId",100000)),("name","string"))
+    val df = Neo4jDataFrame(sqlContext, "MATCH (n) WHERE id(n) < {maxId} return n.name as name",Seq("maxId" -> 100000),"name" -> "string")
     df.count
     // res0: Long = 100000
 ```
@@ -199,30 +204,38 @@ Resources:
     --packages neo4j-contrib:neo4j-spark-connector:1.0.0-RC1,graphframes:graphframes:0.1.0-spark1.6
 
 ```scala  
+<!-- tag::example_graphframes[] -->
 
     import org.neo4j.spark._
     
-    val gdf = Neo4jGraphFrame(sqlContext,("Person","name"),("KNOWS",null),("Person","name"))
-    // gdf: org.graphframes.GraphFrame = GraphFrame(v:[id: bigint, prop: string], e:[src: bigint, dst: bigint, prop: string])
+    val gdf = Neo4jGraphFrame(sqlContext,"Person" -> "name",("KNOWS"),"Person" -> "name")
+    // gdf: org.graphframes.GraphFrame = GraphFrame(v:[id: bigint, prop: string], 
+    //                                e:[src: bigint, dst: bigint, prop: string])
     
     val gdf = Neo4jGraphFrame.fromGraphX(sc,"Person",Seq("KNOWS"),"Person")
     
-    gdf.vertices.count
-    // res0: Long = 1000000
+    gdf.vertices.count // res0: Long = 1000000
     
-    gdf.edges.count
-    // res3: Long = 999999
+    gdf.edges.count    // res1: Long = 999999
     
     val results = gdf.pageRank.resetProbability(0.15).maxIter(5).run
-    // results: org.graphframes.GraphFrame = GraphFrame(v:[id: bigint, prop: string, pagerank: double], e:[src: bigint, dst: bigint, prop: string, weight: double])
+    
+    // results: org.graphframes.GraphFrame = GraphFrame(
+    //                   v:[id: bigint, prop: string, pagerank: double], 
+    //                   e:[src: bigint, dst: bigint, prop: string, weight: double])
     
     results.vertices.take(5)
-    // res5: Array[org.apache.spark.sql.Row] = Array([31,name32,0.96820096875], [231,name232,0.15], [431,name432,0.15], [631,name632,1.1248028437499997], [831,name832,0.15])
+    
+    // res3: Array[org.apache.spark.sql.Row] = Array([31,name32,0.96820096875], [231,name232,0.15], 
+    // [431,name432,0.15], [631,name632,1.1248028437499997], [831,name832,0.15])
     
     // pattern matching
     val results = gdf.find("(A)-[]->(B)").select("A","B").take(3)
-    // results: Array[org.apache.spark.sql.Row] = Array([[159148,name159149],[31,name32]], [[461182,name461183],[631,name632]], [[296686,name296687],[1031,name1032]])
+    // results: Array[org.apache.spark.sql.Row] = Array([[159148,name159149],[31,name32]], 
+    // [[461182,name461183],[631,name632]], [[296686,name296687],[1031,name1032]])
     
+<!-- end::example_graphframes[] -->
+
     gdf.find("(A)-[]->(B);(B)-[]->(C); !(A)-[]->(C)")
     // res8: org.apache.spark.sql.DataFrame = [A: struct<id:bigint,prop:string>, B: struct<id:bigint,prop:string>, C: struct<id:bigint,prop:string>]
     
@@ -255,7 +268,7 @@ To build the `neo4j-spark-connector with GraphFrames support build and install G
 ## Neo4j-Java-Driver
 
 The project uses the [java driver](http://github.com/neo4j/neo4j-java-driver) for Neo4j's Bolt protocol.
-We use its `org.neo4j.driver:neo4j-java-driver:1.0.1` version.
+We use its `org.neo4j.driver:neo4j-java-driver:1.0.3` version.
 
 ## Testing
 
