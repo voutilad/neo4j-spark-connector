@@ -2,7 +2,7 @@ package org.neo4j.spark;
 
 import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaSparkContext;
-import org.apache.spark.sql.DataFrame;
+import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.types.StructType;
 import org.junit.AfterClass;
@@ -56,7 +56,7 @@ public class Neo4jDataFrameTest {
 
     @Test
     public void runMatrixQueryDFSchema() {
-        DataFrame found = csc.queryDF(QUERY, PARAMS,"released", "integer","tagline", "string");
+        Dataset<Row> found = csc.queryDF(QUERY, PARAMS,"released", "integer","tagline", "string");
         assertEquals(1, found.count());
         StructType schema = found.schema();
         assertEquals("long", schema.apply("released").dataType().typeName());
@@ -72,7 +72,7 @@ public class Neo4jDataFrameTest {
     @Test
     @Ignore("todo result & session not serializable for CypherResultRDD")
     public void runMatrixQueryDF() {
-        DataFrame found = csc.queryDF(QUERY, PARAMS);
+        Dataset<Row> found = csc.queryDF(QUERY, PARAMS);
         assertEquals(1, found.count());
         StructType schema = found.schema();
         assertEquals("long", schema.apply("released").dataType().typeName());

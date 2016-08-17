@@ -93,8 +93,7 @@ object Neo4jDataFrame {
 //    case _ => types.StringType
 //  }
 class Neo4jResultRdd(@transient sc: SparkContext, result : Iterator[Record], keyCount : Int, session: Session, driver:Driver)
-  extends RDD[Row](sc, Nil)
-    with Logging {
+  extends RDD[Row](sc, Nil) {
 
   override def compute(split: Partition, context: TaskContext): Iterator[Row] = {
     result.map((record) => {
