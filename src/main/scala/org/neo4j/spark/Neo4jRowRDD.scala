@@ -8,8 +8,7 @@ import org.neo4j.driver.v1._
 import scala.collection.JavaConverters._
 
 class Neo4jRowRDD(@transient sc: SparkContext, val query: String, val parameters: Seq[(String,Any)])
-  extends RDD[Row](sc, Nil)
-    with Logging {
+  extends RDD[Row](sc, Nil) {
 
   private val config = Neo4jConfig(sc.getConf)
 

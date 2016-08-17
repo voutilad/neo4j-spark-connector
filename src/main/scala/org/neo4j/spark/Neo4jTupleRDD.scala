@@ -10,8 +10,7 @@ import org.neo4j.driver.v1.{Driver, Value, GraphDatabase, Values}
 import scala.collection.JavaConverters._
 
 class Neo4jTupleRDD(@transient sc: SparkContext, val query: String, val parameters: Seq[(String, AnyRef)])
-  extends RDD[Seq[(String, AnyRef)]](sc, Nil)
-    with Logging {
+  extends RDD[Seq[(String, AnyRef)]](sc, Nil) {
 
   private val config = Neo4jConfig(sc.getConf)
 
