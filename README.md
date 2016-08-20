@@ -130,7 +130,7 @@ You can also provide the dependencies to spark-shell or spark-submit via `--pack
 
     $SPARK_HOME/bin/spark-shell \
           --conf spark.neo4j.bolt.password=<neo4j-password> \
-          --packages neo4j-contrib:neo4j-spark-connector:2.0.0-M1,graphframes:graphframes:0.2.0-spark
+          --packages neo4j-contrib:neo4j-spark-connector:2.0.0-M1,graphframes:graphframes:0.2.0-spark2.0-s_2.11
 
 ### Neo4j(Row|Tuple)RDD
 
@@ -226,7 +226,7 @@ GraphFrames are a new Apache Spark API to process graph data.
 It is similar and based on DataFrames, you can create GraphFrames from DataFrames and also from GraphX graphs.
 
 
-There was a release (0.2.0) of GraphFrames for Spark 2.0 and Scala 2.11 which we use.
+There was a recent release (0.2.0) of GraphFrames for Spark 2.0 and Scala 2.11 which we use.
 It is available on the [Maven repository for Apache Spark Packages](http://dl.bintray.com/spark-packages/maven/graphframes/graphframes).
 
 Resources:
@@ -238,7 +238,7 @@ Resources:
 
 
     $SPARK_HOME/bin/spark-shell --conf spark.neo4j.bolt.password=<neo4j-password> \
-    --packages neo4j-contrib:neo4j-spark-connector:2.0.0-M1,graphframes:graphframes:0.2.0-spark2.0_2.11
+    --packages neo4j-contrib:neo4j-spark-connector:2.0.0-M1,graphframes:graphframes:0.2.0-spark2.0-s_2.11
 
 ```scala  
 <!-- tag::example_graphframes[] -->
