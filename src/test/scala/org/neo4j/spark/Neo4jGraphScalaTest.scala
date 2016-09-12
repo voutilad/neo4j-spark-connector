@@ -35,7 +35,7 @@ class Neo4jGraphScalaTest {
 
   @Test def runCypherQueryWithParams {
     val data = List(Map("id"->1,"name"->"Test").asJava).asJava
-    Neo4jGraph.execute(sc.sc, "UNWIND {data} as row CREATE (n:Test {id:row.id}) SET n.name = row.name", Seq(("data",data)))
+    Executor.execute(sc.sc, "UNWIND {data} as row CREATE (n:Test {id:row.id}) SET n.name = row.name", Map(("data",data)))
   }
   @Test def runMatrixQuery {
     val graph = Neo4jGraph.loadGraph(sc.sc, "A", Seq.empty, "B")

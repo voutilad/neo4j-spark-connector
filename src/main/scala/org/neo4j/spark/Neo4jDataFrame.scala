@@ -17,16 +17,16 @@ object Neo4jDataFrame {
   def mergeEdgeList(sc: SparkContext, dataFrame: DataFrame, source: (String,Seq[String]), relationship: (String,Seq[String]), target: (String,Seq[String])): Unit = {
     val mergeStatement = s"""
       UNWIND {rows} as row
-      MERGE (source:`${source._1}` {`${source._2.head}` : row.source.`${source._2.head}`}) ON CREATE SET source += row.source
+      MERGE (sourceLabel:`${source._1}` {`${source._2.head}` : row.sourceLabel.`${source._2.head}`}) ON CREATE SET sourceLabel += row.sourceLabel
       MERGE (target:`${target._1}` {`${target._2.head}` : row.target.`${target._2.head}`}) ON CREATE SET target += row.target
-      MERGE (source)-[rel:`${relationship._1}`]->(target) ON CREATE SET rel += row.relationship
+      MERGE (sourceLabel)-[rel:`${relationship._1}`]->(target) ON CREATE SET rel += row.relationship
       """
     val partitions = Math.max(1,(dataFrame.count() / 10000).asInstanceOf[Int])
     val config = Neo4jConfig(sc.getConf)
     dataFrame.repartition(partitions).foreachPartition( rows => {
       val params: AnyRef = rows.map(r =>
         Map(
-          "source" -> source._2.map( c => (c, r.getAs[AnyRef](c))).toMap.asJava,
+          "sourceLabel" -> source._2.map( c => (c, r.getAs[AnyRef](c))).toMap.asJava,
           "target" -> target._2.map( c => (c, r.getAs[AnyRef](c))).toMap.asJava,
           "relationship" -> relationship._2.map( c => (c, r.getAs[AnyRef](c))).toMap.asJava)
           .asJava).asJava
@@ -42,25 +42,15 @@ object Neo4jDataFrame {
     session.close()
     driver.close()
   }
-  def schemaFromNamedType(schemaInfo: Seq[(String, String)]) = {
-    val fields = schemaInfo.map(field =>
-      StructField(field._1, CypherType(field._2), nullable = true) )
-    StructType(fields)
-  }
-  def schemaFromDataType(schemaInfo: Seq[(String, types.DataType)]) = {
-    val fields = schemaInfo.map(field =>
-      StructField(field._1, field._2, nullable = true) )
-    StructType(fields)
-  }
 
   def withDataType(sqlContext: SQLContext, query: String, parameters: Seq[(String, Any)], schema: (String, types.DataType)*) = {
     val rowRdd = Neo4jRowRDD(sqlContext.sparkContext, query, parameters)
-    sqlContext.createDataFrame(rowRdd, schemaFromDataType(schema))
+    sqlContext.createDataFrame(rowRdd, CypherTypes.schemaFromDataType(schema))
   }
 
   def apply(sqlContext: SQLContext, query: String, parameters: Seq[(String, Any)], schema: (String, String)*) = {
     val rowRdd = Neo4jRowRDD(sqlContext.sparkContext, query, parameters)
-    sqlContext.createDataFrame(rowRdd, schemaFromNamedType(schema))
+    sqlContext.createDataFrame(rowRdd, CypherTypes.schemaFromNamedType(schema))
   }
 
   def apply(sqlContext: SQLContext, query: String, parameters: java.util.Map[String, AnyRef]) = {
@@ -70,29 +60,15 @@ object Neo4jDataFrame {
 
     val result = session.run(query,parameters)
     if (!result.hasNext) throw new RuntimeException("Can't determine schema from empty result")
-    val peek = result.peek()
-    val fields = peek.keys().asScala.map( k => StructField(k, toSparkType(InternalTypeSystem.TYPE_SYSTEM, peek.get(k).`type`() )))
+    val peek: Record = result.peek()
+    val fields = peek.keys().asScala.map( k => (k, peek.get(k).`type`())).map( keyType => CypherTypes.field(keyType))
     val schema = StructType(fields)
     val rowRdd = new Neo4jResultRdd(sqlContext.sparkContext, result.asScala, peek.size(), session, driver)
     sqlContext.createDataFrame(rowRdd, schema)
   }
 
-  def toSparkType(typeSystem : TypeSystem, typ : Type): org.apache.spark.sql.types.DataType =
-    if (typ == typeSystem.BOOLEAN) CypherType.BOOLEAN
-    else if (typ == typeSystem.STRING) CypherType.STRING
-    else if (typ == typeSystem.INTEGER()) CypherType.INTEGER
-    else if (typ == typeSystem.FLOAT) CypherType.FlOAT
-    else if (typ == typeSystem.NULL) CypherType.NULL
-    else CypherType.STRING
-//    type match {
-//    case typeSystem.MAP => types.MapType(types.StringType,types.ObjectType)
-//    case typeSystem.LIST => types.ArrayType(types.ObjectType, containsNull = false)
-//    case typeSystem.NODE => types.VertexType
-//    case typeSystem.RELATIONSHIP => types.EdgeType
-//    case typeSystem.PATH => types.GraphType
-//    case _ => types.StringType
-//  }
-class Neo4jResultRdd(@transient sc: SparkContext, result : Iterator[Record], keyCount : Int, session: Session, driver:Driver)
+
+  class Neo4jResultRdd(@transient sc: SparkContext, result : Iterator[Record], keyCount : Int, session: Session, driver:Driver)
   extends RDD[Row](sc, Nil) {
 
   override def compute(split: Partition, context: TaskContext): Iterator[Row] = {
@@ -118,11 +94,12 @@ class Neo4jResultRdd(@transient sc: SparkContext, result : Iterator[Record], key
     })
   }
 
-  override protected def getPartitions: Array[Partition] = Array(new DummyPartition())
+  override protected def getPartitions: Array[Partition] = Array(new Neo4jPartition())
 }
 
 }
-object CypherType {
+
+object CypherTypes {
   val INTEGER = types.LongType
   val FlOAT = types.DoubleType
   val STRING = types.StringType
@@ -142,7 +119,39 @@ object CypherType {
     case "NULL" => NULL
     case _ => STRING
   }
-//  val MAP = types.MapType(types.StringType,types.AnyDataType)
-//  val LIST = types.ArrayType(types.AnyDataType)
+//  val MAP = edges.MapType(edges.StringType,edges.AnyDataType)
+//  val LIST = edges.ArrayType(edges.AnyDataType)
 // , MAP, LIST, NODE, RELATIONSHIP, PATH
+
+
+  def toSparkType(typeSystem : TypeSystem, typ : Type): org.apache.spark.sql.types.DataType =
+    if (typ == typeSystem.BOOLEAN()) CypherTypes.BOOLEAN
+    else if (typ == typeSystem.STRING()) CypherTypes.STRING
+    else if (typ == typeSystem.INTEGER()) CypherTypes.INTEGER
+    else if (typ == typeSystem.FLOAT()) CypherTypes.FlOAT
+    else if (typ == typeSystem.NULL()) CypherTypes.NULL
+    else CypherTypes.STRING
+  //    type match {
+  //    case typeSystem.MAP => edges.MapType(edges.StringType,edges.ObjectType)
+  //    case typeSystem.LIST => edges.ArrayType(edges.ObjectType, containsNull = false)
+  //    case typeSystem.NODE => edges.VertexType
+  //    case typeSystem.RELATIONSHIP => edges.EdgeType
+  //    case typeSystem.PATH => edges.GraphType
+  //    case _ => edges.StringType
+  //  }
+
+  def field(keyType: (String, Type)): StructField = {
+    StructField(keyType._1, CypherTypes.toSparkType(InternalTypeSystem.TYPE_SYSTEM, keyType._2))
+  }
+  def schemaFromNamedType(schemaInfo: Seq[(String, String)]) = {
+    val fields = schemaInfo.map(field =>
+      StructField(field._1, CypherTypes(field._2), nullable = true) )
+    StructType(fields)
+  }
+  def schemaFromDataType(schemaInfo: Seq[(String, types.DataType)]) = {
+    val fields = schemaInfo.map(field =>
+      StructField(field._1, field._2, nullable = true) )
+    StructType(fields)
+  }
+
 }

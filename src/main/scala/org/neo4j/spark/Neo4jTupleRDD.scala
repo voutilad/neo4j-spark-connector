@@ -30,7 +30,7 @@ class Neo4jTupleRDD(@transient sc: SparkContext, val query: String, val paramete
     })
   }
 
-  override protected def getPartitions: Array[Partition] = Array(new DummyPartition())
+  override protected def getPartitions: Array[Partition] = Array(new Neo4jPartition())
 }
 
 object Neo4jTupleRDD {

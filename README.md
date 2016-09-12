@@ -100,7 +100,7 @@ There are a few different RDD's all named `Neo4jXxxRDD`
 
 It is similar and based on DataFrames, you can create GraphFrames from DataFrames and also from GraphX graphs.
 
-NOTE: GraphFrames are still early in development, it's current release is 0.2.0, for Apache Spark 2.0.
+NOTE: GraphFrames are still early in development, it's current release is 0.2.0, which is currently only available for Scala 2.10.
 
 * `Neo4jGraphFrame(sqlContext, (srcNodeLabel,nodeProp), (relType,relProp), dst:(dstNodeLabel,dstNodeProp)` loads a graph with the given source and destination nodes and the relationships in between, the relationship-property is optional and can be null
 * `Neo4jGraphFrame.fromGraphX(sc,label,Seq(rel-type),label)` loads a graph with the given pattern
