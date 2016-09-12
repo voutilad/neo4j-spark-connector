@@ -47,7 +47,7 @@ object Neo4j {
     def loadNodeRdds : RDD[Row]
     def loadRelRdd : RDD[Row]
     def loadGraph[VD:ClassTag,ED:ClassTag] : Graph[VD,ED]
-    def loadGraphFrame[VD,ED] : GraphFrame
+    def loadGraphFrame[VD:ClassTag,ED:ClassTag] : GraphFrame
     def loadDataFrame : DataFrame
     def loadDataFrame(schema : (String,String)*) : DataFrame
   }
@@ -240,15 +240,17 @@ class Neo4j(val sc : SparkContext) extends QueriesDsl with PartitionsDsl with Re
 */
   }
 
-  override def loadGraphFrame[VD,ED] : GraphFrame  = {
+  override def loadGraphFrame[VD:ClassTag,ED:ClassTag] : GraphFrame = {
     val nodeRdds: RDD[Row] = loadRowRdd
-    val nodeSchema: StructType = CypherTypes.schemaFromNamedType(Seq(("id","integer"),("value","string")))
-    val nodes: DataFrame = sqlContext.createDataFrame(nodeRdds, nodeSchema) // nodeRdds.first().schema)
+    // todo check value type from pattern
+    // val nodeSchema: StructType = CypherTypes.schemaFromNamedType(Seq(("id","integer"),("value",asInstanceOf[VD].getClass.getSimpleName)))
+    val nodes: DataFrame = sqlContext.createDataFrame(nodeRdds, nodeRdds.first().schema)
 
     val relRdd: RDD[Row] = loadRelRdd
-    val relSchema: StructType = CypherTypes.schemaFromNamedType(Seq(("source","integer"),("target","integer"),("value", "string")))
+    // todo check value type from pattern
+    // val relSchema: StructType = CypherTypes.schemaFromNamedType(Seq(("src","long"),("dst","long"),("value", asInstanceOf[ED].getClass.getSimpleName)))
 
-    val rels : DataFrame  = sqlContext.createDataFrame(relRdd, relSchema) // relRdd.first().schema)
+    val rels : DataFrame  = sqlContext.createDataFrame(relRdd, relRdd.first().schema)
     org.graphframes.GraphFrame(nodes, rels)
 
 /*
@@ -304,7 +306,7 @@ class Neo4j(val sc : SparkContext) extends QueriesDsl with PartitionsDsl with Re
 
     def relQuery(rel : NameProp) = {
       val c: List[String] = List(countRelsSource(rel), countRelsTarget(rel))
-      var q = s"MATCH (n:`${source.name}`)-[rel:`${rel.name}`]->(m:`${target.name}`) WITH n,rel,m SKIP {_skip} LIMIT {_limit} RETURN id(n) as source, id(m) as target "
+      var q = s"MATCH (n:`${source.name}`)-[rel:`${rel.name}`]->(m:`${target.name}`) WITH n,rel,m SKIP {_skip} LIMIT {_limit} RETURN id(n) as src, id(m) as dst "
       if (rel.property != null) (q + s", rel.`${rel.property}` as value", c)
       else (q, c)
     }
@@ -359,6 +361,7 @@ object Executor {
 
     val result: StatementResult = session.run(query, toJava(parameters))
     if (!result.hasNext) {
+      result.consume()
       session.close()
       driver.close()
       return new CypherResult(new StructType(), Iterator.empty)
@@ -368,7 +371,9 @@ object Executor {
     if (keyCount == 0) {
       session.close()
       driver.close()
-      return new CypherResult(new StructType(), Array.fill[Array[Any]](rows(result))(EMPTY).toIterator)
+      val res: CypherResult = new CypherResult(new StructType(), Array.fill[Array[Any]](rows(result))(EMPTY).toIterator)
+      result.consume()
+      return res
     }
     val keys = peek.keys().asScala
     val fields = keys.map( k => (k, peek.get(k).`type`())).map( keyType => CypherTypes.field(keyType))
@@ -382,6 +387,7 @@ object Executor {
           i = i + 1
       }
       if (!result.hasNext) {
+        result.consume()
         session.close()
         driver.close()
       }
@@ -403,9 +409,7 @@ class Neo4jRDD(@transient sc: SparkContext, val query: String, val parameters: M
   }
   override protected def getPartitions: Array[Partition] = {
     val p = partitions.effective()
-    val res: Array[Partition] = Range(0,p.partitions.toInt).map( idx => new Neo4jPartition(idx,p.skip(idx), p.limit(idx))).toArray
-    println(res)
-    res
+    Range(0,p.partitions.toInt).map( idx => new Neo4jPartition(idx,p.skip(idx), p.limit(idx))).toArray
   }
 
   override def toString(): String = s"Neo4jRDD partitions $partitions $query using $parameters"

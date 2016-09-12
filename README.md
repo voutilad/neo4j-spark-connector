@@ -14,31 +14,29 @@ This neo4j-spark-connector is Apache 2 Licensed
 ## Building
 
 
-Build `target/neo4j-spark-connector_2.11-full-2.0.0-M1.jar` for Scala 2.11
+Build `target/neo4j-spark-connector_2.11-full-2.0.0-M2.jar` for Scala 2.11
 
-
-    mvn clean install assembly:single
-
+    mvn clean package
 
 ## Integration with Apache Spark Applications
 
 **spark-shell, pyspark, or spark-submit**
 
-`$SPARK_HOME/bin/spark-shell --jars neo4j-spark-connector_2.11-full-2.0.0-M1.jar`
+`$SPARK_HOME/bin/spark-shell --jars neo4j-spark-connector_2.11-full-2.0.0-M2.jar`
 
-`$SPARK_HOME/bin/spark-shell --packages neo4j-contrib:neo4j-spark-connector:2.0.0-M1`
+`$SPARK_HOME/bin/spark-shell --packages neo4j-contrib:neo4j-spark-connector:2.0.0-M2`
 
 **sbt**
 
 If you use the [sbt-spark-package plugin](https://github.com/databricks/sbt-spark-package), in your sbt build file, add:
 
-```scala spDependencies += "neo4j-contrib/neo4j-spark-connector:2.0.0-M1"```
+```scala spDependencies += "neo4j-contrib/neo4j-spark-connector:2.0.0-M2"```
 
 Otherwise,
 
 ```scala
 resolvers += "Spark Packages Repo" at "http://dl.bintray.com/spark-packages/maven"
-libraryDependencies += "neo4j-contrib" % "neo4j-spark-connector" % "2.0.0-M1"
+libraryDependencies += "neo4j-contrib" % "neo4j-spark-connector" % "2.0.0-M2"
 ```  
 
 **maven**  
@@ -50,7 +48,7 @@ In your pom.xml, add:
   <dependency>
     <groupId>neo4j-contrib</groupId>
     <artifactId>neo4j-spark-connector</artifactId>
-    <version>2.0.0-M1</version>
+    <version>2.0.0-M2</version>
   </dependency>
 </dependencies>
 <repositories>
@@ -70,6 +68,167 @@ Otherwise set the `spark.neo4j.bolt.url` in your `SparkConf` pointing e.g. to `b
 
 You can provide user and password as part of the URL `bolt://neo4j:<password>@localhost` or individually in `spark.neo4j.bolt.user` and `spark.neo4j.bolt.password`.
 
+
+## Builder API
+
+Starting with version 2.0.0-M2 you can use a fluent builder API to declare the queries or patterns you want to use, but also **partitions, total-rows and batch-sizes** and then select which Apache Spark Type to load.
+
+This library supports:
+
+* `RDD[Row], RDD[T]` (loadRowR)
+* `DataFrame`
+* GraphX `Graph`
+* `GraphFrame`
+
+The general usage is
+
+1. create `org.neo4j.spark.Neo4j(sc)`
+2. set `cypher(query,[params])`,`nodes(query,[params])`,`rels(query,[params])` as direct query, or </br>
+   `pattern("Label1",Seq("REL"),"Label2")` or `pattern(("Label1","prop1",("REL","prop"),("Label2","prop2))`
+3. optionally define `partitions(n)`, `batch(size)`, `rows(count)` for parallelism
+4. choose which datatype to return
+   * `loadRowRdd`, `loadNodeRdds`, `loadRelRdd`, `loadRdd[T]`
+   * `loadDataFrame`,`loadDataFrame(schema)`
+   * `loadGraph[VD,ED]`
+   * `loadGraphFrame[VD,ED]`
+   
+   
+For Example:
+
+```scala
+
+org.neo4j.spark.Neo4j(sc).cypher("MATCH (n:Person) RETURN n.name").partitions(5).batch(10000).loadRowRdd
+
+```
+   
+
+## Usage Examples
+
+
+### Create Test Data in Neo4j
+
+```cypher
+UNWIND range(1,100) as id
+CREATE (p:Person {id:id}) WITH collect(p) as people
+UNWIND people as p1
+UNWIND range(1,10) as friend
+WITH p1, people[(p1.id + friend) % size(people)] as p2
+CREATE (p1)-[:KNOWS {years: abs(p2.id - p2.id)}]->(p2)
+```
+
+Start the Spark-Shell with
+
+`$SPARK_HOME/bin/spark-shell --packages neo4j-contrib:neo4j-spark-connector:2.0.0-M2,graphframes:graphframes:0.2.0-spark2.0-s_2.11`
+
+### Loading RDDs
+
+```scala
+import org.neo4j.spark._
+
+val neo = Neo4j(sc)
+
+val rdd = neo.cypher("MATCH (n:Person) RETURN id(n) as id ").loadRowRdd
+rdd.count
+
+// inferred schema
+rdd.first.schema.fieldNames
+//   => ["id"]
+rdd.first.schema("id") 
+//   => StructField(id,LongType,true)
+
+neo.cypher("MATCH (n:Person) RETURN id(n)").loadRdd[Long].mean
+//   => res30: Double = 236696.5
+
+neo.cypher("MATCH (n:Person) WHERE n.id <= {maxId} RETURN n.id").param("maxId", 10).loadRowRdd.count
+//   => res34: Long = 10
+
+// provide partitions and batch-size
+neo.nodes("MATCH (n:Person) RETURN id(n) SKIP {_skip} LIMIT {_limit}").partitions(4).batch(25).loadRowRdd.count
+//   => 100 == 4 * 25
+
+// load via pattern
+neo.pattern("Person",Seq("KNOWS"),"Person").rows(80).batch(21).loadNodeRdds.count
+//   => 80 = b/c 80 rows given
+
+// load relationships via pattern
+neo.pattern("Person",Seq("KNOWS"),"Person").partitions(12).batch(100).loadRelRdd.count
+//   => 1000
+```
+
+### Loading DataFrames
+
+```scala
+import org.neo4j.spark._
+
+val neo = Neo4j(sc)
+
+// load via Cypher query
+neo.cypher("MATCH (n:Person) RETURN id(n) as id SKIP {_skip} LIMIT {_limit}").partitions(4).batch(25).loadDataFrame.count
+//   => res36: Long = 100
+
+val df = neo.pattern("Person",Seq("KNOWS"),"Person").partitions(12).batch(100).loadDataFrame
+//   => org.apache.spark.sql.DataFrame = [id: bigint]
+
+// TODO loadRelDataFrame
+```
+
+### Loading GraphX Graphs
+
+```scala
+import org.neo4j.spark._
+
+val neo = Neo4j(sc)
+
+import org.apache.spark.graphx._
+import org.apache.spark.graphx.lib._
+    
+// load graph via Cypher query
+val graphQuery = "MATCH (n:Person)-[r:KNOWS]->(m:Person) RETURN id(n) as source, id(m) as target, type(r) as value SKIP {_skip} LIMIT {_limit}"
+val graph: Graph[Long, String] = neo.rels(graphQuery).partitions(7).batch(200).loadGraph
+
+graph.vertices.count
+//    => 100
+graph.edges.count
+//    => 1000
+
+// load graph via pattern
+val graph = neo.pattern(("Person","id"),("KNOWS","since"),("Person","id")).partitions(7).batch(200).loadGraph[Long,Long]
+
+val graph2 = PageRank.run(graph, 5)
+//    => graph2: org.apache.spark.graphx.Graph[Double,Double] =    
+
+graph2.vertices.sort(_._2).take(3)
+//    => res46: Array[(org.apache.spark.graphx.VertexId, Long)] 
+//    => Array((236746,100), (236745,99), (236744,98))
+```
+
+
+### Loading GraphFrames
+
+```scala
+import org.neo4j.spark._
+
+val neo = Neo4j(sc)
+
+import org.graphframes._
+
+val graphFrame = neo.pattern(("Person","id"),("KNOWS",null), ("Person","id")).partitions(3).rows(1000).loadGraphFrame
+
+graphFrame.vertices.count
+//     => 100
+graphFrame.edges.count
+//     => 1000
+
+val pageRankFrame = graphFrame.pageRank.maxIter(5).run()
+val ranked = pageRankFrame.vertices
+ranked.printSchema()
+
+val top3 = ranked.orderBy(ranked.col("pagerank").desc).take(3)
+//     => top3: Array[org.apache.spark.sql.Row] 
+//     => Array([236716,70,0.62285...], [236653,7,0.62285...], [236658,12,0.62285])
+```
+
+**NOTE: The APIs below were the previous APIs which still work, but I recommend that you use and provide feedback on the new _builder_ API above.**
 
 ## RDD's
 
@@ -130,12 +289,12 @@ You can also provide the dependencies to spark-shell or spark-submit via `--pack
 
     $SPARK_HOME/bin/spark-shell \
           --conf spark.neo4j.bolt.password=<neo4j-password> \
-          --packages neo4j-contrib:neo4j-spark-connector:2.0.0-M1,graphframes:graphframes:0.2.0-spark2.0-s_2.11
+          --packages neo4j-contrib:neo4j-spark-connector:2.0.0-M2,graphframes:graphframes:0.2.0-spark2.0-s_2.11
 
 ### Neo4j(Row|Tuple)RDD
 
     $SPARK_HOME/bin/spark-shell --conf spark.neo4j.bolt.password=<neo4j-password> \
-    --packages neo4j-contrib:neo4j-spark-connector:2.0.0-M1
+    --packages neo4j-contrib:neo4j-spark-connector:2.0.0-M2
 
 ```scala
 <!-- tag::example_rdd[] -->
@@ -153,7 +312,7 @@ You can also provide the dependencies to spark-shell or spark-submit via `--pack
 ### Neo4jDataFrame
 
     $SPARK_HOME/bin/spark-shell --conf spark.neo4j.bolt.password=<neo4j-password> \
-    --packages neo4j-contrib:neo4j-spark-connector:2.0.0-M1
+    --packages neo4j-contrib:neo4j-spark-connector:2.0.0-M2
 
 ```scala
     import org.neo4j.spark._
@@ -193,7 +352,7 @@ You can also provide the dependencies to spark-shell or spark-submit via `--pack
 ### Neo4jGraph Operations
 
     $SPARK_HOME/bin/spark-shell --conf spark.neo4j.bolt.password=<neo4j-password> \
-    --packages neo4j-contrib:neo4j-spark-connector:2.0.0-M1
+    --packages neo4j-contrib:neo4j-spark-connector:2.0.0-M2
 
 ```scala
     import org.neo4j.spark._
@@ -238,7 +397,7 @@ Resources:
 
 
     $SPARK_HOME/bin/spark-shell --conf spark.neo4j.bolt.password=<neo4j-password> \
-    --packages neo4j-contrib:neo4j-spark-connector:2.0.0-M1,graphframes:graphframes:0.2.0-spark2.0-s_2.11
+    --packages neo4j-contrib:neo4j-spark-connector:2.0.0-M2,graphframes:graphframes:0.2.0-spark2.0-s_2.11
 
 ```scala  
 <!-- tag::example_graphframes[] -->
