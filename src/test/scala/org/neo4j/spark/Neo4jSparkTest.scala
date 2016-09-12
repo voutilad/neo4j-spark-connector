@@ -1,8 +1,10 @@
 package org.neo4j.spark
 
-import org.apache.spark.graphx.Graph
-import org.apache.spark.sql.DataFrame
+import org.apache.spark.graphx.{Graph, VertexId}
+import org.apache.spark.graphx.lib.PageRank
+import org.apache.spark.sql._
 import org.apache.spark.{SparkConf, SparkContext}
+import org.graphframes.GraphFrame
 import org.junit.Assert._
 import org.junit._
 import org.neo4j.harness.{ServerControls, TestServerBuilders}
@@ -73,12 +75,12 @@ class Neo4jSparkTest {
     assertEquals(1000,knows)
   }
   @Test def runCypherRelQueryWithPartition() {
-    val neo4j: Neo4j = Neo4j(sc).cypher("MATCH (n:Person)-[r:KNOWS]->(m:Person) RETURN id(n) as source,id(m) as target,type(r) as value SKIP {_skip} LIMIT {_limit}").partitions(7).batch(200)
+    val neo4j: Neo4j = Neo4j(sc).cypher("MATCH (n:Person)-[r:KNOWS]->(m:Person) RETURN id(n) as src,id(m) as dst,type(r) as value SKIP {_skip} LIMIT {_limit}").partitions(7).batch(200)
     val knows: Long = neo4j.loadRowRdd.count()
     assertEquals(1000,knows)
   }
   @Test def runCypherRelQueryWithPartitionGraph() {
-    val neo4j: Neo4j = Neo4j(sc).rels("MATCH (n:Person)-[r:KNOWS]->(m:Person) RETURN id(n) as source, id(m) as target, type(r) as value SKIP {_skip} LIMIT {_limit}").partitions(7).batch(200)
+    val neo4j: Neo4j = Neo4j(sc).rels("MATCH (n:Person)-[r:KNOWS]->(m:Person) RETURN id(n) as src, id(m) as dst, type(r) as value SKIP {_skip} LIMIT {_limit}").partitions(7).batch(200)
     val graph: Graph[Long, String] = neo4j.loadGraph[Long,String]
     assertEquals(100,graph.vertices.count())
     assertEquals(1000,graph.edges.count())
@@ -89,12 +91,31 @@ class Neo4jSparkTest {
     assertEquals(100,graph.vertices.count())
     assertEquals(1000,graph.edges.count())
   }
+
   @Test def runSimplePatternRelQueryWithPartitionGraph() {
     val neo4j: Neo4j = Neo4j(sc).pattern("Person",Seq("KNOWS"), "Person").partitions(7).batch(200)
     val graph: Graph[_, _] = neo4j.loadGraph[Unit,Unit]
     assertEquals(100,graph.vertices.count())
     assertEquals(1000,graph.edges.count())
+
+    val top3: Array[(VertexId, Double)] = PageRank.run(graph,5).vertices.sortBy(v => v._2, ascending = false,5).take(3)
+    assertEquals(100D, top3(0)._2, 0)
   }
+  @Test def runSimplePatternRelQueryWithPartitionGraphFrame() {
+    val neo4j: Neo4j = Neo4j(sc).pattern(("Person","id"),("KNOWS",null), ("Person","id")).partitions(7).batch(200)
+    val graphFrame: GraphFrame = neo4j.loadGraphFrame
+    assertEquals(100,graphFrame.vertices.count)
+    assertEquals(1000,graphFrame.edges.count)
+
+    val pageRankFrame: GraphFrame = graphFrame.pageRank.maxIter(5).run()
+    val ranked: DataFrame = pageRankFrame.vertices
+    ranked.printSchema()
+    // sorting DF http://spark.apache.org/docs/latest/api/scala/index.html#org.apache.spark.sql.Column
+    val top3: Array[Row] = ranked.orderBy(ranked.col("pagerank").desc).take(3)
+    top3.foreach(println)
+    assertEquals(0.622D, top3(0).getAs[Double]("pagerank"), 0.01)
+  }
+
 
   /*
   @Test def runMatrixQuery() {
