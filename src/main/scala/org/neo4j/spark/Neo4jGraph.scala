@@ -6,6 +6,7 @@ import org.apache.spark._
 import org.apache.spark.graphx._
 import org.apache.spark.rdd.RDD
 import org.neo4j.driver.v1._
+import org.neo4j.spark.Executor.execute
 
 import scala.collection.JavaConverters._
 import scala.reflect.ClassTag
@@ -16,14 +17,14 @@ import scala.reflect.ClassTag
   */
 object Neo4jGraph {
 
-  // nodeStmt: MATCH (n:Label) RETURN id(n) as id UNION MATCH (m:Label2) return id(m) as id
+  // nodeStmt: MATCH (n:Label) RETURN id(n) as id, n.foo as value UNION MATCH (m:Label2) return id(m) as id, m.foo as value
   // relStmt: MATCH (n:Label1)-[r:REL]->(m:Label2) RETURN id(n), id(m), r.foo // or id(r) or type(r) or ...
   def loadGraph[VD:ClassTag,ED:ClassTag](sc: SparkContext, nodeStmt: (String,Seq[(String, AnyRef)]), relStmt: (String,Seq[(String, AnyRef)])) :Graph[VD,ED] = {
     val nodes: RDD[(VertexId, VD)] =
-      sc.makeRDD(execute(sc,nodeStmt._1,nodeStmt._2).rows.toSeq)
+      sc.makeRDD(execute(sc,nodeStmt._1,nodeStmt._2.toMap).rows.toSeq)
       .map(row => (row(0).asInstanceOf[Long],row(1).asInstanceOf[VD]))
     val rels: RDD[Edge[ED]] =
-      sc.makeRDD(execute(sc,relStmt._1,relStmt._2).rows.toSeq)
+      sc.makeRDD(execute(sc,relStmt._1,relStmt._2.toMap).rows.toSeq)
       .map(row => new Edge[ED](row(0).asInstanceOf[VertexId],row(1).asInstanceOf[VertexId],row(2).asInstanceOf[ED]))
     Graph[VD,ED](nodes, rels)
   }
@@ -33,7 +34,7 @@ object Neo4jGraph {
   }
 
   // label1, label2, relTypes are optional
-  // MATCH (n:${label(label1}})-[via:${rels(relTypes)}]->(m:${label(label2)}) RETURN id(n) as from, id(m) as to
+  // MATCH (n:${name(label1}})-[via:${rels(relTypes)}]->(m:${name(label2)}) RETURN id(n) as from, id(m) as to
   def loadGraph(sc: SparkContext, label1: String, relTypes: Seq[String], label2: String) : Graph[Any,Int] = {
     def label(l : String) = if (l == null) "" else ":`"+l+"`"
     def rels(relTypes : Seq[String]) = relTypes.map(":`"+_+"`").mkString("|")
@@ -46,7 +47,7 @@ object Neo4jGraph {
   // MATCH (..)-[r:....]->(..) RETURN id(startNode(r)), id(endNode(r)), r.foo
   def loadGraphFromRels[VD:ClassTag,ED:ClassTag](sc: SparkContext, statement: String, parameters: Seq[(String, AnyRef)], defaultValue : VD = Nil) :Graph[VD,ED] = {
     val rels =
-      sc.makeRDD(execute(sc, statement, parameters).rows.toSeq)
+      sc.makeRDD(execute(sc, statement, parameters.toMap).rows.toSeq)
         .map(row => new Edge[ED](row(0).asInstanceOf[VertexId], row(1).asInstanceOf[VertexId],row(2).asInstanceOf[ED]))
       Graph.fromEdges[VD,ED](rels, defaultValue)
   }
@@ -54,7 +55,7 @@ object Neo4jGraph {
   // MATCH (..)-[r:....]->(..) RETURN id(startNode(r)), id(endNode(r))
   def loadGraphFromNodePairs[VD:ClassTag](sc: SparkContext, statement: String, parameters: Seq[(String, AnyRef)] = Seq.empty, defaultValue : VD = Nil) :Graph[VD, Int] = {
     val rels: RDD[(VertexId, VertexId)] =
-      sc.makeRDD(execute(sc,statement,parameters).rows.toSeq)
+      sc.makeRDD(execute(sc,statement,parameters.toMap).rows.toSeq)
         .map(row => (row(0).asInstanceOf[Long],row(1).asInstanceOf[Long]))
     Graph.fromEdgeTuples[VD](rels, defaultValue = defaultValue)
   }
@@ -70,7 +71,7 @@ object Neo4jGraph {
           p => {
             // TODO was toIterable instead of toList but bug in java-driver
             val rows = p.map(v => Seq(("id", v._1), ("value", v._2)).toMap.asJava).toList.asJava
-            val res1 = execute(config, updateNodes, Seq(("data", rows))).rows
+            val res1 = execute(config, updateNodes, Map("data" -> rows)).rows
             val sum: Long = res1.map( x => x(0).asInstanceOf[Long]).sum
             Iterator.apply[Long](sum)
           }
@@ -86,7 +87,7 @@ object Neo4jGraph {
         graph.edges.repartition(batchSize).mapPartitions[Long](
           p => {
             val rows = p.map(e => Seq(("from", e.srcId), ("to", e.dstId), ("value", e.attr)).toMap.asJava).toList.asJava
-            val res1 = execute(config, updateRels, Seq(("data", rows))).rows
+            val res1 = execute(config, updateRels, Map(("data", rows))).rows
             val sum : Long = res1.map(x => x(0).asInstanceOf[Long]).sum
             Iterator.apply[Long](sum)
           }
@@ -94,47 +95,4 @@ object Neo4jGraph {
     }
     (nodesUpdated,relsUpdated) // todo
   }
-
-  def execute(sc: SparkContext, query: String, parameters: Seq[(String, AnyRef)]): CypherResult = {
-    execute(Neo4jConfig(sc.getConf), query, parameters)
-  }
-  def execute(config: Neo4jConfig, query: String, parameters: Seq[(String, AnyRef)]): CypherResult = {
-    val driver: Driver = config.driver()
-    val session = driver.session()
-
-    val result = session.run(query, parameters.toMap.asJava)
-    if (!result.hasNext) {
-      session.close()
-      driver.close()
-      return new CypherResult(Vector.empty, Iterator.empty)
-    }
-    val peek = result.peek()
-    val keyCount = peek.size()
-    val keys = peek.keys().asScala
-
-    val it = result.asScala.map((record) => {
-      val res = keyCount match {
-        case 0 => Array.empty[Any]
-        case 1 => Array(record.get(0).asObject())
-        case 2 => Array(record.get(0).asObject(), record.get(1).asObject())
-        case 3 => Array(record.get(0).asObject(), record.get(1).asObject(), record.get(2).asObject())
-        case _ =>
-          val array = new Array[Any](keyCount)
-          var i = 0
-          while (i < keyCount) {
-            array.update(i, record.get(i).asObject())
-            i = i + 1
-          }
-          array
-      }
-      if (!result.hasNext) {
-        session.close()
-        driver.close()
-      }
-      res
-    })
-    new CypherResult(result.keys().asScala.toVector, it)
-  }
 }
-
-class CypherResult(val cols: IndexedSeq[String], val rows: Iterator[Array[_ >: AnyRef]])
