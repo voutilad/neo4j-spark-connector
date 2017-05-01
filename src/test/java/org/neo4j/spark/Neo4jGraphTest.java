@@ -11,6 +11,7 @@ import org.neo4j.harness.ServerControls;
 import org.neo4j.harness.TestServerBuilders;
 import scala.Function1;
 import scala.Tuple2;
+import scala.collection.Seq;
 import scala.collection.Seq$;
 import scala.reflect.ClassTag$;
 
@@ -33,7 +34,6 @@ public class Neo4jGraphTest {
     @BeforeClass
     public static void setUp() throws Exception {
         server = TestServerBuilders.newInProcessBuilder()
-                .withConfig("dbms.security.auth_enabled","false")
                 .withFixture(FIXTURE)
                 .newServer();
         conf = new SparkConf()
@@ -52,7 +52,8 @@ public class Neo4jGraphTest {
     }
 
     @Test public void runMatrixQuery() {
-        Graph graph = Neo4jGraph.loadGraph(sc.sc(), "A", Seq$.MODULE$.empty() , "B");
+        Seq<String> empty = (Seq<String>) Seq$.MODULE$.empty();
+        Graph graph = Neo4jGraph.loadGraph(sc.sc(), "A", empty, "B");
         assertEquals(2,graph.vertices().count());
         assertEquals(1,graph.edges().count());
     }

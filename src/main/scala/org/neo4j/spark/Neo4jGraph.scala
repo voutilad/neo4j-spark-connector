@@ -60,12 +60,17 @@ object Neo4jGraph {
     Graph.fromEdgeTuples[VD](rels, defaultValue = defaultValue)
   }
 
-  def saveGraph[VD:ClassTag,ED:ClassTag](sc: SparkContext, graph: Graph[VD,ED], nodeProp : String = null, relProp: String = null) : (Long,Long) = {
+  def saveGraph[VD:ClassTag,ED:ClassTag](sc: SparkContext, graph: Graph[VD,ED], nodeProp : String = null, relTypeProp: (String,String) = null, mainLabelIdProp : Option[(String,String)] = None, secondLabelIdProp : Option[(String,String)] = None, merge: Boolean = false) : (Long,Long) = {
     val config = Neo4jConfig(sc.getConf)
+    val matchMerge = if (merge) "MERGE" else "MATCH"
     val nodesUpdated : Long = nodeProp match {
       case null => 0
       case _ =>
-        val updateNodes = s"UNWIND {data} as row MATCH (n) WHERE id(n) = row.id SET n.$nodeProp = row.value return count(*)"
+        val updateNodes =
+        mainLabelIdProp match {
+          case Some((label, prop)) => s"UNWIND {data} as row $matchMerge (n:`$label`) WHERE n.`$prop` = row.id SET n.`$nodeProp` = row.value return count(*)"
+          case None => s"UNWIND {data} as row MATCH (n) WHERE id(n) = row.id SET n.`$nodeProp` = row.value return count(*)"
+        }
         val batchSize = ((graph.vertices.count() / 100) + 1).toInt
         graph.vertices.repartition(batchSize).mapPartitions[Long](
           p => {
@@ -78,10 +83,20 @@ object Neo4jGraph {
         ).sum().toLong
     }
 
-    val relsUpdated : Long = relProp match {
+    val relsUpdated : Long = relTypeProp match {
       case null => 0
-      case _ =>
-        val updateRels = s"UNWIND {data} as row MATCH (n)-[rel]->(m) WHERE id(n) = row.from AND id(m) = row.to SET rel.$relProp = row.value return count(*)"
+      case (relType,relProp) =>
+        val updateRels =
+          (mainLabelIdProp match {
+            case Some((label, prop)) =>
+              val (label2,prop2) = secondLabelIdProp.getOrElse(mainLabelIdProp.get)
+              s"""UNWIND {data} as row
+                 |MATCH (n:`$label`) WHERE n.`$prop` = row.from
+                 |MATCH (m:`$label2`) WHERE m.`$prop2` = row.to""".stripMargin
+            case None =>
+              s"UNWIND {data} as row MATCH (n), (m) WHERE id(n) = row.from AND id(m) = row.to "
+          }) +
+            s" $matchMerge (n)-[rel:`$relType`]->(m) SET rel.`$relProp` = row.value return count(*)"
         val batchSize = ((graph.edges.count() / 100) + 1).toInt
 
         graph.edges.repartition(batchSize).mapPartitions[Long](

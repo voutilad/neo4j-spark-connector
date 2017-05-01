@@ -1,12 +1,13 @@
 package org.neo4j.spark
 
 import org.apache.spark.api.java.JavaSparkContext
-import org.apache.spark.graphx.{Edge, Graph}
+import org.apache.spark.graphx.{Edge, Graph, VertexId}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.{SparkConf, SparkContext}
 import org.junit.Assert._
 import org.junit._
 import org.neo4j.harness.{ServerControls, TestServerBuilders}
+
 import scala.collection.JavaConverters._
 
 
@@ -15,7 +16,7 @@ import scala.collection.JavaConverters._
   * @since 17.07.16
   */
 class Neo4jGraphScalaTest {
-  val FIXTURE: String = "CREATE (:A)-[:REL {foo:'bar'}]->(:B)"
+  val FIXTURE: String = "CREATE (:A {a:0})-[:REL {foo:'bar'}]->(:B {b:1})"
   private var conf: SparkConf = null
   private var sc: JavaSparkContext = null
   private var server: ServerControls = null
@@ -47,6 +48,34 @@ class Neo4jGraphScalaTest {
     val graph = Graph.fromEdges(edges,-1)
     assertEquals(2, graph.vertices.count)
     assertEquals(1, graph.edges.count)
-    Neo4jGraph.saveGraph(sc,graph,null,"test")
+    Neo4jGraph.saveGraph(sc,graph,null,("REL","test"))
+    assertEquals(42L,server.graph().execute("MATCH (:A)-[rel:REL]->(:B) RETURN rel.test as prop").columnAs("prop").next())
+  }
+  @Test def saveGraphByNodeLabel {
+    val edges : RDD[Edge[Long]] = sc.makeRDD(Seq(Edge(0,1,42L)))
+    val graph = Graph.fromEdges(edges,-1)
+    assertEquals(2, graph.vertices.count)
+    assertEquals(1, graph.edges.count)
+    Neo4jGraph.saveGraph(sc,graph,null,("REL","test"),Option(("A","a")),Option(("B","b")))
+    assertEquals(42L,server.graph().execute("MATCH (:A)-[rel:REL]->(:B) RETURN rel.test as prop").columnAs("prop").next())
+  }
+  @Test def mergeGraphByNodeLabel {
+    val edges : RDD[Edge[Long]] = sc.makeRDD(Seq(Edge(0,1,42L)))
+    val graph = Graph.fromEdges(edges,-1)
+    assertEquals(2, graph.vertices.count)
+    assertEquals(1, graph.edges.count)
+    Neo4jGraph.saveGraph(sc,graph,null,("REL2","test"),merge = true)
+    assertEquals(42L,server.graph().execute("MATCH (:A)-[rel:REL2]->(:B) RETURN rel.test as prop").columnAs("prop").next())
+  }
+
+  @Test def saveGraphNodes {
+    val nodes : RDD[(VertexId, Long)] = sc.makeRDD(Seq((0L,10L),(1L,20L)))
+    val edges : RDD[Edge[Long]] = sc.makeRDD(Seq())
+    val graph = Graph[Long,Long](nodes,edges,-1)
+    assertEquals(2, graph.vertices.count)
+    assertEquals(0, graph.edges.count)
+    Neo4jGraph.saveGraph(sc,graph,"prop")
+    assertEquals(10L,server.graph().execute("MATCH (a:A) WHERE id(a) = 0 RETURN a.prop as prop").columnAs("prop").next())
+    assertEquals(20L,server.graph().execute("MATCH (b:B) WHERE id(b) = 1 RETURN b.prop as prop").columnAs("prop").next())
   }
 }

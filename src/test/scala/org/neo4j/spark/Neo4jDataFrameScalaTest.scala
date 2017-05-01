@@ -42,11 +42,6 @@ class Neo4jDataFrameScalaTest {
     val schema = StructType(Seq(StructField("name", DataTypes.StringType), StructField("title", DataTypes.StringType)))
     val df = new SQLContext(sc).createDataFrame(rows, schema)
     Neo4jDataFrame.mergeEdgeList(sc, df, ("Person",Seq("name")),("ACTED_IN",Seq.empty),("Movie",Seq("title")))
-    val edges : RDD[Edge[Long]] = sc.makeRDD(Seq(Edge(0,1,42L)))
-    val graph = Graph.fromEdges(edges,-1)
-    assertEquals(2, graph.vertices.count)
-    assertEquals(1, graph.edges.count)
-    Neo4jGraph.saveGraph(sc,graph,null,"test")
 
     val it: ResourceIterator[Long] = server.graph().execute("MATCH (:Person {name:'Keanu'})-[:ACTED_IN]->(:Movie {title:'Matrix'}) RETURN count(*) as c").columnAs("c")
     assertEquals(1L, it.next())

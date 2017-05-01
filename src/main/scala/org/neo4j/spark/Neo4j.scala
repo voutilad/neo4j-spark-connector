@@ -10,12 +10,11 @@ import org.apache.spark.sql.{DataFrame, Row, SQLContext}
 import org.apache.spark.{Partition, SparkContext, TaskContext}
 import org.graphframes.GraphFrame
 import org.neo4j.driver.v1.{Driver, StatementResult}
-import org.neo4j.spark.Neo4j.{PartitionsDsl, QueriesDsl, ResultDsl}
+import org.neo4j.spark.Neo4j.{LoadDsl, PartitionsDsl, NameProp, Pattern, Query, QueriesDsl, SaveDsl}
 
 import scala.collection.JavaConverters._
 import scala.language.implicitConversions
 import scala.reflect.ClassTag
-import scala.reflect.runtime.universe._
 
 object Neo4j {
 
@@ -41,7 +40,7 @@ object Neo4j {
     def rows(rows : Long): Neo4j
   }
 
-  trait ResultDsl {
+  trait LoadDsl {
     def loadRdd[T:ClassTag] : RDD[T]
     def loadRowRdd : RDD[Row]
     def loadNodeRdds : RDD[Row]
@@ -51,7 +50,61 @@ object Neo4j {
     def loadDataFrame : DataFrame
     def loadDataFrame(schema : (String,String)*) : DataFrame
   }
+  case class Stats(nodes:Long = 0, rels:Long = 0, properties : Long = 0, indexes : Long = 0, constraints : Long = 0)
+  case class Updates(created:Stats,updated:Stats,deleted:Stats)
+
+  trait SaveDsl { // todo update statistics
+//    def storeRdd[T:ClassTag](rdd:RDD[T]) : Long
+//    def storeRowRdd(rowRdd:RDD[Row]) : Long
+//    def storeNodeRdds(nodesRdd: RDD[Row]) : Long
+//    def storeRelRdd(relRdd: RDD[Row]) : Long
+    def saveGraph[VD:ClassTag,ED:ClassTag](graph: Graph[VD, ED], nodeProp : String = null, pattern: Pattern = null, merge:Boolean = false) : Long
+//    def storeGraphFrame[VD:ClassTag,ED:ClassTag](graphFrame:GraphFrame) : Long
+//    def storeDataFrame(dataFrame:DataFrame) : Long
+  }
+
+  case class NameProp(name:String, property:String = null) {
+    def this(tuple : (String,String)) = this(tuple._1, tuple._2)
+    def asTuple = (name,property)
+  }
+
+  case class Pattern(source:NameProp, edges:Seq[NameProp], target:NameProp) {
+    private def quote(s:String):String = "`"+s+"`"
+    private def relTypes = ":" + edges.map("`" + _.name + "`").mkString(":")
+
+    // fast count-queries for the partition sizes
+    def countNode(node:NameProp) = s"MATCH (:`${node.name}`) RETURN count(*) as total"
+    def countRelsSource(rel: NameProp) = s"MATCH (:`${source.name}`)-[:`${rel.name}`]->() RETURN count(*)"
+    def countRelsTarget(rel: NameProp) = s"MATCH ()-[:`${rel.name}`]->(:`${target.name}`) RETURN count(*) AS total"
+
+    def nodeQueries = List(nodeQuery(source),nodeQuery(target))
+    def relQueries = edges.map(relQuery)
+
+    def relQuery(rel : NameProp) = {
+      val c: List[String] = List(countRelsSource(rel), countRelsTarget(rel))
+      var q = s"MATCH (n:`${source.name}`)-[rel:`${rel.name}`]->(m:`${target.name}`) WITH n,rel,m SKIP {_skip} LIMIT {_limit} RETURN id(n) as src, id(m) as dst "
+      if (rel.property != null) (q + s", rel.`${rel.property}` as value", c)
+      else (q, c)
+    }
+    def nodeQuery(node: NameProp) = {
+      var c = countNode(node)
+      var q : String = s"MATCH (n:`${node.name}`) WITH n SKIP {_skip} LIMIT {_limit} RETURN id(n) AS id"
+      if (node.property != null) (q + s", n.`${node.property}` as value",c)
+      else (q,c)
+    }
+    def this(source:(String,String), edges: Seq[(String,String)], target: (String,String)) =
+      this(new NameProp(source), edges.map(new NameProp(_)), new NameProp(target))
+    def this(source:String, edges: Seq[String], target: String) =
+      this(NameProp(source), edges.map(NameProp(_)), NameProp(target))
+    def edgeNames = edges.map(_.name)
+  }
+
+  case class Query(query:String, params : Map[String,Any] = Map.empty) {
+    def paramsSeq = params.toSeq
+    def isEmpty = query == null
+  }
 }
+
 case class Partitions(partitions : Long = 1, batchSize : Long = Neo4j.UNDEFINED, rows : Long = Neo4j.UNDEFINED, rowSource : Option[() => Long] = None) {
   def upper(v1 : Long, v2 : Long) : Long = v1 / v2 + Math.signum(v1 % v2).asInstanceOf[Long]
   def effective() : Partitions = {
@@ -94,7 +147,7 @@ case class Partitions(partitions : Long = 1, batchSize : Long = Neo4j.UNDEFINED,
   else batch
   */
 }
-class Neo4j(val sc : SparkContext) extends QueriesDsl with PartitionsDsl with ResultDsl {
+class Neo4j(val sc : SparkContext) extends QueriesDsl with PartitionsDsl with LoadDsl with SaveDsl {
 
   // todo
   private def sqlContext: SQLContext = new SQLContext(sc)
@@ -173,8 +226,10 @@ class Neo4j(val sc : SparkContext) extends QueriesDsl with PartitionsDsl with Re
         new Neo4jRDD(sc, query._1, rels.params, partitions) // .copy(rowSource = Option(maxCountQuery)))
       })
       rdds.reduce((a, b) => a.union(b)).distinct()
-    } else {
+    } else if (!rels.isEmpty) {
       new Neo4jRDD(sc, rels.query, rels.params, partitions)
+    } else {
+      throw new RuntimeException("No relationship query provided either as pattern or with rels()")
     }
   }
 
@@ -192,8 +247,10 @@ class Neo4j(val sc : SparkContext) extends QueriesDsl with PartitionsDsl with Re
         .union(loadNodeRdds(pattern.target,nodes.params,partitions)).distinct()
     } else if (!nodes.isEmpty) {
        new Neo4jRDD(sc, nodes.query, nodes.params, partitions)
+    } else if (!rels.isEmpty) {
+       new Neo4jRDD(sc, rels.query, rels.params, partitions)
     } else {
-       null
+       throw new RuntimeException("No relationship query provided either as pattern or with cypher() or nodes()")
     }
   }
 
@@ -203,41 +260,50 @@ class Neo4j(val sc : SparkContext) extends QueriesDsl with PartitionsDsl with Re
   }
 
   /*
-      val nodes: RDD[(VertexId, VD)] =
-      sc.makeRDD(execute(sc,nodeStmt._1,nodeStmt._2.toMap).rows.toSeq)
-      .map(row => (row(0).asInstanceOf[Long],row(1).asInstanceOf[VD]))
-    val rels: RDD[Edge[ED]] =
-      sc.makeRDD(execute(sc,relStmt._1,relStmt._2.toMap).rows.toSeq)
-      .map(row => new Edge[ED](row(0).asInstanceOf[VertexId],row(1).asInstanceOf[VertexId],row(2).asInstanceOf[ED]))
-    Graph[VD,ED](nodes, rels)
-   */
+          val nodes: RDD[(VertexId, VD)] =
+          sc.makeRDD(execute(sc,nodeStmt._1,nodeStmt._2.toMap).rows.toSeq)
+          .map(row => (row(0).asInstanceOf[Long],row(1).asInstanceOf[VD]))
+        val rels: RDD[Edge[ED]] =
+          sc.makeRDD(execute(sc,relStmt._1,relStmt._2.toMap).rows.toSeq)
+          .map(row => new Edge[ED](row(0).asInstanceOf[VertexId],row(1).asInstanceOf[VertexId],row(2).asInstanceOf[ED]))
+        Graph[VD,ED](nodes, rels)
+       */
   override def loadGraph[VD:ClassTag,ED:ClassTag] : Graph[VD,ED]  = {
     val nodeDefault = null.asInstanceOf[VD]
     val relDefault = defaultRelValue.asInstanceOf[ED]
     val nodeRdds: RDD[Row] = loadNodeRdds
-    val rels : RDD[Edge[ED]] = loadRelRdd.map( row => new Edge[ED](row.getLong(0), row.getLong(1), if (row.size==2) relDefault else row.getAs[ED](2)))
+    val rels: RDD[Edge[ED]] = loadRelRdd.map(row => new Edge[ED](row.getLong(0), row.getLong(1), if (row.size == 2) relDefault else row.getAs[ED](2)))
     if (nodeRdds == null) {
-      Graph.fromEdges(rels,nodeDefault)
+      Graph.fromEdges(rels, nodeDefault)
     } else {
-      val nodes: RDD[(VertexId, VD)] = nodeRdds.map( row => (row.getLong(0),if (row.size==1) nodeDefault else row.getAs[VD](1)))
-      Graph[VD,ED](nodes,rels)
+      val nodes: RDD[(VertexId, VD)] = nodeRdds.map(row => (row.getLong(0), if (row.size == 1) nodeDefault else row.getAs[VD](1)))
+      Graph[VD, ED](nodes, rels)
     }
-/*
-    if (pattern != null) {
+    /*
+        if (pattern != null) {
 
-    }
-    if (rels.query != null) {
-      if (nodes != null)
-        Neo4jGraph.loadGraphFromRels(sc,nodes.query,nodes.paramsSeq,defaultRelValue)
-        // AND Neo4jGraph.loadGraphFromRels(sc,rels.query,rels.paramsSeq,defaultRelValue)
-      else
-      Neo4jGraph.loadGraphFromRels(sc,rels.query,rels.paramsSeq,defaultRelValue)
-    }
-    if (nodes.query != null) {
-      Neo4jGraph.loadGraphFromNodePairs(sc, nodes.query, nodes.paramsSeq)
-    }
-    throw new SparkException("no query or pattern configured to load graph")
-*/
+        }
+        if (rels.query != null) {
+          if (nodes != null)
+            Neo4jGraph.loadGraphFromRels(sc,nodes.query,nodes.paramsSeq,defaultRelValue)
+            // AND Neo4jGraph.loadGraphFromRels(sc,rels.query,rels.paramsSeq,defaultRelValue)
+          else
+          Neo4jGraph.loadGraphFromRels(sc,rels.query,rels.paramsSeq,defaultRelValue)
+        }
+        if (nodes.query != null) {
+          Neo4jGraph.loadGraphFromNodePairs(sc, nodes.query, nodes.paramsSeq)
+        }
+        throw new SparkException("no query or pattern configured to load graph")
+    */
+  }
+
+  override  def saveGraph[VD:ClassTag,ED:ClassTag](graph: Graph[VD, ED], nodeProp : String = null, pattern: Pattern = pattern, merge:Boolean = false): Long = {
+    val result = Neo4jGraph.saveGraph[VD,ED](sc, graph,merge = merge,
+      nodeProp = nodeProp,
+      relTypeProp = pattern.edges.head.asTuple,
+      mainLabelIdProp = Some(pattern.source.asTuple),
+      secondLabelIdProp = Some(pattern.target.asTuple))
+    result._1 + result._2
   }
 
   override def loadGraphFrame[VD:ClassTag,ED:ClassTag] : GraphFrame = {
@@ -283,50 +349,6 @@ class Neo4j(val sc : SparkContext) extends QueriesDsl with PartitionsDsl with Re
   override def loadRdd[T:ClassTag] : RDD[T]  = {
     loadRowRdd.map(_.getAs[T](0))
   }
-
-  // --- Helper Classes
-
-
-  case class NameProp(name:String, property:String = null) {
-    def this(tuple : (String,String)) = this(tuple._1, tuple._2)
-    def asTuple = (name,property)
-  }
-
-  case class Pattern(source:NameProp, edges:Seq[NameProp], target:NameProp) {
-    private def quote(s:String):String = "`"+s+"`"
-    private def relTypes = ":" + edges.map("`" + _.name + "`").mkString(":")
-
-    // fast count-queries for the partition sizes
-    def countNode(node:NameProp) = s"MATCH (:`${node.name}`) RETURN count(*) as total"
-    def countRelsSource(rel: NameProp) = s"MATCH (:`${source.name}`)-[:`${rel.name}`]->() RETURN count(*)"
-    def countRelsTarget(rel: NameProp) = s"MATCH ()-[:`${rel.name}`]->(:`${target.name}`) RETURN count(*) AS total"
-
-    def nodeQueries = List(nodeQuery(source),nodeQuery(target))
-    def relQueries = edges.map(relQuery)
-
-    def relQuery(rel : NameProp) = {
-      val c: List[String] = List(countRelsSource(rel), countRelsTarget(rel))
-      var q = s"MATCH (n:`${source.name}`)-[rel:`${rel.name}`]->(m:`${target.name}`) WITH n,rel,m SKIP {_skip} LIMIT {_limit} RETURN id(n) as src, id(m) as dst "
-      if (rel.property != null) (q + s", rel.`${rel.property}` as value", c)
-      else (q, c)
-    }
-    def nodeQuery(node: NameProp) = {
-      var c = countNode(node)
-      var q : String = s"MATCH (n:`${node.name}`) WITH n SKIP {_skip} LIMIT {_limit} RETURN id(n) AS id"
-      if (node.property != null) (q + s", n.`${node.property}` as value",c)
-      else (q,c)
-    }
-    def this(source:(String,String), edges: Seq[(String,String)], target: (String,String)) =
-      this(new NameProp(source), edges.map(new NameProp(_)), new NameProp(target))
-    def this(source:String, edges: Seq[String], target: String) =
-      this(NameProp(source), edges.map(NameProp(_)), NameProp(target))
-    def edgeNames = edges.map(_.name)
-  }
-
-  case class Query(query:String, params : Map[String,Any] = Map.empty) {
-    def paramsSeq = params.toSeq
-    def isEmpty = query == null
-  }
 }
 
 object Executor {
@@ -369,10 +391,10 @@ object Executor {
     val peek = result.peek()
     val keyCount = peek.size()
     if (keyCount == 0) {
-      session.close()
-      driver.close()
       val res: CypherResult = new CypherResult(new StructType(), Array.fill[Array[Any]](rows(result))(EMPTY).toIterator)
       result.consume()
+      session.close()
+      driver.close()
       return res
     }
     val keys = peek.keys().asScala
@@ -381,8 +403,8 @@ object Executor {
 
     val it = result.asScala.map((record) => {
       val row = new Array[Any](keyCount)
-        var i = 0
-        while (i < keyCount) {
+      var i = 0
+      while (i < keyCount) {
           row.update(i, record.get(i).asObject())
           i = i + 1
       }

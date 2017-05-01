@@ -25,9 +25,9 @@
     </licenses>
 
     <properties>
-        <neo4j.version>3.0.4</neo4j.version>
-        <driver.version>1.0.4</driver.version>
-        <spark.version>2.0.0</spark.version>
+        <neo4j.version>3.0.9</neo4j.version>
+        <driver.version>1.2.0</driver.version>
+        <spark.version>2.0.2</spark.version>
         <graphframes.version>0.2.0-spark2.0-s_${scala.version.suffix}</graphframes.version>
     </properties>
 
@@ -37,8 +37,8 @@
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>3.5.1</version>
                 <configuration>
-                  <source>1.7</source>
-                  <target>1.7</target>
+                  <source>1.8</source>
+                  <target>1.8</target>
                   <encoding>UTF-8</encoding>
                 </configuration>
             </plugin>
@@ -57,10 +57,10 @@
                     </execution>
                     <execution>
                         <id>scala-test-compile</id>
-                        <phase>none</phase>
                         <goals>
                             <goal>testCompile</goal>
                         </goals>
+                        <phase>test-compile</phase>
                     </execution>
                 </executions>
                 <configuration>
@@ -148,25 +148,25 @@
         </dependency>
         <dependency>
             <groupId>org.apache.spark</groupId>
-            <artifactId>spark-core_${scala.version.suffix}</artifactId>
+            <artifactId>spark-core_2.11</artifactId>
             <version>${spark.version}</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.apache.spark</groupId>
-            <artifactId>spark-graphx_${scala.version.suffix}</artifactId>
+            <artifactId>spark-graphx_2.11</artifactId>
             <version>${spark.version}</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.apache.spark</groupId>
-            <artifactId>spark-sql_${scala.version.suffix}</artifactId>
+            <artifactId>spark-sql_2.11</artifactId>
             <version>${spark.version}</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>graphframes</groupId>
-            <artifactId>graphframes</artifactId> <!-- todo graphframes_2.10 -->
+            <artifactId>graphframes</artifactId>
             <version>${graphframes.version}</version>
             <scope>provided</scope>
         </dependency>

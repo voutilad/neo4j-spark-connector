@@ -91,7 +91,9 @@ The general usage is
    * `loadDataFrame`,`loadDataFrame(schema)`
    * `loadGraph[VD,ED]`
    * `loadGraphFrame[VD,ED]`
-   
+5. execute Spark Operations
+6. save graph back:
+   * `saveGraph(grap, [pattern],[nodeProp],[merge=false])`
    
 For Example:
 
@@ -200,6 +202,11 @@ val graph2 = PageRank.run(graph, 5)
 graph2.vertices.sort(_._2).take(3)
 //    => res46: Array[(org.apache.spark.graphx.VertexId, Long)] 
 //    => Array((236746,100), (236745,99), (236744,98))
+
+// uses pattern from above to save the data, merge parameter is false by default, only update existing nodes
+neo.saveGraph(graph, "rank")
+// uses pattern from parameter to save the data, merge = true also create new nodes and relationships
+neo.saveGraph(graph, "rank",Pattern(("Person","id"),("FRIEND","years"),("Person","id")), merge = true)
 ```
 
 
@@ -226,6 +233,13 @@ ranked.printSchema()
 val top3 = ranked.orderBy(ranked.col("pagerank").desc).take(3)
 //     => top3: Array[org.apache.spark.sql.Row] 
 //     => Array([236716,70,0.62285...], [236653,7,0.62285...], [236658,12,0.62285])
+
+
+// example loading a graph frame with two dedicated Cypher statements
+val nodesQuery = "match (n:Person) RETURN id(n) as id, n.name as value UNION ALL MATCH (n:Company) return id(n) as id, n.name as value"
+val relsQuery = "match (p:Person)-[r]->(c:Company) return id(p) as src, id(c) as dst, type(r) as value"
+
+val graphFrame = Neo4j(sc).nodes(nodesQuery,Map.empty).rels(relsQuery,Map.empty).loadGraphFrame
 ```
 
 **NOTE: The APIs below were the previous APIs which still work, but I recommend that you use and provide feedback on the new _builder_ API above.**
@@ -241,6 +255,11 @@ There are a few different RDD's all named `Neo4jXxxRDD`
 
 * `Neo4jDataFrame`, a SparkSQL `DataFrame` that you construct either with explicit type information about result names and types
 * or inferred from the first result-row
+* Neo4jDataFrame provides `mergeEdgeList(sc: SparkContext, dataFrame: DataFrame, source: (label,Seq[prop]), relationship: (type,Seq[prop]), target: (label,Seq[prop]))` to merge a DataFrame back into a Neo4j graph
+  * both nodes are merged by first propery in sequence, all the others will be set on the entity, relat
+  * relationships are merged between the two nodes and all properties from sequence will be set on the relationship
+  * property names from the sequence are used as column names for the data-frame, currently there is no name translation
+  * the result are sent in batches of 10000 to the graph 
 
 ## GraphX - Neo4jGraph
 
@@ -248,7 +267,7 @@ There are a few different RDD's all named `Neo4jXxxRDD`
 * `Neo4jGraph.execute` runs a Cypher statement and returns a `CypherResult` with the `keys` and an `rows` Iterator of `Array[Any]`
 
 * `Neo4jGraph.loadGraph(sc, label,rel-types,label2)` loads a graph via the relationships between those labeled nodes
-* `Neo4jGraph.saveGraph(g, nodeProp, relProp)` saves a graph object to Neo4j by updating the given node- and relationship-properties
+* `Neo4jGraph.saveGraph(sc, graph, [nodeProp], [relTypeProp (type,prop)], [mainLabelId (label,prop)],[secondLabelId (label,prop)],merge=false)` saves a graph object to Neo4j by updating the given node- and relationship-properties
 * `Neo4jGraph.loadGraphFromNodePairs(sc,stmt,params)` loads a graph from pairs of node-id's
 * `Neo4jGraph.loadGraphFromRels(sc,stmt,params)` loads a graph from pairs of start- and end-node-id's and and additional value per relationship
 * `Neo4jGraph.loadGraph(sc, (stmt,params), (stmt,params))` loads a graph with two dedicated statements first for nodes, second for relationships
@@ -375,7 +394,10 @@ You can also provide the dependencies to spark-shell or spark-submit via `--pack
     // v: Array[(org.apache.spark.graphx.VertexId, Double)] = Array((185012,0.15), (612052,1.0153273593749998), (354796,0.15), (182316,0.15), (199516,0.38587499999999997))
     
     Neo4jGraph.saveGraph(sc, g2, "rank")
-    // res2: (Long, Long) = (999937,0)                                                 
+    // res2: (Long, Long) = (999937,0)                        
+
+    // full syntax example
+    Neo4jGraph.saveGraph(sc, graph, "rank",("LIKES","score"),Some(("Person","name")),Some(("Movie","title")), merge=true)
 ```
 
 ### Neo4jGraphFrame

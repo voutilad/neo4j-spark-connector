@@ -99,7 +99,7 @@ class Neo4jSparkTest {
     assertEquals(1000,graph.edges.count())
 
     val top3: Array[(VertexId, Double)] = PageRank.run(graph,5).vertices.sortBy(v => v._2, ascending = false,5).take(3)
-    assertEquals(100D, top3(0)._2, 0)
+    assertEquals(0.622D, top3(0)._2, 0.01)
   }
   @Test def runSimplePatternRelQueryWithPartitionGraphFrame() {
     val neo4j: Neo4j = Neo4j(sc).pattern(("Person","id"),("KNOWS",null), ("Person","id")).partitions(7).batch(200)
