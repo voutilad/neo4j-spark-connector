@@ -37,10 +37,12 @@ object Neo4jDataFrame {
   def execute(config : Neo4jConfig, query: String, parameters: java.util.Map[String, AnyRef]) = {
     val driver: Driver = config.driver()
     val session = driver.session()
-
-    session.run(query,parameters).consume()
-    session.close()
-    driver.close()
+    try {
+      session.run(query, parameters).consume()
+    } finally {
+      if (session.isOpen) session.close()
+      driver.close()
+    }
   }
 
   def withDataType(sqlContext: SQLContext, query: String, parameters: Seq[(String, Any)], schema: (String, types.DataType)*) = {
@@ -57,14 +59,18 @@ object Neo4jDataFrame {
     val config = Neo4jConfig(sqlContext.sparkContext.getConf)
     val driver: Driver = config.driver()
     val session = driver.session()
-
-    val result = session.run(query,parameters)
-    if (!result.hasNext) throw new RuntimeException("Can't determine schema from empty result")
-    val peek: Record = result.peek()
-    val fields = peek.keys().asScala.map( k => (k, peek.get(k).`type`())).map( keyType => CypherTypes.field(keyType))
-    val schema = StructType(fields)
-    val rowRdd = new Neo4jResultRdd(sqlContext.sparkContext, result.asScala, peek.size(), session, driver)
-    sqlContext.createDataFrame(rowRdd, schema)
+    try {
+      val result = session.run(query, parameters)
+      if (!result.hasNext) throw new RuntimeException("Can't determine schema from empty result")
+      val peek: Record = result.peek()
+      val fields = peek.keys().asScala.map(k => (k, peek.get(k).`type`())).map(keyType => CypherTypes.field(keyType))
+      val schema = StructType(fields)
+      val rowRdd = new Neo4jResultRdd(sqlContext.sparkContext, result.asScala, peek.size(), session, driver)
+      sqlContext.createDataFrame(rowRdd, schema)
+    } finally {
+      if (session.isOpen) session.close()
+      driver.close()
+    }
   }
 
 
