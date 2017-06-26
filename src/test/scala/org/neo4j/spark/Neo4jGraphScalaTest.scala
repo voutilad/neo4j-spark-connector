@@ -43,6 +43,7 @@ class Neo4jGraphScalaTest {
     assertEquals(2, graph.vertices.count)
     assertEquals(1, graph.edges.count)
   }
+
   @Test def saveGraph {
     val edges : RDD[Edge[Long]] = sc.makeRDD(Seq(Edge(0,1,42L)))
     val graph = Graph.fromEdges(edges,-1)
@@ -50,6 +51,15 @@ class Neo4jGraphScalaTest {
     assertEquals(1, graph.edges.count)
     Neo4jGraph.saveGraph(sc,graph,null,("REL","test"))
     assertEquals(42L,server.graph().execute("MATCH (:A)-[rel:REL]->(:B) RETURN rel.test as prop").columnAs("prop").next())
+  }
+
+  @Test def saveGraphMerge {
+    val edges : RDD[Edge[Long]] = sc.makeRDD(Seq(Edge(0,1,42L)))
+    val graph = Graph.fromEdges(edges,13L)
+    assertEquals(2, graph.vertices.count)
+    assertEquals(1, graph.edges.count)
+    Neo4jGraph.saveGraph(sc,graph,"value",("FOOBAR","test"),Option("Foo","id"),Option("Bar","id"),merge = true)
+    assertEquals(Map("fid"->0L,"bid"->1L,"rv"->42L,"fv"->13L,"bv"->13L).asJava,server.graph().execute("MATCH (foo:Foo)-[rel:FOOBAR]->(bar:Bar) RETURN {fid: foo.id, fv:foo.value, rv:rel.test,bid:bar.id,bv:bar.value} as data").columnAs("data").next())
   }
   @Test def saveGraphByNodeLabel {
     val edges : RDD[Edge[Long]] = sc.makeRDD(Seq(Edge(0,1,42L)))
