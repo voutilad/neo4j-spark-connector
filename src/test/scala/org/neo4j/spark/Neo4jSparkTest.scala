@@ -49,6 +49,18 @@ class Neo4jSparkTest {
     val people: Long = neo4j.loadRowRdd.count()
     assertEquals(100,people)
   }
+
+  @Test(expected = classOf[RuntimeException]) def runCypherQueryNoResults() {
+    val neo4j: Neo4j = Neo4j(sc).cypher("MATCH (n:Person) WHERE false RETURN id(n)")
+    val people: Long = neo4j.loadDataFrame.count()
+    assertEquals(0,people)
+  }
+  @Test def runCypherQueryNoResultsWithSchema() {
+    val neo4j: Neo4j = Neo4j(sc).cypher("MATCH (n:Person) WHERE false RETURN id(n) as id")
+    val people: Long = neo4j.loadDataFrame("id" -> "long").count()
+    assertEquals(0,people)
+  }
+
   @Test def runCypherQueryWithPartition() {
     val neo4j: Neo4j = Neo4j(sc).cypher("MATCH (n:Person) RETURN id(n) SKIP {_skip} LIMIT {_limit}").partitions(4).batch(25)
     val people: Long = neo4j.loadRowRdd.count()

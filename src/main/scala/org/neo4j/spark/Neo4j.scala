@@ -343,6 +343,7 @@ class Neo4j(val sc : SparkContext) extends QueriesDsl with PartitionsDsl with Lo
 
   override def loadDataFrame : DataFrame  = {
     val rowRdd: RDD[Row] = loadRowRdd
+    if (rowRdd.isEmpty()) throw new RuntimeException("Cannot infer schema-types from empty result, please use loadDataFrame(schema: (String,String)*)")
     sqlContext.createDataFrame(rowRdd, rowRdd.first().schema) // todo does it empty the RDD ??
   }
 
