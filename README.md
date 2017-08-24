@@ -1,6 +1,6 @@
 # Neo4j Connector to Apache Spark based on Neo4j 3.0's Bolt protocol
 
-These are the beginnings of a Connector from Neo4j to Apache Spark 2.0 using the new binary protocol for Neo4j, Bolt.
+These are the beginnings of a Connector from Neo4j to Apache Spark 2.1 using the new binary protocol for Neo4j, Bolt.
 
 Find [more information](http://neo4j.com/docs/developer-manual/current/#driver-manual-index) about the Bolt protocol, available drivers and documentation.
 
@@ -14,7 +14,7 @@ This neo4j-spark-connector is Apache 2 Licensed
 ## Building
 
 
-Build `target/neo4j-spark-connector_2.11-full-2.0.0-M2.jar` for Scala 2.11
+Build `target/neo4j-spark-connector_2.11-full-2.1.0-M3.jar` for Scala 2.11
 
     mvn clean package
 
@@ -22,21 +22,21 @@ Build `target/neo4j-spark-connector_2.11-full-2.0.0-M2.jar` for Scala 2.11
 
 **spark-shell, pyspark, or spark-submit**
 
-`$SPARK_HOME/bin/spark-shell --jars neo4j-spark-connector_2.11-full-2.0.0-M2.jar`
+`$SPARK_HOME/bin/spark-shell --jars neo4j-spark-connector_2.11-full-2.1.0-M3.jar`
 
-`$SPARK_HOME/bin/spark-shell --packages neo4j-contrib:neo4j-spark-connector:2.0.0-M2`
+`$SPARK_HOME/bin/spark-shell --packages neo4j-contrib:neo4j-spark-connector:2.1.0-M3`
 
 **sbt**
 
 If you use the [sbt-spark-package plugin](https://github.com/databricks/sbt-spark-package), in your sbt build file, add:
 
-```scala spDependencies += "neo4j-contrib/neo4j-spark-connector:2.0.0-M2"```
+```scala spDependencies += "neo4j-contrib/neo4j-spark-connector:2.1.0-M3"```
 
 Otherwise,
 
 ```scala
 resolvers += "Spark Packages Repo" at "http://dl.bintray.com/spark-packages/maven"
-libraryDependencies += "neo4j-contrib" % "neo4j-spark-connector" % "2.0.0-M2"
+libraryDependencies += "neo4j-contrib" % "neo4j-spark-connector" % "2.1.0-M3"
 ```  
 
 **maven**  
@@ -48,7 +48,7 @@ In your pom.xml, add:
   <dependency>
     <groupId>neo4j-contrib</groupId>
     <artifactId>neo4j-spark-connector</artifactId>
-    <version>2.0.0-M2</version>
+    <version>2.1.0-M3</version>
   </dependency>
 </dependencies>
 <repositories>
@@ -71,7 +71,7 @@ You can provide user and password as part of the URL `bolt://neo4j:<password>@lo
 
 ## Builder API
 
-Starting with version 2.0.0-M2 you can use a fluent builder API to declare the queries or patterns you want to use, but also **partitions, total-rows and batch-sizes** and then select which Apache Spark Type to load.
+Starting with version 2.1.0-M3 you can use a fluent builder API to declare the queries or patterns you want to use, but also **partitions, total-rows and batch-sizes** and then select which Apache Spark Type to load.
 
 This library supports:
 
@@ -120,7 +120,7 @@ CREATE (p1)-[:KNOWS {years: abs(p2.id - p2.id)}]->(p2)
 
 Start the Spark-Shell with
 
-`$SPARK_HOME/bin/spark-shell --packages neo4j-contrib:neo4j-spark-connector:2.0.0-M2,graphframes:graphframes:0.2.0-spark2.0-s_2.11`
+`$SPARK_HOME/bin/spark-shell --packages neo4j-contrib:neo4j-spark-connector:2.1.0-M3,graphframes:graphframes:0.5.0-spark2.1-s_2.11`
 
 ### Loading RDDs
 
@@ -278,8 +278,6 @@ There are a few different RDD's all named `Neo4jXxxRDD`
 
 It is similar and based on DataFrames, you can create GraphFrames from DataFrames and also from GraphX graphs.
 
-NOTE: GraphFrames are still early in development, it's current release is 0.2.0, which is currently only available for Scala 2.10.
-
 * `Neo4jGraphFrame(sqlContext, (srcNodeLabel,nodeProp), (relType,relProp), dst:(dstNodeLabel,dstNodeProp)` loads a graph with the given source and destination nodes and the relationships in between, the relationship-property is optional and can be null
 * `Neo4jGraphFrame.fromGraphX(sc,label,Seq(rel-type),label)` loads a graph with the given pattern
 * `Neo4jGraphFrame.fromEdges(sqlContext, srcNodeLabel, Seq(relType), dstNodeLabel)`
@@ -289,7 +287,7 @@ NOTE: GraphFrames are still early in development, it's current release is 0.2.0,
 
 ### Setup
 
-Download and install Apache Spark 2.0 from http://spark.apache.org/downloads.html 
+Download and install Apache Spark 2.1 from http://spark.apache.org/downloads.html 
 
 Download and install Neo4j 3.0.0 or later (e.g. from http://neo4j.com/download/)
 
@@ -308,12 +306,12 @@ You can also provide the dependencies to spark-shell or spark-submit via `--pack
 
     $SPARK_HOME/bin/spark-shell \
           --conf spark.neo4j.bolt.password=<neo4j-password> \
-          --packages neo4j-contrib:neo4j-spark-connector:2.0.0-M2,graphframes:graphframes:0.2.0-spark2.0-s_2.11
+          --packages neo4j-contrib:neo4j-spark-connector:2.1.0-M3,graphframes:graphframes:0.5.0-spark2.1-s_2.11
 
 ### Neo4j(Row|Tuple)RDD
 
     $SPARK_HOME/bin/spark-shell --conf spark.neo4j.bolt.password=<neo4j-password> \
-    --packages neo4j-contrib:neo4j-spark-connector:2.0.0-M2
+    --packages neo4j-contrib:neo4j-spark-connector:2.1.0-M3
 
 ```scala
 <!-- tag::example_rdd[] -->
@@ -331,7 +329,7 @@ You can also provide the dependencies to spark-shell or spark-submit via `--pack
 ### Neo4jDataFrame
 
     $SPARK_HOME/bin/spark-shell --conf spark.neo4j.bolt.password=<neo4j-password> \
-    --packages neo4j-contrib:neo4j-spark-connector:2.0.0-M2
+    --packages neo4j-contrib:neo4j-spark-connector:2.1.0-M3
 
 ```scala
     import org.neo4j.spark._
@@ -371,7 +369,7 @@ You can also provide the dependencies to spark-shell or spark-submit via `--pack
 ### Neo4jGraph Operations
 
     $SPARK_HOME/bin/spark-shell --conf spark.neo4j.bolt.password=<neo4j-password> \
-    --packages neo4j-contrib:neo4j-spark-connector:2.0.0-M2
+    --packages neo4j-contrib:neo4j-spark-connector:2.1.0-M3
 
 ```scala
     import org.neo4j.spark._
@@ -407,7 +405,7 @@ GraphFrames are a new Apache Spark API to process graph data.
 It is similar and based on DataFrames, you can create GraphFrames from DataFrames and also from GraphX graphs.
 
 
-There was a recent release (0.2.0) of GraphFrames for Spark 2.0 and Scala 2.11 which we use.
+There was a recent release (0.5.0) of GraphFrames for Spark 2.1 and Scala 2.11 which we use.
 It is available on the [Maven repository for Apache Spark Packages](http://dl.bintray.com/spark-packages/maven/graphframes/graphframes).
 
 Resources:
@@ -419,7 +417,7 @@ Resources:
 
 
     $SPARK_HOME/bin/spark-shell --conf spark.neo4j.bolt.password=<neo4j-password> \
-    --packages neo4j-contrib:neo4j-spark-connector:2.0.0-M2,graphframes:graphframes:0.2.0-spark2.0-s_2.11
+    --packages neo4j-contrib:neo4j-spark-connector:2.1.0-M3,graphframes:graphframes:0.5.0-spark2.1-s_2.11
 
 ```scala  
 <!-- tag::example_graphframes[] -->
