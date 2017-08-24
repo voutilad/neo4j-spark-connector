@@ -14,7 +14,7 @@ This neo4j-spark-connector is Apache 2 Licensed
 ## Building
 
 
-Build `target/neo4j-spark-connector_2.11-full-2.1.0-M3.jar` for Scala 2.11
+Build `target/neo4j-spark-connector_2.11-full-2.1.0-M4.jar` for Scala 2.11
 
     mvn clean package
 
@@ -22,21 +22,21 @@ Build `target/neo4j-spark-connector_2.11-full-2.1.0-M3.jar` for Scala 2.11
 
 **spark-shell, pyspark, or spark-submit**
 
-`$SPARK_HOME/bin/spark-shell --jars neo4j-spark-connector_2.11-full-2.1.0-M3.jar`
+`$SPARK_HOME/bin/spark-shell --jars neo4j-spark-connector_2.11-full-2.1.0-M4.jar`
 
-`$SPARK_HOME/bin/spark-shell --packages neo4j-contrib:neo4j-spark-connector:2.1.0-M3`
+`$SPARK_HOME/bin/spark-shell --packages neo4j-contrib:neo4j-spark-connector:2.1.0-M4`
 
 **sbt**
 
 If you use the [sbt-spark-package plugin](https://github.com/databricks/sbt-spark-package), in your sbt build file, add:
 
-```scala spDependencies += "neo4j-contrib/neo4j-spark-connector:2.1.0-M3"```
+```scala spDependencies += "neo4j-contrib/neo4j-spark-connector:2.1.0-M4"```
 
 Otherwise,
 
 ```scala
 resolvers += "Spark Packages Repo" at "http://dl.bintray.com/spark-packages/maven"
-libraryDependencies += "neo4j-contrib" % "neo4j-spark-connector" % "2.1.0-M3"
+libraryDependencies += "neo4j-contrib" % "neo4j-spark-connector" % "2.1.0-M4"
 ```  
 
 **maven**  
@@ -48,7 +48,7 @@ In your pom.xml, add:
   <dependency>
     <groupId>neo4j-contrib</groupId>
     <artifactId>neo4j-spark-connector</artifactId>
-    <version>2.1.0-M3</version>
+    <version>2.1.0-M4</version>
   </dependency>
 </dependencies>
 <repositories>
@@ -71,7 +71,7 @@ You can provide user and password as part of the URL `bolt://neo4j:<password>@lo
 
 ## Builder API
 
-Starting with version 2.1.0-M3 you can use a fluent builder API to declare the queries or patterns you want to use, but also **partitions, total-rows and batch-sizes** and then select which Apache Spark Type to load.
+Starting with version 2.1.0-M4 you can use a fluent builder API to declare the queries or patterns you want to use, but also **partitions, total-rows and batch-sizes** and then select which Apache Spark Type to load.
 
 This library supports:
 
@@ -120,7 +120,7 @@ CREATE (p1)-[:KNOWS {years: abs(p2.id - p2.id)}]->(p2)
 
 Start the Spark-Shell with
 
-`$SPARK_HOME/bin/spark-shell --packages neo4j-contrib:neo4j-spark-connector:2.1.0-M3,graphframes:graphframes:0.5.0-spark2.1-s_2.11`
+`$SPARK_HOME/bin/spark-shell --packages neo4j-contrib:neo4j-spark-connector:2.1.0-M4`
 
 ### Loading RDDs
 
@@ -306,12 +306,12 @@ You can also provide the dependencies to spark-shell or spark-submit via `--pack
 
     $SPARK_HOME/bin/spark-shell \
           --conf spark.neo4j.bolt.password=<neo4j-password> \
-          --packages neo4j-contrib:neo4j-spark-connector:2.1.0-M3,graphframes:graphframes:0.5.0-spark2.1-s_2.11
+          --packages neo4j-contrib:neo4j-spark-connector:2.1.0-M4
 
 ### Neo4j(Row|Tuple)RDD
 
     $SPARK_HOME/bin/spark-shell --conf spark.neo4j.bolt.password=<neo4j-password> \
-    --packages neo4j-contrib:neo4j-spark-connector:2.1.0-M3
+    --packages neo4j-contrib:neo4j-spark-connector:2.1.0-M4
 
 ```scala
 <!-- tag::example_rdd[] -->
@@ -329,7 +329,7 @@ You can also provide the dependencies to spark-shell or spark-submit via `--pack
 ### Neo4jDataFrame
 
     $SPARK_HOME/bin/spark-shell --conf spark.neo4j.bolt.password=<neo4j-password> \
-    --packages neo4j-contrib:neo4j-spark-connector:2.1.0-M3
+    --packages neo4j-contrib:neo4j-spark-connector:2.1.0-M4
 
 ```scala
     import org.neo4j.spark._
@@ -369,7 +369,7 @@ You can also provide the dependencies to spark-shell or spark-submit via `--pack
 ### Neo4jGraph Operations
 
     $SPARK_HOME/bin/spark-shell --conf spark.neo4j.bolt.password=<neo4j-password> \
-    --packages neo4j-contrib:neo4j-spark-connector:2.1.0-M3
+    --packages neo4j-contrib:neo4j-spark-connector:2.1.0-M4
 
 ```scala
     import org.neo4j.spark._
@@ -417,7 +417,7 @@ Resources:
 
 
     $SPARK_HOME/bin/spark-shell --conf spark.neo4j.bolt.password=<neo4j-password> \
-    --packages neo4j-contrib:neo4j-spark-connector:2.1.0-M3,graphframes:graphframes:0.5.0-spark2.1-s_2.11
+    --packages neo4j-contrib:neo4j-spark-connector:2.1.0-M4
 
 ```scala  
 <!-- tag::example_graphframes[] -->

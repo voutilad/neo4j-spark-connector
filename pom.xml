@@ -4,27 +4,31 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>neo4j-contrib</groupId>
     <packaging>jar</packaging>
-    <version>2.1.0-M3</version>
+    <version>2.1.0-M4</version>
     <artifactId>neo4j-spark-connector</artifactId>
     <name>neo4j-spark-connector</name>
 
     <url>https://github.com/neo4j-contrib/neo4j-spark-connector</url>
     <scm>
-      <url>https://github.com/neo4j-contrib/neo4j-spark-connector</url>
+        <url>https://github.com/neo4j-contrib/neo4j-spark-connector</url>
     </scm>
     <licenses>
-      <license>
-        <name>The Apache Software License, Version 2.0</name>
-        <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
-        <comments>
-          Note that this license is for the project itself,
-          and not for its dependencies.
-        </comments>
-        <distribution>repo</distribution>
-      </license>
+        <license>
+            <name>The Apache Software License, Version 2.0</name>
+            <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+            <comments>
+                Note that this license is for the project itself,
+                and not for its dependencies.
+            </comments>
+            <distribution>repo</distribution>
+        </license>
     </licenses>
 
     <properties>
+        <project.scala.version>2.11.8</project.scala.version>
+        <project.scala.binary.version>2.11</project.scala.binary.version>
+
+        <netty.version>4.1.8.Final</netty.version>
         <neo4j.version>3.2.3</neo4j.version>
         <driver.version>1.4.2</driver.version>
         <spark.version>2.1.1</spark.version>
@@ -37,9 +41,9 @@
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>3.5.1</version>
                 <configuration>
-                  <source>1.8</source>
-                  <target>1.8</target>
-                  <encoding>UTF-8</encoding>
+                    <source>1.8</source>
+                    <target>1.8</target>
+                    <encoding>UTF-8</encoding>
                 </configuration>
             </plugin>
             <plugin>
@@ -64,6 +68,8 @@
                     </execution>
                 </executions>
                 <configuration>
+                    <scalaVersion>${project.scala.version}</scalaVersion>
+                    <scalaCompatVersion>${project.scala.binary.version}</scalaCompatVersion>
                     <args>
                         <arg>-Xmax-classfile-name</arg>
                         <arg>100</arg>
@@ -75,88 +81,100 @@
                     </jvmArgs>
                 </configuration>
             </plugin>
-          <plugin>
-            <artifactId>maven-assembly-plugin</artifactId>
-            <version>2.5.3</version>
-            <executions>
-              <execution>
-                <phase>package</phase>
-                <goals>
-                  <goal>single</goal>
-                </goals>
-              </execution>
-            </executions>
-            <configuration>
-              <descriptorRefs>
-                <descriptorRef>jar-with-dependencies</descriptorRef>
-              </descriptorRefs>
-              <finalName>${project.artifactId}-full-${project.version}</finalName>
-              <appendAssemblyId>false</appendAssemblyId>
-            </configuration>
-          </plugin>
-          <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-source-plugin</artifactId>
-            <version>2.2.1</version>
-            <executions>
-              <execution>
-                <id>attach-sources</id>
-                <goals>
-                  <goal>jar</goal>
-                </goals>
-              </execution>
-            </executions>
-          </plugin>
-          <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-javadoc-plugin</artifactId>
-            <version>2.9.1</version>
-            <executions>
-              <execution>
-                <id>attach-javadocs</id>
-                <goals>
-                  <goal>jar</goal>
-                </goals>
-              </execution>
-            </executions>
-          </plugin>
-       </plugins>
+            <plugin>
+                <artifactId>maven-assembly-plugin</artifactId>
+                <version>2.5.3</version>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>single</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <descriptorRefs>
+                        <descriptorRef>jar-with-dependencies</descriptorRef>
+                    </descriptorRefs>
+                    <finalName>${project.artifactId}-full-${project.version}</finalName>
+                    <appendAssemblyId>false</appendAssemblyId>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-source-plugin</artifactId>
+                <version>2.2.1</version>
+                <executions>
+                    <execution>
+                        <id>attach-sources</id>
+                        <goals>
+                            <goal>jar</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <version>2.9.1</version>
+                <executions>
+                    <execution>
+                        <id>attach-javadocs</id>
+                        <goals>
+                            <goal>jar</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
     </build>
 
     <dependencies>
-      <dependency>
-        <groupId>io.netty</groupId>
-        <artifactId>netty-all</artifactId>
-        <version>4.1.8.Final</version>
-      </dependency>
-      <dependency>
+        <dependency>
+            <groupId>org.scala-lang</groupId>
+            <artifactId>scala-library</artifactId>
+            <version>${project.scala.version}</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.scala-lang</groupId>
+            <artifactId>scala-reflect</artifactId>
+            <version>${project.scala.version}</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <dependency>
             <groupId>org.neo4j.driver</groupId>
             <artifactId>neo4j-java-driver</artifactId>
             <version>${driver.version}</version>
         </dependency>
+
         <dependency>
             <groupId>org.apache.spark</groupId>
             <artifactId>spark-core_2.11</artifactId>
             <version>${spark.version}</version>
             <scope>provided</scope>
         </dependency>
+
         <dependency>
             <groupId>org.apache.spark</groupId>
             <artifactId>spark-graphx_2.11</artifactId>
             <version>${spark.version}</version>
             <scope>provided</scope>
         </dependency>
+
         <dependency>
             <groupId>org.apache.spark</groupId>
             <artifactId>spark-sql_2.11</artifactId>
             <version>${spark.version}</version>
             <scope>provided</scope>
         </dependency>
+
         <dependency>
             <groupId>graphframes</groupId>
             <artifactId>graphframes</artifactId>
             <version>${graphframes.version}</version>
-            <scope>provided</scope>
         </dependency>
 
         <dependency>
@@ -165,19 +183,27 @@
             <version>4.12</version>
             <scope>test</scope>
         </dependency>
+
         <dependency>
             <groupId>org.neo4j.test</groupId>
             <artifactId>neo4j-harness</artifactId>
             <version>${neo4j.version}</version>
             <scope>test</scope>
         </dependency>
+
+        <dependency>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-all</artifactId>
+            <version>${netty.version}</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <repositories>
-	<repository>
-		<id>spark-repo</id>
-		<url>http://dl.bintray.com/spark-packages/maven/</url>
-	</repository>
+        <repository>
+            <id>spark-repo</id>
+            <url>http://dl.bintray.com/spark-packages/maven/</url>
+        </repository>
     </repositories>
 
 </project>
