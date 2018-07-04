@@ -4,10 +4,11 @@ import java.util
 
 import org.apache.spark._
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.types.{DataType, StructField, StructType}
-import org.apache.spark.sql.{Column, DataFrame, Row, SQLContext, types}
+import org.apache.spark.sql.{DataFrame, Row, SQLContext}
+import org.apache.spark.sql.types.{DataType, DataTypes, StructField, StructType}
 import org.neo4j.driver.internal.types.InternalTypeSystem
 import org.neo4j.driver.v1._
+import org.neo4j.driver.v1.summary.ResultSummary
 import org.neo4j.driver.v1.types.{Type, TypeSystem}
 
 import scala.collection.JavaConverters._
@@ -30,22 +31,29 @@ object Neo4jDataFrame {
           "target" -> target._2.map( c => (c, r.getAs[AnyRef](c))).toMap.asJava,
           "relationship" -> relationship._2.map( c => (c, r.getAs[AnyRef](c))).toMap.asJava)
           .asJava).asJava
-          execute(config, mergeStatement, Map("rows" -> params).asJava)
+          execute(config, mergeStatement, Map("rows" -> params).asJava, write = true)
     })
   }
 
-  def execute(config : Neo4jConfig, query: String, parameters: java.util.Map[String, AnyRef]) = {
+  def execute(config : Neo4jConfig, query: String, parameters: java.util.Map[String, AnyRef], write: Boolean = false) : ResultSummary = {
     val driver: Driver = config.driver()
     val session = driver.session()
     try {
-      session.run(query, parameters).consume()
+      val runner =  new TransactionWork[ResultSummary]() { override def execute(tx:Transaction) : ResultSummary =
+         tx.run(query, parameters).consume()
+      }
+      if (write) {
+        session.writeTransaction(runner)
+      }
+      else
+        session.readTransaction(runner)
     } finally {
       if (session.isOpen) session.close()
       driver.close()
     }
   }
 
-  def withDataType(sqlContext: SQLContext, query: String, parameters: Seq[(String, Any)], schema: (String, types.DataType)*) = {
+  def withDataType(sqlContext: SQLContext, query: String, parameters: Seq[(String, Any)], schema: (String, DataType)*) = {
     val rowRdd = Neo4jRowRDD(sqlContext.sparkContext, query, parameters)
     sqlContext.createDataFrame(rowRdd, CypherTypes.schemaFromDataType(schema))
   }
@@ -55,18 +63,25 @@ object Neo4jDataFrame {
     sqlContext.createDataFrame(rowRdd, CypherTypes.schemaFromNamedType(schema))
   }
 
-  def apply(sqlContext: SQLContext, query: String, parameters: java.util.Map[String, AnyRef]) = {
+  def apply(sqlContext: SQLContext, query: String, parameters: java.util.Map[String, AnyRef], write: Boolean = false) : DataFrame = {
     val config = Neo4jConfig(sqlContext.sparkContext.getConf)
     val driver: Driver = config.driver()
     val session = driver.session()
     try {
-      val result = session.run(query, parameters)
-      if (!result.hasNext) throw new RuntimeException("Can't determine schema from empty result")
-      val peek: Record = result.peek()
-      val fields = peek.keys().asScala.map(k => (k, peek.get(k).`type`())).map(keyType => CypherTypes.field(keyType))
-      val schema = StructType(fields)
-      val rowRdd = new Neo4jResultRdd(sqlContext.sparkContext, result.asScala, peek.size(), session, driver)
-      sqlContext.createDataFrame(rowRdd, schema)
+      val runTransaction = new TransactionWork[DataFrame]() {
+        override def execute(tx:Transaction) : DataFrame = {
+            val result = session.run(query, parameters)
+            if (!result.hasNext) throw new RuntimeException("Can't determine schema from empty result")
+            val peek: Record = result.peek()
+            val fields = peek.keys().asScala.map(k => (k, peek.get(k).`type`())).map(keyType => CypherTypes.field(keyType))
+            val schema = StructType(fields)
+            val rowRdd = new Neo4jResultRdd(sqlContext.sparkContext, result.asScala, peek.size(), session, driver)
+            sqlContext.createDataFrame(rowRdd, schema)
+      }}
+      if (write)
+        session.writeTransaction(runTransaction)
+      else
+        session.readTransaction(runTransaction)
     } finally {
       if (session.isOpen) session.close()
       driver.close()
@@ -106,11 +121,11 @@ object Neo4jDataFrame {
 }
 
 object CypherTypes {
-  val INTEGER = types.LongType
-  val FlOAT = types.DoubleType
-  val STRING = types.StringType
-  val BOOLEAN = types.BooleanType
-  val NULL = types.NullType
+  val INTEGER = DataTypes.LongType
+  val FlOAT = DataTypes.DoubleType
+  val STRING = DataTypes.StringType
+  val BOOLEAN = DataTypes.BooleanType
+  val NULL = DataTypes.NullType
 
   def apply(typ:String) = typ.toUpperCase match {
     case "LONG" => INTEGER
@@ -154,7 +169,7 @@ object CypherTypes {
       StructField(field._1, CypherTypes(field._2), nullable = true) )
     StructType(fields)
   }
-  def schemaFromDataType(schemaInfo: Seq[(String, types.DataType)]) = {
+  def schemaFromDataType(schemaInfo: Seq[(String, DataType)]) = {
     val fields = schemaInfo.map(field =>
       StructField(field._1, field._2, nullable = true) )
     StructType(fields)

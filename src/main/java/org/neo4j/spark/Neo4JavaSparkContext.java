@@ -51,6 +51,6 @@ public class Neo4JavaSparkContext {
     }
 
     public Dataset<Row> queryDF(final String query, final Map<String,Object> parameters) {
-        return Neo4jDataFrame.apply(sqlContext, query,parameters);
+        return Neo4jDataFrame.apply(sqlContext, query,parameters, false);
     }
 }

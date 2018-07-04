@@ -4,7 +4,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>neo4j-contrib</groupId>
     <packaging>jar</packaging>
-    <version>2.1.0-M4</version>
+    <version>2.2.1-M5</version>
     <artifactId>neo4j-spark-connector</artifactId>
     <name>neo4j-spark-connector</name>
 
@@ -30,9 +30,10 @@
 
         <netty.version>4.1.8.Final</netty.version>
         <neo4j.version>3.2.3</neo4j.version>
-        <driver.version>1.4.2</driver.version>
-        <spark.version>2.1.1</spark.version>
+        <driver.version>1.6.1</driver.version>
+        <spark.version>2.2.1</spark.version>
         <graphframes.version>0.5.0-spark2.1-s_2.11</graphframes.version>
+        <bouncycastle.version>1.53</bouncycastle.version>
     </properties>
 
     <build>
@@ -197,6 +198,19 @@
             <version>${netty.version}</version>
             <scope>test</scope>
         </dependency>
+        <dependency>
+          <groupId>org.bouncycastle</groupId>
+          <artifactId>bcprov-jdk15on</artifactId>
+          <version>${bouncycastle.version}</version>
+          <scope>test</scope>
+        </dependency>
+        <dependency>
+          <groupId>org.bouncycastle</groupId>
+          <artifactId>bcpkix-jdk15on</artifactId>
+          <version>${bouncycastle.version}</version>
+          <scope>test</scope>
+       </dependency>
+
     </dependencies>
 
     <repositories>

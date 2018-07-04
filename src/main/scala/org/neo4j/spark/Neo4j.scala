@@ -9,7 +9,7 @@ import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.{DataFrame, Row, SQLContext}
 import org.apache.spark.{Partition, SparkContext, TaskContext}
 import org.graphframes.GraphFrame
-import org.neo4j.driver.v1.{Driver, Session, StatementResult}
+import org.neo4j.driver.v1._
 import org.neo4j.spark.Neo4j.{LoadDsl, NameProp, PartitionsDsl, Pattern, QueriesDsl, Query, SaveDsl}
 
 import scala.collection.JavaConverters._
@@ -378,7 +378,7 @@ object Executor {
     i
   }
 
-  def execute(config: Neo4jConfig, query: String, parameters: Map[String, Any]): CypherResult = {
+  def execute(config: Neo4jConfig, query: String, parameters: Map[String, Any], write: Boolean = false): CypherResult = {
 
     def close(driver: Driver, session: Session) = {
       try {
@@ -395,39 +395,47 @@ object Executor {
     val session = driver.session()
 
     try {
-      val result: StatementResult = session.run(query, toJava(parameters))
-      if (!result.hasNext) {
-        result.consume()
-        session.close()
-        driver.close()
-        return new CypherResult(new StructType(), Iterator.empty)
-      }
-      val peek = result.peek()
-      val keyCount = peek.size()
-      if (keyCount == 0) {
-        val res: CypherResult = new CypherResult(new StructType(), Array.fill[Array[Any]](rows(result))(EMPTY).toIterator)
-        result.consume()
-        close(driver,session)
-        return res
-      }
-      val keys = peek.keys().asScala
-      val fields = keys.map(k => (k, peek.get(k).`type`())).map(keyType => CypherTypes.field(keyType))
-      val schema = StructType(fields)
-
-      val it = result.asScala.map((record) => {
-        val row = new Array[Any](keyCount)
-        var i = 0
-        while (i < keyCount) {
-          row.update(i, record.get(i).asObject())
-          i = i + 1
-        }
+      val runner = new TransactionWork[CypherResult]() { override def execute(tx:Transaction) : CypherResult = {
+        val result: StatementResult = tx.run(query, toJava(parameters))
         if (!result.hasNext) {
           result.consume()
-          close(driver,session)
+          session.close()
+          driver.close()
+          return new CypherResult(new StructType(), Iterator.empty)
         }
-        row
-      })
-      new CypherResult(schema, it)
+        val peek = result.peek()
+        val keyCount = peek.size()
+        if (keyCount == 0) {
+          val res: CypherResult = new CypherResult(new StructType(), Array.fill[Array[Any]](rows(result))(EMPTY).toIterator)
+          result.consume()
+          close(driver, session)
+          return res
+        }
+        val keys = peek.keys().asScala
+        val fields = keys.map(k => (k, peek.get(k).`type`())).map(keyType => CypherTypes.field(keyType))
+        val schema = StructType(fields)
+
+        val it = result.asScala.map((record) => {
+          val row = new Array[Any](keyCount)
+          var i = 0
+          while (i < keyCount) {
+            row.update(i, record.get(i).asObject())
+            i = i + 1
+          }
+          if (!result.hasNext) {
+            result.consume()
+            close(driver, session)
+          }
+          row
+        })
+        new CypherResult(schema, it)
+      }}
+
+      if (write)
+        session.writeTransaction(runner)
+      else
+        session.readTransaction(runner)
+
     } finally {
       close(driver,session)
     }

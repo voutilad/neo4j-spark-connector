@@ -111,21 +111,24 @@ class Neo4jSparkTest {
     assertEquals(1000,graph.edges.count())
 
     val top3: Array[(VertexId, Double)] = PageRank.run(graph,5).vertices.sortBy(v => v._2, ascending = false,5).take(3)
-    assertEquals(0.622D, top3(0)._2, 0.01)
+    // assertEquals(0.622D, top3(0)._2, 0.01) // Spark 2.1.2
+    assertEquals(1D, top3(0)._2, 0.01) // Spark 2.2.1
   }
   @Test def runSimplePatternRelQueryWithPartitionGraphFrame() {
     val neo4j: Neo4j = Neo4j(sc).pattern(("Person","id"),("KNOWS",null), ("Person","id")).partitions(7).batch(200)
     val graphFrame: GraphFrame = neo4j.loadGraphFrame
+    // graphFrame.edges.foreach(x => println(x))
     assertEquals(100,graphFrame.vertices.count)
     assertEquals(1000,graphFrame.edges.count)
 
-    val pageRankFrame: GraphFrame = graphFrame.pageRank.maxIter(5).run()
+    val pageRankFrame: GraphFrame = graphFrame.pageRank.maxIter(5).resetProbability(0.15).run()
     val ranked: DataFrame = pageRankFrame.vertices
     ranked.printSchema()
     // sorting DF http://spark.apache.org/docs/latest/api/scala/index.html#org.apache.spark.sql.Column
     val top3: Array[Row] = ranked.orderBy(ranked.col("pagerank").desc).take(3)
     top3.foreach(println)
-    assertEquals(0.622D, top3(0).getAs[Double]("pagerank"), 0.01)
+    // assertEquals(0.622D, top3(0).getAs[Double]("pagerank"), 0.01) // Spark 2.1.2
+    assertEquals(1D, top3(0).getAs[Double]("pagerank"), 0.01) // Spark 2.2.1
   }
 
 
