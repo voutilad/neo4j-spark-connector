@@ -18,7 +18,7 @@ class Neo4jSparkTest {
   val FIXTURE: String =
       """
       UNWIND range(1,100) as id
-      CREATE (p:Person {id:id}) WITH collect(p) as people
+      CREATE (p:Person {id:id,ids:[id,id]}) WITH collect(p) as people
       UNWIND people as p1
       UNWIND range(1,10) as friend
       WITH p1, people[(p1.id + friend) % size(people)] as p2
@@ -38,6 +38,7 @@ class Neo4jSparkTest {
 
   @After def tearDown() {
     server.close()
+    sc.stop()
   }
 
   @Test def runCypherQueryWithParams() {
@@ -59,6 +60,16 @@ class Neo4jSparkTest {
     val neo4j: Neo4j = Neo4j(sc).cypher("MATCH (n:Person) WHERE false RETURN id(n) as id")
     val people: Long = neo4j.loadDataFrame("id" -> "long").count()
     assertEquals(0,people)
+  }
+  @Test def runCypherQueryWithSchemaAndArray() {
+    val neo4j: Neo4j = Neo4j(sc).cypher("MATCH (n:Person) RETURN id(n) as id, n.ids as ids LIMIT 5")
+    val people: Long = neo4j.loadDataFrame("id" -> "long", "ids"->"[long]").count()
+    assertEquals(5,people)
+  }
+  @Test def runCypherQueryWithSchemaAndMap() {
+    val neo4j: Neo4j = Neo4j(sc).cypher("MATCH (n:Person) RETURN id(n) as id, {id:n.id} as ids LIMIT 5")
+    val people: Long = neo4j.loadDataFrame("id" -> "long", "ids"->"{long}").count()
+    assertEquals(5,people)
   }
 
   @Test def runCypherQueryWithPartition() {

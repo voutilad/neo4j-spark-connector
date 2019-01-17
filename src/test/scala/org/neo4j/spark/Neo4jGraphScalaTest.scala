@@ -30,8 +30,8 @@ class Neo4jGraphScalaTest {
   }
 
   @After def tearDown {
-    server.close
-    sc.close
+    server.close()
+    sc.close()
   }
 
   @Test def runCypherQueryWithParams {

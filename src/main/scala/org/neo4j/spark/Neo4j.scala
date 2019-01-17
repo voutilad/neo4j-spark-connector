@@ -16,7 +16,7 @@ import scala.collection.JavaConverters._
 import scala.language.implicitConversions
 import scala.reflect.ClassTag
 
-object Neo4j {
+object Neo4j extends Serializable {
 
   val UNDEFINED = Long.MaxValue
   implicit def apply(sc : SparkContext) : Neo4j = {
@@ -147,7 +147,7 @@ case class Partitions(partitions : Long = 1, batchSize : Long = Neo4j.UNDEFINED,
   else batch
   */
 }
-class Neo4j(val sc : SparkContext) extends QueriesDsl with PartitionsDsl with LoadDsl with SaveDsl {
+class Neo4j(val sc : SparkContext) extends QueriesDsl with PartitionsDsl with LoadDsl with SaveDsl with Serializable {
 
   // todo
   private def sqlContext: SQLContext = new SQLContext(sc)
@@ -419,7 +419,12 @@ object Executor {
           val row = new Array[Any](keyCount)
           var i = 0
           while (i < keyCount) {
-            row.update(i, record.get(i).asObject())
+            val value = record.get(i).asObject() match {
+              case it: util.Map[_,_] => it.asScala
+              case it: util.Collection[_] => it.toArray()
+              case x => x
+            }
+            row.update(i, value)
             i = i + 1
           }
           if (!result.hasNext) {

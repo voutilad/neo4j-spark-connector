@@ -12,6 +12,11 @@ class Neo4jRowRDD(@transient sc: SparkContext, val query: String, val parameters
 
   private val config = Neo4jConfig(sc.getConf)
 
+  def convert(value: AnyRef) = value match {
+    case m: java.util.Map[_,_] => m.asScala
+    case _ => value
+  }
+
   override def compute(split: Partition, context: TaskContext): Iterator[Row] = {
     val driver = config.driver()
     val session = driver.session()
@@ -19,16 +24,16 @@ class Neo4jRowRDD(@transient sc: SparkContext, val query: String, val parameters
     try {
       val result: StatementResult = session.run(query, parameters.toMap.mapValues(_.asInstanceOf[AnyRef]).asJava)
 
-      result.asScala.map((record) => {
+      result.asScala.map(record => {
         val keyCount = record.size()
 
         val res = if (keyCount == 0) Row.empty
-        else if (keyCount == 1) Row(record.get(0).asObject())
+        else if (keyCount == 1) Row(convert(record.get(0).asObject()))
         else {
           val builder = Seq.newBuilder[AnyRef]
           var i = 0
           while (i < keyCount) {
-            builder += record.get(i).asObject()
+            builder += convert(record.get(i).asObject())
             i = i + 1
           }
           Row.fromSeq(builder.result())

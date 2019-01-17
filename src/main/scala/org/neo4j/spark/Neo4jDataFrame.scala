@@ -92,17 +92,22 @@ object Neo4jDataFrame {
   class Neo4jResultRdd(@transient sc: SparkContext, result : Iterator[Record], keyCount : Int, session: Session, driver:Driver)
   extends RDD[Row](sc, Nil) {
 
+    def convert(value: AnyRef) = value match {
+      case m: java.util.Map[_,_] => m.asScala
+      case _ => value
+    }
+
   override def compute(split: Partition, context: TaskContext): Iterator[Row] = {
-    result.map((record) => {
+    result.map(record => {
       val res = keyCount match {
         case 0 => Row.empty
-        case 1 => Row(record.get(0).asObject())
+        case 1 => Row(convert(record.get(0).asObject()))
         case _ =>
           val builder = Seq.newBuilder[AnyRef]
           builder.sizeHint(keyCount)
           var i = 0
           while (i < keyCount) {
-            builder += record.get(i).asObject()
+            builder += convert(record.get(i).asObject())
             i = i + 1
           }
           Row.fromSeq(builder.result())
@@ -126,8 +131,10 @@ object CypherTypes {
   val STRING = DataTypes.StringType
   val BOOLEAN = DataTypes.BooleanType
   val NULL = DataTypes.NullType
+  val DATETIME = DataTypes.TimestampType
+  val DATE = DataTypes.DateType
 
-  def apply(typ:String) = typ.toUpperCase match {
+  def typeOf(typ: String) : DataType = typ.toUpperCase match {
     case "LONG" => INTEGER
     case "INT" => INTEGER
     case "INTEGER" => INTEGER
@@ -137,9 +144,19 @@ object CypherTypes {
     case "STRING" => STRING
     case "BOOLEAN" => BOOLEAN
     case "BOOL" => BOOLEAN
+    case "DATETIME" => DATETIME
+    case "DATE" => DATE
     case "NULL" => NULL
     case _ => STRING
   }
+
+  def apply(typ: String): DataType =
+    (typ.charAt(0), typ.substring(1, typ.length - 1), typ.charAt(typ.length - 1)) match {
+      case ('[', inner, ']') => DataTypes.createArrayType(typeOf(inner), true)
+      case ('{', inner, '}') => DataTypes.createMapType(STRING, typeOf(inner), true)
+      case _  => typeOf(typ)
+    }
+
 //  val MAP = edges.MapType(edges.StringType,edges.AnyDataType)
 //  val LIST = edges.ArrayType(edges.AnyDataType)
 // , MAP, LIST, NODE, RELATIONSHIP, PATH
