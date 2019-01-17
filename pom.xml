@@ -7,7 +7,19 @@
     <version>2.4.0-M6</version>
     <artifactId>neo4j-spark-connector</artifactId>
     <name>neo4j-spark-connector</name>
+    <description>Neo4j Spark Connector using the binary Bolt Driver</description>
 
+    <organization>
+        <name>Neo4j, Inc.</name>
+        <url>http://neo4j.com/</url>
+    </organization>
+    <developers>
+        <developer>
+            <id>jexp</id>
+            <name>Michael Hunger</name>
+        </developer>
+    </developers>
+	
     <url>https://github.com/neo4j-contrib/neo4j-spark-connector</url>
     <scm>
         <url>https://github.com/neo4j-contrib/neo4j-spark-connector</url>
