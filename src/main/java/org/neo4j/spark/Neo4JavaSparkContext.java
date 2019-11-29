@@ -6,6 +6,7 @@ import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SQLContext;
+import org.neo4j.spark.dataframe.Neo4jDataFrame;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -51,6 +52,6 @@ public class Neo4JavaSparkContext {
     }
 
     public Dataset<Row> queryDF(final String query, final Map<String,Object> parameters) {
-        return Neo4jDataFrame.apply(sqlContext, query,parameters, false);
+        return Neo4jDataFrame.apply(sqlContext, query,parameters);
     }
 }
