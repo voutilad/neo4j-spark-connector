@@ -37,9 +37,9 @@ object Neo4jDataFrame {
     dataFrame.repartition(partitions).foreachPartition(rows => {
       val params: AnyRef = rows.map(r =>
         Map(
-          "source" -> source._2.map(c => (renamedColumns.getOrElse(c, c), r.getAs[AnyRef](c))).toMap.asJava,
-          "target" -> target._2.map(c => (renamedColumns.getOrElse(c, c), r.getAs[AnyRef](c))).toMap.asJava,
-          "relationship" -> relationship._2.map(c => (c, r.getAs[AnyRef](c))).toMap.asJava)
+          "source" -> source._2.map(c => (renamedColumns.getOrElse(c, c), toJava(r.getAs(c)))).toMap.asJava,
+          "target" -> target._2.map(c => (renamedColumns.getOrElse(c, c), toJava(r.getAs(c)))).toMap.asJava,
+          "relationship" -> relationship._2.map(c => (c, toJava(r.getAs(c)))).toMap.asJava)
           .asJava).asJava
       execute(config, mergeStatement, Map("rows" -> params).asJava, write = true)
     })
@@ -60,7 +60,7 @@ object Neo4jDataFrame {
     dataFrame.repartition(partitions).foreachPartition(rows => {
       val params: AnyRef = rows.map(r =>
         Map(
-          "node_properties" -> nodes._2.map(c => (renamedColumns.getOrElse(c, c), r.getAs[AnyRef](c))).toMap.asJava)
+          "node_properties" -> nodes._2.map(c => (renamedColumns.getOrElse(c, c), toJava(r.getAs(c)))).toMap.asJava)
           .asJava).asJava
       Neo4jDataFrame.execute(config, createStatement, Map("rows" -> params).asJava, write = true)
     })
@@ -93,6 +93,22 @@ object Neo4jDataFrame {
   def apply(sqlContext: SQLContext, query: String, parameters: Seq[(String, Any)], schema: (String, String)*) = {
     val rowRdd = Neo4jRowRDD(sqlContext.sparkContext, query, parameters)
     sqlContext.createDataFrame(rowRdd, CypherTypes.schemaFromNamedType(schema))
+  }
+
+  def toJava(x: Any): Any = {
+    import scala.collection.JavaConverters._
+    x match {
+      case y: scala.collection.MapLike[_, _, _] => 
+        y.map { case (d, v) => toJava(d) -> toJava(v) } asJava
+      case y: scala.collection.SetLike[_,_] => 
+        y map { item: Any => toJava(item) } asJava
+      case y: Iterable[_] => 
+        y.map { item: Any => toJava(item) } asJava
+      case y: Iterator[_] => 
+        toJava(y.toIterable)
+      case _ => 
+        x
+    }
   }
 
 //  def apply(sqlContext: SQLContext, query: String, parameters: java.util.Map[String, AnyRef], write: Boolean = false): DataFrame = {
