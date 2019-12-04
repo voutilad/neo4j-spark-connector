@@ -62,10 +62,10 @@ class Neo4jDataFrameScalaTest {
   }
 
   @Test def mergeEdgeListWithRelProperties {
-    val rows = sc.makeRDD(Seq(Row("Laurence", "Keanu", "Mentor", Seq("1980"))))
+    val rows = sc.makeRDD(Seq(Row(Seq("Laurence"), Seq("Keanu"), "Mentor", Seq("1980"))))
     val schema = StructType(Seq(
-      StructField("src_name", DataTypes.StringType),
-      StructField("dst_name", DataTypes.StringType),
+      StructField("src_name", DataTypes.createArrayType(DataTypes.StringType, false)),
+      StructField("dst_name", DataTypes.createArrayType(DataTypes.StringType, false)),
       StructField("screen", DataTypes.StringType),
       StructField("met", DataTypes.createArrayType(DataTypes.StringType, false))
     ))
@@ -73,7 +73,7 @@ class Neo4jDataFrameScalaTest {
     val rename = Map("src_name" -> "name", "dst_name" -> "name")
     Neo4jDataFrame.mergeEdgeList(sc, df, ("Person", Seq("src_name")), ("ACTED_WITH", Seq("screen", "met")), ("Person", Seq("dst_name")), rename)
 
-    val it: ResourceIterator[Long] = server.graph().execute("MATCH p=(:Person {name:'Laurence'})-[:ACTED_WITH {screen: 'Mentor', met: ['1980']}]->(:Person {name:'Keanu'}) RETURN count(*) as c").columnAs("c")
+    val it: ResourceIterator[Long] = server.graph().execute("MATCH p=(:Person {name: ['Laurence']})-[:ACTED_WITH {screen: 'Mentor', met: ['1980']}]->(:Person {name:['Keanu']}) RETURN count(*) as c").columnAs("c")
     assertEquals(1L, it.next())
     it.close()
   }
