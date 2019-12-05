@@ -89,6 +89,17 @@ class Neo4jDataFrameScalaTest {
     it.close()
   }
 
+  @Test def createNodesComplexProperties {
+    val rows = sc.makeRDD(Seq(Row(Seq("Laurence", "Fishburne"))))
+    val schema = StructType(Seq(StructField("names", DataTypes.createArrayType(DataTypes.StringType, false))))
+    val df = new SQLContext(sc).createDataFrame(rows, schema)
+    Neo4jDataFrame.createNodes(sc, df, ("Person",Seq("names")))
+
+    val it: ResourceIterator[Long] = server.graph().execute("MATCH (:Person {names: ['Laurence', 'Fishburne']}) RETURN count(*) as c").columnAs("c")
+    assertEquals(1L, it.next())
+    it.close()
+  }
+
   @Test def createNodesWithRename {
     val rows = sc.makeRDD(Seq(Row("Matt", "Doran")))
     val schema = StructType(Seq(StructField("node_name", DataTypes.StringType), StructField("lastname", DataTypes.StringType)))
