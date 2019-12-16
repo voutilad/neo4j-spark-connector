@@ -62,17 +62,18 @@ class Neo4jDataFrameScalaTest {
   }
 
   @Test def mergeEdgeListWithRelProperties {
-    val rows = sc.makeRDD(Seq(Row("Laurence", "Keanu", "Mentor")))
+    val rows = sc.makeRDD(Seq(Row(Seq("Laurence"), Seq("Keanu"), "Mentor", Seq("1980"))))
     val schema = StructType(Seq(
-      StructField("src_name", DataTypes.StringType),
-      StructField("dst_name", DataTypes.StringType),
-      StructField("screen", DataTypes.StringType)
+      StructField("src_name", DataTypes.createArrayType(DataTypes.StringType, false)),
+      StructField("dst_name", DataTypes.createArrayType(DataTypes.StringType, false)),
+      StructField("screen", DataTypes.StringType),
+      StructField("met", DataTypes.createArrayType(DataTypes.StringType, false))
     ))
     val df = new SQLContext(sc).createDataFrame(rows, schema)
     val rename = Map("src_name" -> "name", "dst_name" -> "name")
-    Neo4jDataFrame.mergeEdgeList(sc, df, ("Person",Seq("src_name")),("ACTED_WITH",Seq("screen")),("Person",Seq("dst_name")),rename)
+    Neo4jDataFrame.mergeEdgeList(sc, df, ("Person", Seq("src_name")), ("ACTED_WITH", Seq("screen", "met")), ("Person", Seq("dst_name")), rename)
 
-    val it: ResourceIterator[Long] = server.graph().execute("MATCH p=(:Person {name:'Laurence'})-[:ACTED_WITH {screen:'Mentor'}]->(:Person {name:'Keanu'}) RETURN count(*) as c").columnAs("c")
+    val it: ResourceIterator[Long] = server.graph().execute("MATCH p=(:Person {name: ['Laurence']})-[:ACTED_WITH {screen: 'Mentor', met: ['1980']}]->(:Person {name:['Keanu']}) RETURN count(*) as c").columnAs("c")
     assertEquals(1L, it.next())
     it.close()
   }
@@ -84,6 +85,17 @@ class Neo4jDataFrameScalaTest {
     Neo4jDataFrame.createNodes(sc, df, ("Person",Seq("name","lastname")))
 
     val it: ResourceIterator[Long] = server.graph().execute("MATCH (:Person {name:'Laurence', lastname: 'Fishburne'}) RETURN count(*) as c").columnAs("c")
+    assertEquals(1L, it.next())
+    it.close()
+  }
+
+  @Test def createNodesComplexProperties {
+    val rows = sc.makeRDD(Seq(Row(Seq("Laurence", "Fishburne"))))
+    val schema = StructType(Seq(StructField("names", DataTypes.createArrayType(DataTypes.StringType, false))))
+    val df = new SQLContext(sc).createDataFrame(rows, schema)
+    Neo4jDataFrame.createNodes(sc, df, ("Person",Seq("names")))
+
+    val it: ResourceIterator[Long] = server.graph().execute("MATCH (:Person {names: ['Laurence', 'Fishburne']}) RETURN count(*) as c").columnAs("c")
     assertEquals(1L, it.next())
     it.close()
   }
