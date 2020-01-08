@@ -62,12 +62,14 @@ In your pom.xml, add:
 
 ## Config
 
-If you're running Neo4j on localhost with the default ports, you onl have to configure your password in `spark.neo4j.bolt.password=<password>`.
+If you're running Neo4j on localhost with the default ports, you only have to configure your password in `spark.neo4j.bolt.password=<password>`.
 	
 Otherwise set the `spark.neo4j.bolt.url` in your `SparkConf` pointing e.g. to `bolt://host:port`.
 
 You can provide user and password as part of the URL `bolt://neo4j:<password>@localhost` or individually in `spark.neo4j.bolt.user` and `spark.neo4j.bolt.password`.
 
+If you're running Neo4j with the Bolt connector and the option `dbms.connector.bolt.tls_level` in Neo4j is `REQUIRED`, you must set the `spark.neo4j.bolt.encryption.status` to `true` in your `SparkConf`.
+Otherwise, you can either ignore `spark.neo4j.bolt.encryption.status` or  set  `spark.neo4j.bolt.encryption.status` to `false` in your `SparkConf`.
 
 ## Builder API
 
