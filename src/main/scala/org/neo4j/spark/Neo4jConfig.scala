@@ -7,9 +7,9 @@ import org.neo4j.driver.v1.{Driver, AuthTokens, Config, GraphDatabase}
  * @author mh
  * @since 02.03.16
  */
-case class Neo4jConfig(val url: String, val user: String = "neo4j", val password: Option[String] = None, encryptionStatus:Boolean) {
+case class Neo4jConfig(val url: String, val user: String = "neo4j", val password: Option[String] = None, encryption:Boolean) {
 
-  def boltConfig(): Config = if (encryptionStatus) Config.build().withEncryption().toConfig else Config.build().withoutEncryption().toConfig
+  def boltConfig(): Config = if (encryption) Config.build().withEncryption().toConfig else Config.build().withoutEncryption().toConfig
 
   def driver(config: Neo4jConfig) : Driver = config.password match {
     case Some(pwd) => GraphDatabase.driver(config.url, AuthTokens.basic(config.user, pwd), boltConfig())
@@ -28,7 +28,7 @@ object Neo4jConfig {
     val url = sparkConf.get(prefix + "url", "bolt://localhost")
     val user = sparkConf.get(prefix + "user", "neo4j")
     val password: Option[String] = sparkConf.getOption(prefix + "password")
-    val encryptionStatus : Boolean = sparkConf.getBoolean(prefix + "encryption.status", defaultValue = false)
-    Neo4jConfig(url, user, password,encryptionStatus)
+    val encryptionStatus : Boolean = sparkConf.getBoolean(prefix + "encryption", defaultValue = false)
+    Neo4jConfig(url, user, password, encryptionStatus)
   }
 }

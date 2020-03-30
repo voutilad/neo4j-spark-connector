@@ -14,7 +14,7 @@ This neo4j-spark-connector is Apache 2 Licensed
 ## Building
 
 
-Build `target/neo4j-spark-connector_2.11-full-2.1.0-M4.jar` for Scala 2.11
+Build `target/neo4j-spark-connector_2.11-full-2.4.1-M1.jar` for Scala 2.11
 
     mvn clean package
 
@@ -22,21 +22,21 @@ Build `target/neo4j-spark-connector_2.11-full-2.1.0-M4.jar` for Scala 2.11
 
 **spark-shell, pyspark, or spark-submit**
 
-`$SPARK_HOME/bin/spark-shell --jars neo4j-spark-connector_2.11-full-2.1.0-M4.jar`
+`$SPARK_HOME/bin/spark-shell --jars neo4j-spark-connector_2.11-full-2.4.1-M1.jar`
 
-`$SPARK_HOME/bin/spark-shell --packages neo4j-contrib:neo4j-spark-connector:2.1.0-M4`
+`$SPARK_HOME/bin/spark-shell --packages neo4j-contrib:neo4j-spark-connector:2.4.1-M1`
 
 **sbt**
 
 If you use the [sbt-spark-package plugin](https://github.com/databricks/sbt-spark-package), in your sbt build file, add:
 
-```scala spDependencies += "neo4j-contrib/neo4j-spark-connector:2.1.0-M4"```
+```scala spDependencies += "neo4j-contrib/neo4j-spark-connector:2.4.1-M1"```
 
 Otherwise,
 
 ```scala
 resolvers += "Spark Packages Repo" at "http://dl.bintray.com/spark-packages/maven"
-libraryDependencies += "neo4j-contrib" % "neo4j-spark-connector" % "2.1.0-M4"
+libraryDependencies += "neo4j-contrib" % "neo4j-spark-connector" % "2.4.1-M1"
 ```  
 
 **maven**  
@@ -48,7 +48,7 @@ In your pom.xml, add:
   <dependency>
     <groupId>neo4j-contrib</groupId>
     <artifactId>neo4j-spark-connector</artifactId>
-    <version>2.1.0-M4</version>
+    <version>2.4.1-M1</version>
   </dependency>
 </dependencies>
 <repositories>
@@ -68,12 +68,11 @@ Otherwise set the `spark.neo4j.bolt.url` in your `SparkConf` pointing e.g. to `b
 
 You can provide user and password as part of the URL `bolt://neo4j:<password>@localhost` or individually in `spark.neo4j.bolt.user` and `spark.neo4j.bolt.password`.
 
-If you're running Neo4j with the Bolt connector and the option `dbms.connector.bolt.tls_level` in Neo4j is `REQUIRED`, you must set the `spark.neo4j.bolt.encryption.status` to `true` in your `SparkConf`.
-Otherwise, you can either ignore `spark.neo4j.bolt.encryption.status` or  set  `spark.neo4j.bolt.encryption.status` to `false` in your `SparkConf`.
+You can also provide the encryption configuration via `spark.neo4j.bolt.encryption`, it takes a boolean value and the default is `false`
 
 ## Builder API
 
-Starting with version 2.1.0-M4 you can use a fluent builder API to declare the queries or patterns you want to use, but also **partitions, total-rows and batch-sizes** and then select which Apache Spark Type to load.
+Starting with version 2.4.1-M1 you can use a fluent builder API to declare the queries or patterns you want to use, but also **partitions, total-rows and batch-sizes** and then select which Apache Spark Type to load.
 
 This library supports:
 
@@ -122,7 +121,7 @@ CREATE (p1)-[:KNOWS {years: abs(p2.id - p2.id)}]->(p2)
 
 Start the Spark-Shell with
 
-`$SPARK_HOME/bin/spark-shell --packages neo4j-contrib:neo4j-spark-connector:2.1.0-M4`
+`$SPARK_HOME/bin/spark-shell --packages neo4j-contrib:neo4j-spark-connector:2.4.1-M1`
 
 ### Loading RDDs
 
@@ -318,12 +317,12 @@ You can also provide the dependencies to spark-shell or spark-submit via `--pack
 
     $SPARK_HOME/bin/spark-shell \
           --conf spark.neo4j.bolt.password=<neo4j-password> \
-          --packages neo4j-contrib:neo4j-spark-connector:2.1.0-M4
+          --packages neo4j-contrib:neo4j-spark-connector:2.4.1-M1
 
 ### Neo4j(Row|Tuple)RDD
 
     $SPARK_HOME/bin/spark-shell --conf spark.neo4j.bolt.password=<neo4j-password> \
-    --packages neo4j-contrib:neo4j-spark-connector:2.1.0-M4
+    --packages neo4j-contrib:neo4j-spark-connector:2.4.1-M1
 
 ```scala
 <!-- tag::example_rdd[] -->
@@ -342,7 +341,7 @@ You can also provide the dependencies to spark-shell or spark-submit via `--pack
 ### Neo4jDataFrame
 
     $SPARK_HOME/bin/spark-shell --conf spark.neo4j.bolt.password=<neo4j-password> \
-    --packages neo4j-contrib:neo4j-spark-connector:2.1.0-M4
+    --packages neo4j-contrib:neo4j-spark-connector:2.4.1-M1
 
 ```scala
     import org.neo4j.spark._
@@ -384,7 +383,7 @@ You can also provide the dependencies to spark-shell or spark-submit via `--pack
 ### Neo4jGraph Operations
 
     $SPARK_HOME/bin/spark-shell --conf spark.neo4j.bolt.password=<neo4j-password> \
-    --packages neo4j-contrib:neo4j-spark-connector:2.1.0-M4
+    --packages neo4j-contrib:neo4j-spark-connector:2.4.1-M1
 
 ```scala
     import org.neo4j.spark._
@@ -432,7 +431,7 @@ Resources:
 
 
     $SPARK_HOME/bin/spark-shell --conf spark.neo4j.bolt.password=<neo4j-password> \
-    --packages neo4j-contrib:neo4j-spark-connector:2.1.0-M4
+    --packages neo4j-contrib:neo4j-spark-connector:2.4.1-M1
 
 ```scala  
 <!-- tag::example_graphframes[] -->
