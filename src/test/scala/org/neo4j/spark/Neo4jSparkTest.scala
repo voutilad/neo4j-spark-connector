@@ -66,6 +66,18 @@ class Neo4jSparkTest {
     val people: Long = neo4j.loadDataFrame("id" -> "long", "ids"->"[long]").count()
     assertEquals(5,people)
   }
+
+  @Test def runCypherQueryWithDateTimeSchema() {
+    val neo4j: Neo4j = Neo4j(sc).cypher("RETURN 0 as id, datetime() as datetime, date() as date, time() as time")
+    val people: Long = neo4j.loadDataFrame("id" -> "long", "datetime"->"datetime", "date"->"date", "time"->"time").count()
+    assertEquals(1,people)
+  }
+  @Test def runCypherQueryWithDateTime() {
+    val neo4j: Neo4j = Neo4j(sc).cypher("RETURN 0 as id, datetime() as datetime, date() as date, time() as time")
+    val people: Long = neo4j.loadDataFrame().count()
+    assertEquals(1,people)
+  }
+  
   @Test def runCypherQueryWithSchemaAndMap() {
     val neo4j: Neo4j = Neo4j(sc).cypher("MATCH (n:Person) RETURN id(n) as id, {id:n.id} as ids LIMIT 5")
     val people: Long = neo4j.loadDataFrame("id" -> "long", "ids"->"{long}").count()

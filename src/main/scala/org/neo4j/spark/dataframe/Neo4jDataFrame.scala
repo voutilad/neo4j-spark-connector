@@ -1,14 +1,17 @@
 package org.neo4j.spark.dataframe
 
+import java.time._
+
 import org.apache.spark._
 import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.catalyst.util.DateTimeUtils
 import org.apache.spark.sql.types.{DataType, DataTypes, StructField, StructType}
 import org.apache.spark.sql.{DataFrame, Row, SQLContext}
 import org.neo4j.driver.internal.types.InternalTypeSystem
 import org.neo4j.driver.v1._
 import org.neo4j.driver.v1.summary.ResultSummary
 import org.neo4j.driver.v1.types.{Type, TypeSystem}
-import org.neo4j.spark.Neo4jConfig
+import org.neo4j.spark.{Executor, Neo4jConfig}
 import org.neo4j.spark.rdd.{Neo4jPartition, Neo4jRowRDD}
 
 import scala.collection.JavaConverters._
@@ -199,11 +202,6 @@ object Neo4jDataFrame {
   class Neo4jResultRdd(@transient sc: SparkContext, keyCount: Int, config: Neo4jConfig, query: String, params: java.util.Map[String, AnyRef])
     extends RDD[Row](sc, Nil) {
 
-    def convert(value: AnyRef) = value match {
-      case m: java.util.Map[_, _] => m.asScala
-      case _ => value
-    }
-
     override def compute(split: Partition, context: TaskContext): Iterator[Row] = {
       val driver = config.driver()
       val session = driver.session()
@@ -215,13 +213,13 @@ object Neo4jDataFrame {
             result.asScala.map(record => {
               val res = keyCount match {
                 case 0 => Row.empty
-                case 1 => Row(convert(record.get(0).asObject()))
+                case 1 => Row(Executor.convert(record.get(0).asObject()))
                 case _ =>
-                  val builder = Seq.newBuilder[AnyRef]
+                  val builder = Seq.newBuilder[Any]
                   builder.sizeHint(keyCount)
                   var i = 0
                   while (i < keyCount) {
-                    builder += convert(record.get(i).asObject())
+                    builder += Executor.convert(record.get(i).asObject())
                     i = i + 1
                   }
                   Row.fromSeq(builder.result())
@@ -253,6 +251,7 @@ object CypherTypes {
   val BOOLEAN = DataTypes.BooleanType
   val NULL = DataTypes.NullType
   val DATETIME = DataTypes.TimestampType
+  val TIME = DataTypes.TimestampType
   val DATE = DataTypes.DateType
 
   def typeOf(typ: String): DataType = typ.toUpperCase match {
@@ -266,6 +265,7 @@ object CypherTypes {
     case "BOOLEAN" => BOOLEAN
     case "BOOL" => BOOLEAN
     case "DATETIME" => DATETIME
+	case "TIME" => TIME
     case "DATE" => DATE
     case "NULL" => NULL
     case _ => STRING
@@ -288,6 +288,11 @@ object CypherTypes {
     else if (typ == typeSystem.STRING()) CypherTypes.STRING
     else if (typ == typeSystem.INTEGER()) CypherTypes.INTEGER
     else if (typ == typeSystem.FLOAT()) CypherTypes.FlOAT
+    else if (typ == typeSystem.DATE()) CypherTypes.DATE
+    else if (typ == typeSystem.DATE_TIME()) CypherTypes.DATETIME
+    else if (typ == typeSystem.LOCAL_DATE_TIME()) CypherTypes.DATETIME
+    else if (typ == typeSystem.TIME()) CypherTypes.TIME
+    else if (typ == typeSystem.LOCAL_TIME()) CypherTypes.TIME	
     else if (typ == typeSystem.NULL()) CypherTypes.NULL
     else CypherTypes.STRING
 

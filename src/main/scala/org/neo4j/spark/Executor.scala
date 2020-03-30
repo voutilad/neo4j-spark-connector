@@ -1,10 +1,13 @@
 package org.neo4j.spark
 
+import java.sql.Timestamp
+import java.time._
 import java.util
 
 import org.apache.spark.SparkContext
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema
+import org.apache.spark.sql.catalyst.util.DateTimeUtils
 import org.apache.spark.sql.types.StructType
 import org.neo4j.driver.v1.{Driver, Session, StatementResult, Transaction, TransactionWork}
 import org.neo4j.spark.dataframe.CypherTypes
@@ -13,6 +16,16 @@ import scala.collection.JavaConverters._
 
 
 object Executor {
+
+  def convert(value: AnyRef): Any = value match {
+    case m: ZonedDateTime => new Timestamp(DateTimeUtils.fromUTCTime(m.toInstant.toEpochMilli, m.getZone.getId))
+    case m: LocalDateTime => new Timestamp(DateTimeUtils.fromUTCTime(m.toInstant(ZoneOffset.UTC).toEpochMilli,"UTC"))
+    case m: LocalDate => new java.sql.Date(m.getYear, m.getMonth.getValue-1, m.getDayOfMonth)
+    case m: OffsetTime => new Timestamp(m.atDate(LocalDate.ofEpochDay(0)).toInstant.toEpochMilli)
+    case it: util.Collection[_] => it.toArray()
+    case m: java.util.Map[_,_] => m.asScala
+    case _ => value
+  }
 
   def toJava(parameters: Map[String, Any]): java.util.Map[String, Object] = {
     parameters.mapValues(toJava).asJava
@@ -79,15 +92,11 @@ object Executor {
           val fields = keys.map(k => (k, peek.get(k).`type`())).map(keyType => CypherTypes.field(keyType))
           val schema = StructType(fields)
 
-          val it = result.asScala.map((record) => {
+          val it = result.asScala.map(record => {
             val row = new Array[Any](keyCount)
             var i = 0
             while (i < keyCount) {
-              val value = record.get(i).asObject() match {
-                case it: util.Map[_, _] => it.asScala
-                case it: util.Collection[_] => it.toArray()
-                case x => x
-              }
+              val value = convert(record.get(i).asObject())
               row.update(i, value)
               i = i + 1
             }
