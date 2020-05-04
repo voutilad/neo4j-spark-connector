@@ -6,7 +6,6 @@
 :sectlinks:
 :sectnums:
 :sectnumlevels: 5
-:img: https://github.com/neo4j-contrib/neo4j-streams/raw/gh-pages/3.4/images
 :env-docs: true
 
 ifdef::backend-html5[(C) {copyright}]
