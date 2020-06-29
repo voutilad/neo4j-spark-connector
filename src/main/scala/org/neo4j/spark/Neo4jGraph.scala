@@ -62,7 +62,8 @@ object Neo4jGraph {
 
     def updateNodes(updateNodesStatement: String, nodes: RDD[(VertexId, VD)], total: Option[Long] = None): Long = {
       val batchSize = ((total.getOrElse(nodes.count()) / 100) + 1).toInt
-      nodes.repartition(batchSize).mapPartitions[Long](
+      val numPartitions = ((total.getOrElse(nodes.count()) / batchSize) + 1).toInt
+      nodes.repartition(numPartitions).mapPartitions[Long](
         p => {
           // TODO was toIterable instead of toList but bug in java-driver
           val rows = p.map(v => Seq(("id", v._1), ("value", v._2)).toMap.asJava).toList.asJava
