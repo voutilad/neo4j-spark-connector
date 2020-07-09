@@ -2,12 +2,11 @@ package org.neo4j.spark
 
 import org.apache.spark.{SparkConf, SparkContext}
 import org.junit.runner.RunWith
-import org.junit.runners.{MethodSorters, Suite}
-import org.junit.{AfterClass, Assume, BeforeClass, FixMethodOrder}
+import org.junit.runners.Suite
+import org.junit.{AfterClass, Assume, BeforeClass}
 import org.neo4j.Neo4jContainerExtension
 import org.neo4j.driver.summary.ResultSummary
-import org.neo4j.driver.{AuthTokens, Driver, GraphDatabase, Session, Transaction, TransactionWork}
-import org.neo4j.spark.utils.Neo4jUtils
+import org.neo4j.driver._
 
 
 object SparkConnectorScalaSuiteIT {
@@ -50,7 +49,7 @@ object SparkConnectorScalaSuiteIT {
   @AfterClass
   def tearDownContainer() = {
     if (server.isRunning) {
-      Neo4jUtils.close(driver, session)
+      // Neo4jUtils.close(driver, session)
       server.stop()
       sc.stop()
     }
@@ -76,7 +75,7 @@ object SparkConnectorScalaSuiteIT {
 }
 
 @RunWith(classOf[Suite])
-@Suite.SuiteClasses(Array(classOf[Neo4jDataFrameScalaTSE],
-  classOf[Neo4jGraphScalaTSE],
-  classOf[Neo4jSparkTSE]))
+//@Suite.SuiteClasses(Array(classOf[Neo4jDataFrameScalaTSE],
+//  classOf[Neo4jGraphScalaTSE],
+//  classOf[Neo4jSparkTSE]))
 class SparkConnectorScalaSuiteIT {}
