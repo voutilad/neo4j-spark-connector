@@ -16,7 +16,7 @@ class Neo4jInputPartitionReader(options: Neo4jOptions) extends InputPartition[In
   def next: Boolean = {
     if (customIterator == null) {
       session = DriverCache.getOrCreate(options.connection).session()
-      customIterator = session.run(Neo4jQuery.build(options.queryOption))
+      customIterator = session.run(Neo4jQuery.build(options.query))
     }
 
     customIterator.hasNext

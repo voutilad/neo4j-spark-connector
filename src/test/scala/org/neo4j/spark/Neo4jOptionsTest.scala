@@ -2,7 +2,7 @@ package org.neo4j.spark
 
 import java.util
 
-import org.junit.Assert._
+import org.junit.jupiter.api.Assertions._
 import org.junit.Test
 import org.neo4j.driver.AccessMode
 import org.neo4j.driver.Config.TrustStrategy
@@ -20,7 +20,7 @@ class Neo4jOptionsTest {
   @Test
   def testUrlIsRequired(): Unit = {
     val options: java.util.Map[String, String] = new util.HashMap[String, String]()
-    options.put(QueryType.QUERY.toString.toLowerCase, "Person")
+    options.put(QueryType.NODE.toString.toLowerCase, "Person")
 
     _expectedException.expect(classOf[IllegalArgumentException])
     _expectedException.expectMessage("Parameter 'url' is required")

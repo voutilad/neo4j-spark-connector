@@ -4,14 +4,14 @@ import org.apache.spark.{SparkConf, SparkContext}
 import org.junit.jupiter.api.{AfterAll, BeforeAll}
 import org.junit.runner.RunWith
 import org.junit.runners.Suite
-import org.junit.{After, Assume, Before}
+import org.junit.{After, AfterClass, Assume, Before, BeforeClass}
 import org.neo4j.Neo4jContainerExtension
 import org.neo4j.driver.summary.ResultSummary
 import org.neo4j.driver._
-import org.neo4j.spark.service.SchemaServiceQueryModeIT
+import org.neo4j.spark.service.SchemaServiceApocModeIT
 
 
-object SparkConnectorScalaSuiteIT {
+object SparkConnectorScalaSuiteApocIT {
   val server: Neo4jContainerExtension = new Neo4jContainerExtension("neo4j:4.0.1-enterprise")
     .withNeo4jConfig("dbms.security.auth_enabled", "false")
     .withEnv("NEO4J_ACCEPT_LICENSE_AGREEMENT", "yes")
@@ -35,7 +35,7 @@ object SparkConnectorScalaSuiteIT {
       Assume.assumeTrue("Neo4j container is not started", server.isRunning)
       conf = new SparkConf().setAppName("neoTest")
         .setMaster("local[*]")
-        .set("spark.neo4j.url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+        .set("spark.neo4j.url", SparkConnectorScalaSuiteApocIT.server.getBoltUrl)
       sc = SparkContext.getOrCreate(conf)
       driver = GraphDatabase.driver(server.getBoltUrl, AuthTokens.none())
       session()
@@ -76,5 +76,5 @@ object SparkConnectorScalaSuiteIT {
 }
 
 @RunWith(classOf[Suite])
-@Suite.SuiteClasses(Array(classOf[SchemaServiceQueryModeIT]))
-class SparkConnectorScalaSuiteIT {}
+@Suite.SuiteClasses(Array(classOf[SchemaServiceApocModeIT]))
+class SparkConnectorScalaSuiteApocIT {}
