@@ -1,10 +1,9 @@
 package org.neo4j.spark
 
 import org.apache.spark.{SparkConf, SparkContext}
-import org.junit.jupiter.api.{AfterAll, BeforeAll}
 import org.junit.runner.RunWith
 import org.junit.runners.Suite
-import org.junit.{After, AfterClass, Assume, Before, BeforeClass}
+import org.junit.{AfterClass, Assume, BeforeClass}
 import org.neo4j.Neo4jContainerExtension
 import org.neo4j.driver.summary.ResultSummary
 import org.neo4j.driver._
@@ -15,6 +14,7 @@ object SparkConnectorScalaSuiteApocIT {
   val server: Neo4jContainerExtension = new Neo4jContainerExtension("neo4j:4.0.1-enterprise")
     .withNeo4jConfig("dbms.security.auth_enabled", "false")
     .withEnv("NEO4J_ACCEPT_LICENSE_AGREEMENT", "yes")
+    .withEnv("NEO4JLABS_PLUGINS", "[\"apoc\"]")
 
   var conf: SparkConf = _
   var sc: SparkContext = _
@@ -24,7 +24,7 @@ object SparkConnectorScalaSuiteApocIT {
 
   var connections: Long = 0
 
-  @BeforeAll
+  @BeforeClass
   def setUpContainer(): Unit = {
     if (!server.isRunning) {
       try {
@@ -47,7 +47,7 @@ object SparkConnectorScalaSuiteApocIT {
     }
   }
 
-  @AfterAll
+  @AfterClass
   def tearDownContainer() = {
     if (server.isRunning) {
       // Neo4jUtils.close(driver, session)

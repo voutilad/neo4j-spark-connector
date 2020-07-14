@@ -5,7 +5,6 @@ import java.util.concurrent.TimeUnit
 import org.apache.spark.{SparkConf, SparkContext}
 import org.hamcrest.Matchers
 import org.junit._
-import org.junit.jupiter.api.{AfterAll, AfterEach, BeforeAll, BeforeEach}
 import org.junit.rules.TestName
 import org.neo4j.driver.summary.ResultSummary
 import org.neo4j.driver.{Transaction, TransactionWork}
@@ -41,7 +40,7 @@ class SparkConnectorScalaBaseTSE {
   @Rule
   def testName = _testName
 
-  @BeforeEach
+  @Before
   def before() {
     SparkConnectorScalaSuiteIT.session()
       .writeTransaction(new TransactionWork[ResultSummary] {
@@ -49,7 +48,7 @@ class SparkConnectorScalaBaseTSE {
       })
   }
 
-  @AfterEach
+  @After
   def after() {
     if (!Option(System.getenv("TRAVIS")).getOrElse("false").toBoolean) {
       try {

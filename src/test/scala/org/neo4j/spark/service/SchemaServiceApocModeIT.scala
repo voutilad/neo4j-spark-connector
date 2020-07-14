@@ -3,15 +3,14 @@ package org.neo4j.spark.service
 import java.util
 
 import org.apache.spark.sql.types.{DataTypes, StructField, StructType}
-import org.junit.Test
-import org.junit.jupiter.api.Assertions._
-import org.junit.jupiter.api.BeforeEach
+import org.junit.{Before, Test}
+import org.junit.Assert._
 import org.neo4j.driver.Transaction
 import org.neo4j.spark._
 
 class SchemaServiceApocModeIT extends SparkConnectorScalaBaseApocTSE {
 
-  @BeforeEach
+  @Before
   def beforeEach(): Unit = {
     SparkConnectorScalaSuiteApocIT.session()
       .writeTransaction((tx: Transaction) => tx.run("MATCH (n) DETACH DELETE n").consume())

@@ -3,7 +3,7 @@ package org.neo4j.spark
 import java.util
 
 import org.junit.Test
-import org.junit.jupiter.api.Assertions._
+import org.junit.Assert._
 
 class Neo4jQueryTest {
 

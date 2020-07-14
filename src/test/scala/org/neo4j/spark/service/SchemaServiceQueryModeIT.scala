@@ -3,13 +3,18 @@ package org.neo4j.spark.service
 import java.util
 
 import org.apache.spark.sql.types.{DataTypes, StructField, StructType}
-import org.junit.Test
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.BeforeEach
+import org.junit.{Before, Test}
+import org.junit.Assert._
 import org.neo4j.driver.Transaction
-import org.neo4j.spark.{DriverCache, Neo4jOptions, QueryType, SparkConnectorScalaBaseTSE, SparkConnectorScalaSuiteIT}
+import org.neo4j.spark._
 
 class SchemaServiceQueryModeIT extends SparkConnectorScalaBaseTSE {
+
+  @Before
+  def beforeEach(): Unit = {
+    SparkConnectorScalaSuiteIT.session()
+      .writeTransaction((tx: Transaction) => tx.run("MATCH (n) DETACH DELETE n").consume())
+  }
 
   @Test
   def testGetSchemaFromNodeBoolean(): Unit = {
