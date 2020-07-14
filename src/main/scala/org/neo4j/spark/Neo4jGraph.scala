@@ -104,8 +104,8 @@ object Neo4jGraph {
           }) +
             s" $matchMerge (n)-[rel:${relType.quote}]->(m) SET rel.${relProp.quote} = row.value return count(*)"
         val batchSize = ((graph.numEdges / 100) + 1).toInt
-
-        graph.edges.repartition(batchSize).mapPartitions[Long](
+        val numPartitions = ((graph.numEdges / batchSize) + 1).toInt
+        graph.edges.repartition(numPartitions).mapPartitions[Long](
           p => {
             val rows = p.map(e => Seq(("from", e.srcId), ("to", e.dstId), ("value", e.attr)).toMap.asJava).toList.asJava
             val res1 = execute(config, updateRels, Map("data" -> rows)).rows
