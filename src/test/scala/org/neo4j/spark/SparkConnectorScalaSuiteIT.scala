@@ -74,7 +74,7 @@ object SparkConnectorScalaSuiteIT {
     })
 }
 
-@RunWith(classOf[Suite])
+// @RunWith(classOf[Suite])
 //@Suite.SuiteClasses(Array(classOf[Neo4jDataFrameScalaTSE],
 //  classOf[Neo4jGraphScalaTSE],
 //  classOf[Neo4jSparkTSE]))
