@@ -184,8 +184,9 @@ class SchemaServiceQueryModeIT extends SparkConnectorScalaBaseTSE {
 
     val schema: StructType = schemaService.fromQuery()
     schemaService.close()
-    DriverCache.getOrCreate(neo4jOptions.connection).close()
-    DriverCache.delete(neo4jOptions.connection)
+
+    new DriverCache(neo4jOptions.connection).close(neo4jOptions.uuid)
+
     schema
   }
 }

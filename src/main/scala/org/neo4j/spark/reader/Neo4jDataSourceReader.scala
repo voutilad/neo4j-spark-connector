@@ -17,7 +17,7 @@ class Neo4jDataSourceReader(options: DataSourceOptions) extends DataSourceReader
 
   override def planInputPartitions: util.ArrayList[InputPartition[InternalRow]] = {
     val factoryList = new java.util.ArrayList[InputPartition[InternalRow]]
-    factoryList.add(new Neo4jInputPartitionReader(neo4jOptions))
+    factoryList.add(new Neo4jInputPartitionReader(neo4jOptions, readSchema()))
     factoryList
   }
 }

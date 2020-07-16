@@ -2,6 +2,7 @@ package org.neo4j.spark
 
 import java.util.concurrent.TimeUnit
 
+import org.apache.spark.sql.SparkSession
 import org.apache.spark.{SparkConf, SparkContext}
 import org.hamcrest.Matchers
 import org.junit._
@@ -33,7 +34,7 @@ object SparkConnectorScalaBaseApocTSE {
 class SparkConnectorScalaBaseApocTSE {
 
   val conf: SparkConf = SparkConnectorScalaSuiteApocIT.conf
-  val sc: SparkContext = SparkConnectorScalaSuiteApocIT.sc
+  val ss: SparkSession = SparkConnectorScalaSuiteApocIT.ss
 
   val _testName: TestName = new TestName
 

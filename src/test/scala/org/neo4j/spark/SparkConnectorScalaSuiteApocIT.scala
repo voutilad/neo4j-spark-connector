@@ -1,5 +1,6 @@
 package org.neo4j.spark
 
+import org.apache.spark.sql.SparkSession
 import org.apache.spark.{SparkConf, SparkContext}
 import org.junit.runner.RunWith
 import org.junit.runners.Suite
@@ -17,7 +18,7 @@ object SparkConnectorScalaSuiteApocIT {
     .withEnv("NEO4JLABS_PLUGINS", "[\"apoc\"]")
 
   var conf: SparkConf = _
-  var sc: SparkContext = _
+  var ss: SparkSession = _
 
   private var driver: Driver = _
   private var _session: Session = _
@@ -36,7 +37,7 @@ object SparkConnectorScalaSuiteApocIT {
       conf = new SparkConf().setAppName("neoTest")
         .setMaster("local[*]")
         .set("spark.neo4j.url", SparkConnectorScalaSuiteApocIT.server.getBoltUrl)
-      sc = SparkContext.getOrCreate(conf)
+      ss = SparkSession.builder().config(conf).getOrCreate()
       driver = GraphDatabase.driver(server.getBoltUrl, AuthTokens.none())
       session()
         .readTransaction(new TransactionWork[ResultSummary] {
@@ -52,7 +53,7 @@ object SparkConnectorScalaSuiteApocIT {
     if (server.isRunning) {
       // Neo4jUtils.close(driver, session)
       server.stop()
-      sc.stop()
+      ss.stop()
     }
   }
 
@@ -76,5 +77,8 @@ object SparkConnectorScalaSuiteApocIT {
 }
 
 @RunWith(classOf[Suite])
-@Suite.SuiteClasses(Array(classOf[SchemaServiceApocModeIT]))
+@Suite.SuiteClasses(Array(
+  classOf[SchemaServiceApocModeIT],
+  classOf[DataSourceApocIT]
+))
 class SparkConnectorScalaSuiteApocIT {}

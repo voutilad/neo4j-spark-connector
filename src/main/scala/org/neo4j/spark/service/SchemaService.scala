@@ -17,7 +17,9 @@ class SchemaService(val options: Neo4jOptions) extends AutoCloseable {
 
   private val cypherRenderer = Renderer.getDefaultRenderer
 
-  private val session: Session = DriverCache.getOrCreate(options.connection).session()
+  private val driverCache: DriverCache = new DriverCache(options.connection)
+
+  private val session: Session = driverCache.getOrCreate(options.uuid).session()
 
   private def mapType(internalType: String): DataType = {
     internalType match {
@@ -81,16 +83,16 @@ class SchemaService(val options: Neo4jOptions) extends AutoCloseable {
     }
   }
 
-  override def close(): Unit = session.close()
+  override def close(): Unit = {
+    session.close()
+  }
 }
 
 object SchemaService {
   val pointType: DataType = DataTypes.createStructType(Array(
-    DataTypes.createStructField("srid", DataTypes.StringType, false),
-    DataTypes.createStructField("latitude", DataTypes.DoubleType, true),
-    DataTypes.createStructField("longitude", DataTypes.DoubleType, true),
-    DataTypes.createStructField("x", DataTypes.DoubleType, true),
-    DataTypes.createStructField("y", DataTypes.DoubleType, true),
+    DataTypes.createStructField("srid", DataTypes.IntegerType, false),
+    DataTypes.createStructField("x", DataTypes.DoubleType, false),
+    DataTypes.createStructField("y", DataTypes.DoubleType, false),
     DataTypes.createStructField("z", DataTypes.DoubleType, true),
   ))
 }

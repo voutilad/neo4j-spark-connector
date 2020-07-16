@@ -1,5 +1,6 @@
 package org.neo4j.spark
 
+import org.apache.spark.sql.SparkSession
 import org.apache.spark.{SparkConf, SparkContext}
 import org.junit.runner.RunWith
 import org.junit.runners.Suite
@@ -16,7 +17,7 @@ object SparkConnectorScalaSuiteIT {
     .withEnv("NEO4J_ACCEPT_LICENSE_AGREEMENT", "yes")
 
   var conf: SparkConf = _
-  var sc: SparkContext = _
+  var ss: SparkSession = _
 
   private var driver: Driver = _
   private var _session: Session = _
@@ -35,7 +36,7 @@ object SparkConnectorScalaSuiteIT {
       conf = new SparkConf().setAppName("neoTest")
         .setMaster("local[*]")
         .set("spark.neo4j.url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
-      sc = SparkContext.getOrCreate(conf)
+      ss = SparkSession.builder.config(conf).getOrCreate()
       driver = GraphDatabase.driver(server.getBoltUrl, AuthTokens.none())
       session()
         .readTransaction(new TransactionWork[ResultSummary] {
@@ -51,7 +52,7 @@ object SparkConnectorScalaSuiteIT {
     if (server.isRunning) {
       // Neo4jUtils.close(driver, session)
       server.stop()
-      sc.stop()
+      ss.close()
     }
   }
 
@@ -75,5 +76,8 @@ object SparkConnectorScalaSuiteIT {
 }
 
 @RunWith(classOf[Suite])
-@Suite.SuiteClasses(Array(classOf[SchemaServiceQueryModeIT]))
+@Suite.SuiteClasses(Array(
+  classOf[SchemaServiceQueryModeIT],
+  classOf[DataSource]
+))
 class SparkConnectorScalaSuiteIT {}
