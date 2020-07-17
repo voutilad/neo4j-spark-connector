@@ -3,7 +3,7 @@ package org.neo4j.spark
 import org.neo4j.driver.AccessMode
 import org.neo4j.driver.Config.TrustStrategy
 
-class Neo4jOptions(private val parameters: java.util.Map[String, String]) {
+class Neo4jOptions(private val parameters: java.util.Map[String, String]) extends Serializable {
 
   import Neo4jOptions._
   import QueryType._

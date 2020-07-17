@@ -9,7 +9,7 @@ object Neo4jQuery {
 
   private val renderer: Renderer = Renderer.getDefaultRenderer
 
-  def build(queryOptions: QueryOption): String =
+  def build(queryOptions: Neo4jQueryOptions): String =
     queryOptions.queryType match {
       case NODE => {
         val labels: List[String] = queryOptions.value.split(":").toList
