@@ -147,6 +147,26 @@ class DataSourceApocIT extends SparkConnectorScalaBaseApocTSE {
     assertEquals(java.sql.Date.valueOf("2009-10-11"), res(1))
   }
 
+  @Test
+  def testReadNodeRepartition(): Unit = {
+    val fixtureQuery: String =
+      """UNWIND range(1,100) as id
+        |CREATE (p:Person {id:id,ids:[id,id]}) WITH collect(p) as people
+        |UNWIND people as p1
+        |UNWIND range(1,10) as friend
+        |WITH p1, people[(p1.id + friend) % size(people)] as p2
+        |CREATE (p1)-[:KNOWS]->(p2)
+        |RETURN *
+    """.stripMargin
+
+    val df: DataFrame = initTest(fixtureQuery)
+    val repartitionedDf = df.repartition(10)
+
+    assertEquals(10, repartitionedDf.rdd.getNumPartitions)
+    val numNode = repartitionedDf.collect().length
+    assertEquals(100, numNode)
+  }
+
   private def initTest(query: String): DataFrame = {
     SparkConnectorScalaSuiteApocIT.session()
       .writeTransaction((tx: Transaction) => tx.run(query).consume())
