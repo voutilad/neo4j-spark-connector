@@ -1,0 +1,35 @@
+
+= Quick Start
+
+[abstract]
+--
+Get started fast for common scenarios, using Neo4j Streams plugin or Kafka Connect plugin
+--
+
+== Neo4j Spark Connector Plugin
+
+=== Install the Plugin
+
+* Download the latest release jar from https://github.com/neo4j-contrib/neo4j-spark-connector/releases
+* (Installation instructions here)
+
+=== Spark Settings
+
+(Setting detail here)
+
+.Most Common Needed Configuration Settings
+|===
+|Setting Name |Description |Default Value
+
+|SETTING A
+|description.
+|500
+
+|SETTING B
+|DESCRIPTION
+|33554432
+
+|SETTING C
+|DESCRIPTION
+|16384
+|===
