@@ -11,7 +11,7 @@ import org.neo4j.spark.service.SchemaService
 
 class Neo4jDataSourceReader(private val options: DataSourceOptions, private val jobId: String) extends DataSourceReader {
 
-  val neo4jOptions: Neo4jOptions = new Neo4jOptions(options.asMap())
+  private val neo4jOptions: Neo4jOptions = new Neo4jOptions(options.asMap())
 
   override def readSchema(): StructType = new SchemaService(neo4jOptions, jobId).fromQuery()
 

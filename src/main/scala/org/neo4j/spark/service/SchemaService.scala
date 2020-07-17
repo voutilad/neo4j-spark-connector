@@ -4,9 +4,9 @@ import org.apache.spark.sql.types.{DataType, DataTypes, StructField, StructType}
 import org.neo4j.cypherdsl.core.Cypher
 import org.neo4j.cypherdsl.core.renderer.Renderer
 import org.neo4j.driver.exceptions.ClientException
-import org.neo4j.driver.{Record, Session}
+import org.neo4j.driver.Session
 import org.neo4j.spark.util.Neo4jUtil
-import org.neo4j.spark.{DriverCache, Neo4jOptions, Neo4jQuery}
+import org.neo4j.spark.{DriverCache, Neo4jOptions}
 
 import collection.JavaConverters._
 
@@ -38,7 +38,6 @@ class SchemaService(private val options: Neo4jOptions, private val jobId: String
       case "PointArray" | "InternalPoint2DArray" | "InternalPoint3DArray" => DataTypes.createArrayType(pointType)
       case "LocalDateTimeArray" | "DateTimeArray" | "ZonedDateTimeArray" | "OffsetTimeArray" | "TimeArray" => DataTypes.createArrayType(DataTypes.TimestampType)
       case "LocalDateArray" | "DateArray" => DataTypes.createArrayType(DataTypes.DateType)
-      // @todo handle Map type for QUERY
       case _ => DataTypes.StringType
     }
   }

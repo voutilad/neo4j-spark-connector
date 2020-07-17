@@ -1,7 +1,7 @@
 package org.neo4j.spark
 
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.{SparkConf, SparkContext}
+import org.apache.spark.SparkConf
 import org.junit.runner.RunWith
 import org.junit.runners.Suite
 import org.junit.{AfterClass, Assume, BeforeClass}

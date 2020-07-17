@@ -1,7 +1,5 @@
 package org.neo4j.spark
 
-import java.util
-
 import org.junit.Assert._
 import org.junit.Test
 import org.neo4j.driver.AccessMode
@@ -19,7 +17,7 @@ class Neo4jOptionsTest {
 
   @Test
   def testUrlIsRequired(): Unit = {
-    val options: java.util.Map[String, String] = new util.HashMap[String, String]()
+    val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(QueryType.QUERY.toString.toLowerCase, "Person")
 
     _expectedException.expect(classOf[IllegalArgumentException])
@@ -30,7 +28,7 @@ class Neo4jOptionsTest {
 
   @Test
   def testQueryAndNodeShouldThrowError(): Unit = {
-    val options: java.util.Map[String, String] = new util.HashMap[String, String]()
+    val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
     options.put(QueryType.QUERY.toString.toLowerCase, "MATCH n RETURN n")
     options.put(QueryType.NODE.toString.toLowerCase, "Person")
@@ -43,7 +41,7 @@ class Neo4jOptionsTest {
 
   @Test
   def testQueryAndRelationshipShouldThrowError(): Unit = {
-    val options: java.util.Map[String, String] = new util.HashMap[String, String]()
+    val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
     options.put(QueryType.QUERY.toString.toLowerCase, "MATCH n RETURN n")
     options.put(QueryType.RELATIONSHIP.toString.toLowerCase, "KNOWS")
@@ -56,7 +54,7 @@ class Neo4jOptionsTest {
 
   @Test
   def testNodeAndRelationshipShouldThrowError(): Unit = {
-    val options: java.util.Map[String, String] = new util.HashMap[String, String]()
+    val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
     options.put(QueryType.NODE.toString.toLowerCase, "PERSON")
     options.put(QueryType.RELATIONSHIP.toString.toLowerCase, "KNOWS")
@@ -70,7 +68,7 @@ class Neo4jOptionsTest {
   @Test
   def testQueryShouldHaveQueryType(): Unit = {
     val query: String = "MATCH n RETURN n"
-    val options: java.util.Map[String, String] = new util.HashMap[String, String]()
+    val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
     options.put(QueryType.QUERY.toString.toLowerCase, query)
 
@@ -83,7 +81,7 @@ class Neo4jOptionsTest {
   @Test
   def testNodeShouldHaveNodeType(): Unit = {
     val label: String = "Person"
-    val options: java.util.Map[String, String] = new util.HashMap[String, String]()
+    val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
     options.put(QueryType.NODE.toString.toLowerCase, label)
 
@@ -96,7 +94,7 @@ class Neo4jOptionsTest {
   @Test
   def testRelationshipShouldHaveRelationshipType(): Unit = {
     val relationship: String = "KNOWS"
-    val options: java.util.Map[String, String] = new util.HashMap[String, String]()
+    val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
     options.put(QueryType.NODE.toString.toLowerCase, relationship)
 
@@ -108,7 +106,7 @@ class Neo4jOptionsTest {
 
   @Test
   def testDrierDefaults(): Unit = {
-    val options: java.util.Map[String, String] = new util.HashMap[String, String]()
+    val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
     options.put(QueryType.QUERY.toString.toLowerCase, "MATCH n RETURN n")
 

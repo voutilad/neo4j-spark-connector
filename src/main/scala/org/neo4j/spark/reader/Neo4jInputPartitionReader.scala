@@ -9,7 +9,7 @@ import org.apache.spark.sql.types.StructType
 import org.apache.spark.unsafe.types.UTF8String
 import org.neo4j.driver.internal.{InternalPoint2D, InternalPoint3D}
 import org.neo4j.driver.{Record, Session}
-import org.neo4j.spark.{DriverCache, Neo4jOptions, Neo4jQuery}
+import org.neo4j.spark.{DriverCache, Neo4jOptions, Neo4jQuery, QueryType}
 import java.sql.Timestamp
 
 import org.neo4j.spark.util.Neo4jUtil
@@ -53,8 +53,15 @@ class Neo4jInputPartitionReader(private val options: Neo4jOptions,
     case _ => value
   }
 
+  private def getRecordMap(record: Record): java.util.Map[String, Object] = {
+    options.query.queryType match {
+      case QueryType.NODE => record.get("n").asNode().asMap()
+      case _ => throw new IllegalArgumentException(s"Query type `${options.query.queryType}` not supported")
+    }
+  }
+
   def get: InternalRow = {
-    val record = customIterator.next().get("n").asNode().asMap()
+    val record = getRecordMap(customIterator.next())
     InternalRow.fromSeq(schema.map(field => {
       convertFromSpark(record.get(field.name))
     }))

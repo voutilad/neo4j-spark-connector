@@ -1,13 +1,12 @@
 package org.neo4j.spark.util
 
-import org.neo4j.driver.{Driver, Session}
+import org.neo4j.driver.Session
 
 object Neo4jUtil {
 
-  // @todo write test
   def closeSafety(autoCloseable: AutoCloseable): Unit = {
-    if( autoCloseable == null) {
-      Unit
+    if (autoCloseable == null) {
+      return Unit
     }
 
     try {
@@ -16,7 +15,7 @@ object Neo4jUtil {
         case _ => autoCloseable.close()
       }
     } catch {
-      case _ => Unit // @todo Log
+      case _ => throw new Exception("This exception should be logged")// @todo Log
     }
   }
 

@@ -2,10 +2,8 @@ package org.neo4j.spark
 
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema
-import org.apache.spark.sql.catalyst.util.ArrayData
-import org.apache.spark.sql.types.{DataTypes, StructType}
 import org.junit.Assert._
-import org.junit.{After, Ignore, Test}
+import org.junit.Test
 import org.neo4j.driver.Transaction
 
 class DataSourceApocIT extends SparkConnectorScalaBaseApocTSE {
