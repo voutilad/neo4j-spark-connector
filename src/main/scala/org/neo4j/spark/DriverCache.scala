@@ -1,31 +1,28 @@
 package org.neo4j.spark
 
 import java.util.concurrent.ConcurrentHashMap
+
 import org.neo4j.driver.{Driver, GraphDatabase}
 import org.neo4j.spark.DriverCache.{cache, idCache}
+import org.neo4j.spark.util.Neo4jUtil
 
 object DriverCache {
   private val cache: ConcurrentHashMap[Neo4jDriverOptions, Driver] = new ConcurrentHashMap[Neo4jDriverOptions, Driver]
   private val idCache = new ConcurrentHashMap[String, Boolean]
-
-  def closeAll(): Unit = {
-    cache.values().forEach(d => d.close())
-    cache.clear()
-  }
 }
 
-class DriverCache(private val options: Neo4jDriverOptions) extends Serializable {
-  def getOrCreate(uuid: String): Driver = {
-    idCache.put(uuid, true)
+class DriverCache(private val options: Neo4jDriverOptions, private val jobId: String) extends Serializable with AutoCloseable {
+  def getOrCreate(): Driver = {
+    idCache.put(jobId, true)
     cache.computeIfAbsent(options, (t: Neo4jDriverOptions) => GraphDatabase.driver(t.url))
   }
 
-  def close(uuid: String): Unit = {
-    idCache.remove(uuid)
+  def close(): Unit = {
+    idCache.remove(jobId)
     if(idCache.isEmpty) {
       val driver = cache.remove(options)
       if (driver != null) {
-        driver.close()
+        Neo4jUtil.closeSafety(driver)
       }
     }
   }

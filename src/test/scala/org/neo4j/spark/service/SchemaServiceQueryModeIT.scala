@@ -1,6 +1,7 @@
 package org.neo4j.spark.service
 
 import java.util
+import java.util.UUID
 
 import org.apache.spark.sql.types.{DataTypes, StructField, StructType}
 import org.junit.{Before, Test}
@@ -179,13 +180,13 @@ class SchemaServiceQueryModeIT extends SparkConnectorScalaBaseTSE {
 
   private def getSchema(options: java.util.Map[String, String]): StructType = {
     val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
-
-    val schemaService: SchemaService = new SchemaService(neo4jOptions)
+    val uuid: String = UUID.randomUUID().toString
+    val schemaService: SchemaService = new SchemaService(neo4jOptions, uuid)
 
     val schema: StructType = schemaService.fromQuery()
     schemaService.close()
 
-    new DriverCache(neo4jOptions.connection).close(neo4jOptions.uuid)
+    new DriverCache(neo4jOptions.connection, uuid).close()
 
     schema
   }

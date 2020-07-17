@@ -168,13 +168,14 @@ class SchemaServiceApocModeIT extends SparkConnectorScalaBaseApocTSE {
   private def getSchema(options: java.util.Map[String, String]): StructType = {
     options.put(Neo4jOptions.URL, SparkConnectorScalaSuiteApocIT.server.getBoltUrl)
     val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
+    val uuid: String = UUID.randomUUID().toString
 
-    val schemaService: SchemaService = new SchemaService(neo4jOptions)
+    val schemaService: SchemaService = new SchemaService(neo4jOptions, uuid)
 
     val schema: StructType = schemaService.fromQuery()
     schemaService.close()
 
-    new DriverCache(neo4jOptions.connection).close(neo4jOptions.uuid)
+    new DriverCache(neo4jOptions.connection, uuid).close()
 
     schema
   }

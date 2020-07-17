@@ -5,11 +5,12 @@ import org.neo4j.cypherdsl.core.Cypher
 import org.neo4j.cypherdsl.core.renderer.Renderer
 import org.neo4j.driver.exceptions.ClientException
 import org.neo4j.driver.{Record, Session}
+import org.neo4j.spark.util.Neo4jUtil
 import org.neo4j.spark.{DriverCache, Neo4jOptions, Neo4jQuery}
 
 import collection.JavaConverters._
 
-class SchemaService(val options: Neo4jOptions) extends AutoCloseable {
+class SchemaService(private val options: Neo4jOptions, private val jobId: String) extends AutoCloseable {
 
   import SchemaService._
 
@@ -17,9 +18,9 @@ class SchemaService(val options: Neo4jOptions) extends AutoCloseable {
 
   private val cypherRenderer = Renderer.getDefaultRenderer
 
-  private val driverCache: DriverCache = new DriverCache(options.connection)
+  private val driverCache: DriverCache = new DriverCache(options.connection, jobId)
 
-  private val session: Session = driverCache.getOrCreate(options.uuid).session()
+  private val session: Session = driverCache.getOrCreate().session()
 
   private def mapType(internalType: String): DataType = {
     internalType match {
@@ -34,7 +35,7 @@ class SchemaService(val options: Neo4jOptions) extends AutoCloseable {
       case "LongArray" => DataTypes.createArrayType(DataTypes.IntegerType)
       case "DoubleArray" => DataTypes.createArrayType(DataTypes.DoubleType)
       case "BooleanArray" => DataTypes.createArrayType(DataTypes.BooleanType)
-      case "PointArray" => DataTypes.createArrayType(pointType)
+      case "PointArray" | "InternalPoint2DArray" | "InternalPoint3DArray" => DataTypes.createArrayType(pointType)
       case "LocalDateTimeArray" | "DateTimeArray" | "ZonedDateTimeArray" | "OffsetTimeArray" | "TimeArray" => DataTypes.createArrayType(DataTypes.TimestampType)
       case "LocalDateArray" | "DateArray" => DataTypes.createArrayType(DataTypes.DateType)
       // @todo handle Map type for QUERY
@@ -84,7 +85,7 @@ class SchemaService(val options: Neo4jOptions) extends AutoCloseable {
   }
 
   override def close(): Unit = {
-    session.close()
+    Neo4jUtil.closeSafety(session)
   }
 }
 
