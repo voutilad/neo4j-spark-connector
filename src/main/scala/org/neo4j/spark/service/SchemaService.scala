@@ -20,10 +20,10 @@ class SchemaService(private val options: Neo4jOptions, private val jobId: String
 
   private val driverCache: DriverCache = new DriverCache(options.connection, jobId)
 
-  private val session: Session = driverCache.getOrCreate().session()
+  private val session: Session = driverCache.getOrCreate().session(options.session.toNeo4jSession)
 
-  private def mapType(internalType: String): DataType = {
-    internalType match {
+  private def cypherToSparkType(cypherType: String): DataType = {
+    cypherType match {
       case "Boolean" => DataTypes.BooleanType
       case "String" => DataTypes.StringType
       case "Long" => DataTypes.IntegerType
@@ -31,12 +31,13 @@ class SchemaService(private val options: Neo4jOptions, private val jobId: String
       case "Point" | "InternalPoint2D" | "InternalPoint3D" => pointType
       case "LocalDateTime" | "DateTime" | "ZonedDateTime" | "OffsetTime" | "Time" => DataTypes.TimestampType
       case "LocalDate" | "Date" => DataTypes.DateType
-      case "StringArray" => DataTypes.createArrayType(DataTypes.StringType)
+      case "StringArray" | "DurationArray" | "InternalIsoDurationArray" => DataTypes.createArrayType(DataTypes.StringType)
       case "LongArray" => DataTypes.createArrayType(DataTypes.IntegerType)
       case "DoubleArray" => DataTypes.createArrayType(DataTypes.DoubleType)
       case "BooleanArray" => DataTypes.createArrayType(DataTypes.BooleanType)
       case "PointArray" | "InternalPoint2DArray" | "InternalPoint3DArray" => DataTypes.createArrayType(pointType)
-      case "LocalDateTimeArray" | "DateTimeArray" | "ZonedDateTimeArray" | "OffsetTimeArray" | "TimeArray" => DataTypes.createArrayType(DataTypes.TimestampType)
+      case "LocalDateTimeArray" | "DateTimeArray" | "ZonedDateTimeArray" | "OffsetTimeArray"
+           | "TimeArray" => DataTypes.createArrayType(DataTypes.TimestampType)
       case "LocalDateArray" | "DateArray" => DataTypes.createArrayType(DataTypes.DateType)
       case _ => DataTypes.StringType
     }
@@ -48,7 +49,7 @@ class SchemaService(private val options: Neo4jOptions, private val jobId: String
         "CALL apoc.meta.nodeTypeProperties({ includeLabels: $labels })",
         Map[String, AnyRef]("labels" -> options.query.value.split(":").toSeq.asJava).asJava
       ).list.asScala.map(record => {
-        StructField(record.get("propertyName").asString, mapType(record.get("propertyTypes").asList.get(0).toString))
+        StructField(record.get("propertyName").asString, cypherToSparkType(record.get("propertyTypes").asList.get(0).toString))
       })
     } catch {
       case e: ClientException =>
@@ -59,7 +60,7 @@ class SchemaService(private val options: Neo4jOptions, private val jobId: String
               cypherRenderer.render(Cypher.`match`(node).returning(node).limit(1).build())
             ).list.asScala.flatMap(record => {
               record.get("n").asNode.asMap.asScala.map(t => {
-                StructField(t._1, mapType(t._2 match {
+                StructField(t._1, cypherToSparkType(t._2 match {
                   case l: java.util.List[Any] => s"${l.get(0).getClass.getSimpleName}Array"
                   case _ => t._2.getClass.getSimpleName
                 }))

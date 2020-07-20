@@ -9,7 +9,7 @@ import org.junit.Assert._
 import org.neo4j.driver.Transaction
 import org.neo4j.spark._
 
-class SchemaServiceQueryModeIT extends SparkConnectorScalaBaseTSE {
+class SchemaServiceNoApocModeIT extends SparkConnectorScalaBaseTSE {
 
   @Before
   def beforeEach(): Unit = {

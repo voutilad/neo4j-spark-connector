@@ -1,6 +1,6 @@
 package org.neo4j.spark
 
-import org.neo4j.driver.AccessMode
+import org.neo4j.driver.{AccessMode, SessionConfig}
 import org.neo4j.driver.Config.TrustStrategy
 
 class Neo4jOptions(private val parameters: java.util.Map[String, String]) extends Serializable {
@@ -49,12 +49,27 @@ class Neo4jOptions(private val parameters: java.util.Map[String, String]) extend
     getParameter(MAX_CONNECTION_ACQUISITION_TIMEOUT_MSECS, DEFAULT_MAX_CONNECTION_ACQUISITION_TIMEOUT_MSECS.toString).toInt
   )
 
-  val session: Neo4jSessionOptions = Neo4jSessionOptions(getParameter(DATABASE, DEFAULT_DATABASE))
+  val session: Neo4jSessionOptions =  Neo4jSessionOptions(
+    getParameter(DATABASE, DEFAULT_DATABASE),
+    AccessMode.valueOf(getParameter(ACCESS_MODE, DEFAULT_ACCESS_MODE.toString).toUpperCase())
+  )
 }
 
 case class Neo4jQueryOptions(queryType: QueryType.Value, value: String) extends Serializable
 
-case class Neo4jSessionOptions(database: String, accessMode: AccessMode = AccessMode.READ)
+case class Neo4jSessionOptions(database: String, accessMode: AccessMode = AccessMode.READ) {
+  def toNeo4jSession: SessionConfig = {
+    val builder = SessionConfig.builder()
+      .withDefaultAccessMode(accessMode)
+
+    if(database != null && database != "") {
+      builder.withDatabase(database)
+    }
+
+    builder.build()
+  }
+
+}
 
 case class Neo4jDriverOptions(
                                url: String,
@@ -83,9 +98,11 @@ object Neo4jOptions {
 
   // session options
   val DATABASE = "database"
+  val ACCESS_MODE = "access.mode"
 
   // defaults
   val DEFAULT_DATABASE = ""
+  val DEFAULT_ACCESS_MODE = AccessMode.WRITE
   val DEFAULT_AUTH_TYPE = "basic"
   val DEFAULT_AUTH_BASIC_USERNAME = ""
   val DEFAULT_AUTH_BASIC_PASSWORD = ""

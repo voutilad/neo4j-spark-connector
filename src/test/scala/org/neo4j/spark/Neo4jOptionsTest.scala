@@ -105,7 +105,7 @@ class Neo4jOptionsTest {
   }
 
   @Test
-  def testDrierDefaults(): Unit = {
+  def testDriverDefaults(): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
     options.put(QueryType.QUERY.toString.toLowerCase, "MATCH n RETURN n")
@@ -113,7 +113,7 @@ class Neo4jOptionsTest {
     val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
 
     assertEquals("", neo4jOptions.session.database)
-    assertEquals(AccessMode.READ, neo4jOptions.session.accessMode)
+    assertEquals(AccessMode.WRITE, neo4jOptions.session.accessMode)
     assertEquals("basic", neo4jOptions.connection.auth)
     assertEquals("", neo4jOptions.connection.username)
     assertEquals("", neo4jOptions.connection.password)

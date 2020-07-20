@@ -16,8 +16,9 @@ class Neo4jDataSourceReader(private val options: DataSourceOptions, private val 
   override def readSchema(): StructType = new SchemaService(neo4jOptions, jobId).fromQuery()
 
   override def planInputPartitions: util.ArrayList[InputPartition[InternalRow]] = {
+    val schema  = readSchema()
     val factoryList = new java.util.ArrayList[InputPartition[InternalRow]]
-    factoryList.add(new Neo4jInputPartitionReader(neo4jOptions, readSchema(), jobId))
+    factoryList.add(new Neo4jInputPartitionReader(neo4jOptions, schema, jobId))
     factoryList
   }
 }

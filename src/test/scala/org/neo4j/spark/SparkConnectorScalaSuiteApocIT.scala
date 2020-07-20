@@ -16,11 +16,12 @@ object SparkConnectorScalaSuiteApocIT {
     .withNeo4jConfig("dbms.security.auth_enabled", "false")
     .withEnv("NEO4J_ACCEPT_LICENSE_AGREEMENT", "yes")
     .withEnv("NEO4JLABS_PLUGINS", "[\"apoc\"]")
+    .withDatabases(Seq("db1", "db2"))
 
   var conf: SparkConf = _
   var ss: SparkSession = _
+  var driver: Driver = _
 
-  private var driver: Driver = _
   private var _session: Session = _
 
   var connections: Long = 0
@@ -37,7 +38,7 @@ object SparkConnectorScalaSuiteApocIT {
       conf = new SparkConf().setAppName("neoTest")
         .setMaster("local[*]")
         .set("spark.neo4j.url", SparkConnectorScalaSuiteApocIT.server.getBoltUrl)
-      ss = SparkSession.builder().config(conf).getOrCreate()
+      ss = SparkSession.builder.config(conf).getOrCreate()
       driver = GraphDatabase.driver(server.getBoltUrl, AuthTokens.none())
       session()
         .readTransaction(new TransactionWork[ResultSummary] {
