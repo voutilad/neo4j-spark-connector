@@ -194,6 +194,9 @@
                         </goals>
                     </execution>
                 </executions>
+                <configuration>
+                    <workingDirectory>doc</workingDirectory>
+                </configuration>
             </plugin>
         </plugins>
     </build>

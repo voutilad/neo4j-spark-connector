@@ -29,5 +29,5 @@ Thumbs.db
 .cache-main
 .cache-tests
 docs/guides
-node
-node_modules
+doc/node
+doc/node_modules
