@@ -36,7 +36,6 @@ object SparkConnectorScalaSuiteNoApocIT {
       Assume.assumeTrue("Neo4j container is not started", server.isRunning)
       conf = new SparkConf().setAppName("neoTest")
         .setMaster("local[*]")
-        .set("spark.neo4j.url", SparkConnectorScalaSuiteNoApocIT.server.getBoltUrl)
       ss = SparkSession.builder.config(conf).getOrCreate()
       driver = GraphDatabase.driver(server.getBoltUrl, AuthTokens.none())
       session()
