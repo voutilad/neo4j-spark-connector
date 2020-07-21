@@ -1,0 +1,170 @@
+
+= Quick Start
+
+[abstract]
+--
+Get started fast for common scenarios, using Neo4j Streams plugin or Kafka Connect plugin
+--
+
+== Neo4j Spark Connector Plugin
+
+=== Overview
+
+TK Overview
+
+=== Getting Started
+
+TK Provide short description of the example code
+
+```scala
+val df = spark.read.format("neo4j")
+        .option("url", "bolt://localhost:7687")
+        .option("node.labels", "Person")
+        .load()
+```
+
+=== Neo4j Options
+
+Spark method `option` is used to configure the Neo4j Connector.
+
+```scala
+val df = spark.read.format("neo4j")
+        .option("url", "bolt://localhost:7687")
+        .option("authentication.type", "basic")
+        .option("authentication.basic.username", "myuser")
+        .option("authentication.basic.password", "neo4jpassword")
+        .option("node.labels", "Person")
+        .load()
+```
+
+.Most Common Needed Configuration Settings
+|===
+|Setting Name |Description |Default Value |Required 
+
+4+|*Driver Options*
+
+|`url`
+|The url of the Neo4j instance to connect to
+|_(none)_
+|Yes
+
+|`authentication.type`
+|The authentication method to be used
+|`basic`
+|No
+
+|`authentication.basic.username`
+|Username to use for basic authentication type
+|``
+|No
+
+|`authentication.basic.password`
+|Username to use for basic authentication type
+|``
+|No
+
+|`encryption.enabled`
+|Specify if encryption should be enabled
+|`false`
+|No
+
+|`encryption.trust.strategy`
+|Set cerificate trust strategy
+|`TRUST_SYSTEM_CA_SIGNED_CERTIFICATES`
+|No
+
+|`encryption.ca.certificate.path`
+|Set certificate path
+|``
+|No
+
+|`connection.max.lifetime.msecs`
+|Connection lifetime in milliseconds
+|`1000`
+|No
+
+|`connection.acquisition.timeout.msecs`
+|Connection timeout in milliseconds
+|`1000`
+|No
+
+4+|*Session Options*
+
+|`database`
+|Database name to connect to
+|``
+|No
+
+|`access.mode`
+|Access mode
+|`write`
+|No
+
+4+|*Data Read Options*
+
+|`query`
+|Specify a query to read the data
+|``
+|Yes^*^
+
+|`node.lables`
+|List of labels separated by `:`. First label is the primary label
+|``
+|Yes^*^
+
+|`relationship`
+|List of labels separated by `:` (first label is the primary label)
+|``
+|Yes^*^
+
+|===
+
+^*^ Just one of the options can be specified.
+
+== Read Data
+
+Reading data from a Neo4j Database can be done in 3 ways:
+
+ * with a Cypher query
+ * with a set of node Labels 
+ * by specifying a relationship
+
+=== Considerations on the schema
+
+Spark works with data in a tabular fixed schema. To accomplish this Neo4j Connector has a schema infer system that creates the schema based on the data requested for the read. Each read data method has is own strategy to create it, that will be explained it each section.
+
+TK list of supported data types
+
+=== Read data by Node Labels
+
+You can both specify a single label, like this example
+```scala
+val df = spark.read.format("neo4j")
+        .option("url", "bolt://localhost:7687")
+        .option("node.labels", "Person")
+        .load()
+
+df.show()
+```
+
+Multiple labels can be specified, separated by `:`
+```scala
+val df = spark.read.format("neo4j")
+        .option("url", "bolt://localhost:7687")
+        .option("node.labels", "Person:Customer:Admin")
+        .load()
+
+df.show()
+```
+
+Remember that the first Label is considered to be the primary label.
+
+
+When reading data with this method, the result set will contain all the columns contained in the nodes, plus 2 additional columns.
+
+ * `<id>` the internal Neo4j id
+ * `<labels>` a list of labels for that node
+
+==== Schema
+
+If APOC are installed, schema will be created with `apoc.meta.nodeTypeProperties`. Otherwise the first 10 (TK there should be an option) results will be flattened and the schema will be create from those properties
