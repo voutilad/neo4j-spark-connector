@@ -9,6 +9,28 @@ import org.neo4j.driver.{SessionConfig, Transaction}
 class DataSourceApocIT extends SparkConnectorScalaBaseApocTSE {
 
   @Test
+  def testReadNodeHasIdField(): Unit = {
+    val df: DataFrame = initTest(s"CREATE (p:Person {name: 'John'})")
+
+    /**
+     * utnaf: Since we can't be sure we are in total isolation, and the id is generated
+     * internally by neo4j, we just check that the <id> field is an integer and is greater
+     * than -1
+     */
+    assertTrue(df.select("<id>").collectAsList().get(0).getInt(0) > -1)
+  }
+
+  @Test
+  def testReadNodeHasLabelsField(): Unit = {
+    val df: DataFrame = initTest(s"CREATE (p:Person:Customer {name: 'John'})")
+
+    val result = df.select("<labels>").collectAsList().get(0).getAs[Seq[String]](0)
+
+    assertEquals("Person", result.head)
+    assertEquals("Customer", result(1))
+  }
+
+  @Test
   def testReadNodeWithString(): Unit = {
     val name: String = "John"
     val df: DataFrame = initTest(s"CREATE (p:Person {name: '$name'})")
@@ -233,13 +255,13 @@ class DataSourceApocIT extends SparkConnectorScalaBaseApocTSE {
     val df1 = ss.read.format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteApocIT.server.getBoltUrl)
       .option("database", "db1")
-      .option("node", "Person")
+      .option("labels", "Person")
       .load()
 
     val df2 = ss.read.format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteApocIT.server.getBoltUrl)
       .option("database", "db2")
-      .option("node", "Person")
+      .option("labels", "Person")
       .load()
 
     assertEquals(3, df1.count())
@@ -255,7 +277,7 @@ class DataSourceApocIT extends SparkConnectorScalaBaseApocTSE {
 
     ss.read.format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteApocIT.server.getBoltUrl)
-      .option("node", "Person")
+      .option("labels", "Person")
       .load()
   }
 }

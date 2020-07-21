@@ -1,5 +1,7 @@
 package org.neo4j.spark.reader
 
+import java.util
+
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.sources.v2.reader.{InputPartition, InputPartitionReader}
 import org.apache.spark.sql.types.StructType
@@ -32,7 +34,12 @@ class Neo4jInputPartitionReader(private val options: Neo4jOptions,
 
   private def getRecordMap(record: Record): java.util.Map[String, Object] = {
     options.query.queryType match {
-      case QueryType.NODE => record.get("n").asNode().asMap()
+      case QueryType.LABELS =>
+        val node = record.get(Neo4jQuery.NODE_ALIAS).asNode()
+        val nodeMap: java.util.Map[String, Object] = new util.HashMap[String, Object](node.asMap())
+        nodeMap.put(Neo4jQuery.INTERNAL_ID_FIELD, node.id().asInstanceOf[Object])
+        nodeMap.put(Neo4jQuery.INTERNAL_LABELS_FIELD, node.labels().asInstanceOf[Object])
+        nodeMap
       case _ => throw new IllegalArgumentException(s"Query type `${options.query.queryType}` not supported")
     }
   }

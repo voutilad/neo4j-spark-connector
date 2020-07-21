@@ -1,5 +1,6 @@
 package org.neo4j.spark
 
+import org.apache.spark.unsafe.types.UTF8String
 import org.neo4j.driver.{AccessMode, SessionConfig}
 import org.neo4j.driver.Config.TrustStrategy
 
@@ -26,14 +27,15 @@ class Neo4jOptions(private val parameters: java.util.Map[String, String]) extend
 
   val query: Neo4jQueryOptions = (
     getParameter(QUERY.toString.toLowerCase),
-    getParameter(NODE.toString.toLowerCase),
+    getParameter(LABELS.toString.toLowerCase),
     getParameter(RELATIONSHIP.toString.toLowerCase())
   ) match {
     case (query, "", "") => Neo4jQueryOptions(QUERY, query)
-    case ("", node, "") => Neo4jQueryOptions(NODE, node)
+    case ("", label, "") => Neo4jQueryOptions(LABELS, label)
     case ("", "", relationship) => Neo4jQueryOptions(RELATIONSHIP, relationship)
     case _ => throw new IllegalArgumentException(
-      s"You need to specify just one of these options: ${QueryType.values.toSeq.map( value => s"'${value.toString.toLowerCase()}'").sorted.mkString(", ")}"
+      s"You need to specify just one of these options: ${QueryType.values.toSeq.map( value => s"'${value.toString.toLowerCase()}'")
+        .sorted.mkString(", ")}"
     )
   }
 
@@ -114,5 +116,5 @@ object Neo4jOptions {
 }
 
 object QueryType extends Enumeration {
-  val QUERY, NODE, RELATIONSHIP = Value
+  val QUERY, LABELS, RELATIONSHIP = Value
 }

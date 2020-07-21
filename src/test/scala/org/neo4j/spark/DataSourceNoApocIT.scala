@@ -8,7 +8,29 @@ import org.junit.Test
 import org.neo4j.driver.{SessionConfig, Transaction}
 import org.junit.Assert._
 
-class DataSourceNoApocIT extends SparkConnectorScalaBaseTSE {
+class DataSourceNoApocIT extends SparkConnectorScalaBaseNoApocTSE {
+
+  @Test
+  def testReadNodeHasIdField(): Unit = {
+    val df: DataFrame = initTest(s"CREATE (p:Person {name: 'John'})")
+
+    /**
+     * utnaf: Since we can't be sure we are in total isolation, and the id is generated
+     * internally by neo4j, we just check that the <id> field is an integer and is greater
+     * than -1
+     */
+    assertTrue(df.select("<id>").collectAsList().get(0).getInt(0) > -1)
+  }
+
+  @Test
+  def testReadNodeHasLabelsField(): Unit = {
+    val df: DataFrame = initTest(s"CREATE (p:Person:Customer {name: 'John'})")
+
+    val result = df.select("<labels>").collectAsList().get(0).getAs[Seq[String]](0)
+
+    assertEquals("Person", result.head)
+    assertEquals("Customer", result(1))
+  }
 
   @Test
   def testReadNodeWithString(): Unit = {
@@ -217,7 +239,7 @@ class DataSourceNoApocIT extends SparkConnectorScalaBaseTSE {
 
   @Test
   def testMultiDbJoin(): Unit = {
-    SparkConnectorScalaSuiteIT.driver.session(SessionConfig.forDatabase("db1"))
+    SparkConnectorScalaSuiteNoApocIT.driver.session(SessionConfig.forDatabase("db1"))
       .writeTransaction((tx: Transaction) => tx.run(
         """
       CREATE (p1:Person:Customer {name: 'John Doe'}),
@@ -225,7 +247,7 @@ class DataSourceNoApocIT extends SparkConnectorScalaBaseTSE {
        (p3:Person:Customer {name: 'Cindy White'})
       """).consume())
 
-    SparkConnectorScalaSuiteIT.driver.session(SessionConfig.forDatabase("db2"))
+    SparkConnectorScalaSuiteNoApocIT.driver.session(SessionConfig.forDatabase("db2"))
       .writeTransaction((tx: Transaction) => tx.run(
         """
       CREATE (p1:Person:Employee {name: 'Jane Doe'}),
@@ -233,15 +255,15 @@ class DataSourceNoApocIT extends SparkConnectorScalaBaseTSE {
       """).consume())
 
     val df1 = ss.read.format(classOf[DataSource].getName)
-      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("url", SparkConnectorScalaSuiteNoApocIT.server.getBoltUrl)
       .option("database", "db1")
-      .option("node", "Person")
+      .option("labels", "Person")
       .load()
 
     val df2 = ss.read.format(classOf[DataSource].getName)
-      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("url", SparkConnectorScalaSuiteNoApocIT.server.getBoltUrl)
       .option("database", "db2")
-      .option("node", "Person")
+      .option("labels", "Person")
       .load()
 
     assertEquals(3, df1.count())
@@ -252,12 +274,12 @@ class DataSourceNoApocIT extends SparkConnectorScalaBaseTSE {
   }
 
   private def initTest(query: String): DataFrame = {
-    SparkConnectorScalaSuiteIT.session()
+    SparkConnectorScalaSuiteNoApocIT.session()
       .writeTransaction((tx: Transaction) => tx.run(query).consume())
 
     ss.read.format(classOf[DataSource].getName)
-      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
-      .option("node", "Person")
+      .option("url", SparkConnectorScalaSuiteNoApocIT.server.getBoltUrl)
+      .option("labels", "Person")
       .load()
   }
 }

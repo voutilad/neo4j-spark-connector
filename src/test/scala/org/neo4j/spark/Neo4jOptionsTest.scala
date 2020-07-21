@@ -31,10 +31,10 @@ class Neo4jOptionsTest {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
     options.put(QueryType.QUERY.toString.toLowerCase, "MATCH n RETURN n")
-    options.put(QueryType.NODE.toString.toLowerCase, "Person")
+    options.put(QueryType.LABELS.toString.toLowerCase, "Person")
 
     _expectedException.expect(classOf[IllegalArgumentException])
-    _expectedException.expectMessage("You need to specify just one of these options: 'node', 'query', 'relationship'")
+    _expectedException.expectMessage("You need to specify just one of these options: 'labels', 'query', 'relationship'")
 
     new Neo4jOptions(options)
   }
@@ -47,7 +47,7 @@ class Neo4jOptionsTest {
     options.put(QueryType.RELATIONSHIP.toString.toLowerCase, "KNOWS")
 
     _expectedException.expect(classOf[IllegalArgumentException])
-    _expectedException.expectMessage("You need to specify just one of these options: 'node', 'query', 'relationship'")
+    _expectedException.expectMessage("You need to specify just one of these options: 'labels', 'query', 'relationship'")
 
     new Neo4jOptions(options)
   }
@@ -56,11 +56,11 @@ class Neo4jOptionsTest {
   def testNodeAndRelationshipShouldThrowError(): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
-    options.put(QueryType.NODE.toString.toLowerCase, "PERSON")
+    options.put(QueryType.LABELS.toString.toLowerCase, "PERSON")
     options.put(QueryType.RELATIONSHIP.toString.toLowerCase, "KNOWS")
 
     _expectedException.expect(classOf[IllegalArgumentException])
-    _expectedException.expectMessage("You need to specify just one of these options: 'node', 'query', 'relationship'")
+    _expectedException.expectMessage("You need to specify just one of these options: 'labels', 'query', 'relationship'")
 
     new Neo4jOptions(options)
   }
@@ -79,15 +79,15 @@ class Neo4jOptionsTest {
   }
 
   @Test
-  def testNodeShouldHaveNodeType(): Unit = {
+  def testNodeShouldHaveLabelType(): Unit = {
     val label: String = "Person"
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
-    options.put(QueryType.NODE.toString.toLowerCase, label)
+    options.put(QueryType.LABELS.toString.toLowerCase, label)
 
     val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
 
-    assertEquals(QueryType.NODE, neo4jOptions.query.queryType)
+    assertEquals(QueryType.LABELS, neo4jOptions.query.queryType)
     assertEquals(label, neo4jOptions.query.value)
   }
 
@@ -96,11 +96,11 @@ class Neo4jOptionsTest {
     val relationship: String = "KNOWS"
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
-    options.put(QueryType.NODE.toString.toLowerCase, relationship)
+    options.put(QueryType.LABELS.toString.toLowerCase, relationship)
 
     val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
 
-    assertEquals(QueryType.NODE, neo4jOptions.query.queryType)
+    assertEquals(QueryType.LABELS, neo4jOptions.query.queryType)
     assertEquals(relationship, neo4jOptions.query.value)
   }
 

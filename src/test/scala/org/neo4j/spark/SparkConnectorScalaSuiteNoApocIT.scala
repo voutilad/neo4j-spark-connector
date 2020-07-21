@@ -11,7 +11,7 @@ import org.neo4j.driver._
 import org.neo4j.spark.service.SchemaServiceNoApocModeIT
 
 
-object SparkConnectorScalaSuiteIT {
+object SparkConnectorScalaSuiteNoApocIT {
   val server: Neo4jContainerExtension = new Neo4jContainerExtension("neo4j:4.0.1-enterprise")
     .withNeo4jConfig("dbms.security.auth_enabled", "false")
     .withEnv("NEO4J_ACCEPT_LICENSE_AGREEMENT", "yes")
@@ -36,7 +36,7 @@ object SparkConnectorScalaSuiteIT {
       Assume.assumeTrue("Neo4j container is not started", server.isRunning)
       conf = new SparkConf().setAppName("neoTest")
         .setMaster("local[*]")
-        .set("spark.neo4j.url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+        .set("spark.neo4j.url", SparkConnectorScalaSuiteNoApocIT.server.getBoltUrl)
       ss = SparkSession.builder.config(conf).getOrCreate()
       driver = GraphDatabase.driver(server.getBoltUrl, AuthTokens.none())
       session()
@@ -81,4 +81,4 @@ object SparkConnectorScalaSuiteIT {
   classOf[SchemaServiceNoApocModeIT],
   classOf[DataSourceNoApocIT]
 ))
-class SparkConnectorScalaSuiteIT {}
+class SparkConnectorScalaSuiteNoApocIT {}
