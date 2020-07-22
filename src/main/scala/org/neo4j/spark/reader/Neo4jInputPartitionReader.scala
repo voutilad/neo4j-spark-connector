@@ -15,10 +15,10 @@ class Neo4jInputPartitionReader(private val options: Neo4jOptions,
                                 private val schema: StructType,
                                 private val jobId: String) extends InputPartition[InternalRow] with InputPartitionReader[InternalRow] {
 
-  var result: Iterator[Record] = _
-  var session: Session = _
-  var transaction: Transaction = _
-  var driverCache: DriverCache = new DriverCache(options.connection, jobId)
+  private var result: Iterator[Record] = _
+  private var session: Session = _
+  private var transaction: Transaction = _
+  private val driverCache: DriverCache = new DriverCache(options.connection, jobId)
 
   override def createPartitionReader(): InputPartitionReader[InternalRow] = new Neo4jInputPartitionReader(options, schema, jobId)
 

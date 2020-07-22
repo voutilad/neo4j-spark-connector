@@ -34,24 +34,27 @@ object Neo4jUtil {
   }
 
   def convertFromNeo4j(value: Any): Any = value match {
-    case d: InternalIsoDuration =>
+    case d: InternalIsoDuration => {
       val months: Integer = d.months().toInt
       val days: Integer = d.days().toInt
       val nanoseconds: Integer = d.nanoseconds()
       val seconds: Integer = d.seconds().toInt
       InternalRow.fromSeq(Seq(UTF8String.fromString(d.toString), months, days, seconds, nanoseconds))
+    }
     case lt: LocalTime => UTF8String.fromString(lt.format(DateTimeFormatter.ISO_TIME))
     case dt: ZonedDateTime => new Timestamp(DateTimeUtils.fromUTCTime(dt.toInstant.toEpochMilli, dt.getZone.getId))
     case dt: LocalDateTime => new Timestamp(DateTimeUtils.fromUTCTime(dt.toInstant(ZoneOffset.UTC).toEpochMilli, "UTC"))
     case d: LocalDate => d.toEpochDay.toInt
     case t: OffsetTime => new Timestamp(t.atDate(LocalDate.ofEpochDay(0)).toInstant.toEpochMilli)
     case i: Long => i.intValue()
-    case p: InternalPoint2D =>
+    case p: InternalPoint2D => {
       val srid: Integer = p.srid()
       InternalRow.fromSeq(Seq(UTF8String.fromString(SchemaService.POINT_TYPE_2D), srid, p.x(), p.y(), null))
-    case p: InternalPoint3D =>
+    }
+    case p: InternalPoint3D => {
       val srid: Integer = p.srid()
       InternalRow.fromSeq(Seq(UTF8String.fromString(SchemaService.POINT_TYPE_3D), srid, p.x(), p.y(), p.z()))
+    }
     case l: java.util.List[Any] => ArrayData.toArrayData(l.asScala.map(convertFromNeo4j).toArray)
     case s: String => UTF8String.fromString(s)
     case _ => value

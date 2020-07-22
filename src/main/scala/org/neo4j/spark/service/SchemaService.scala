@@ -50,30 +50,11 @@ class SchemaService(private val options: Neo4jOptions, private val jobId: String
 
   def queryForNode(): StructType = {
     var structFields: mutable.Buffer[StructField] = (try {
-      session.run(
-        "CALL apoc.meta.nodeTypeProperties({ includeLabels: $labels })",
-        Collections.singletonMap[String, Object]("labels", options.query.value.split(":").toSeq.asJava)
-      ).list.asScala.map(record => {
-        StructField(record.get("propertyName").asString, cypherToSparkType(record.get("propertyTypes").asList.get(0).toString))
-      })
+      retrieveSchemaFromApoc
     } catch {
       case e: ClientException =>
         e.code match {
-          case "Neo.ClientError.Procedure.ProcedureNotFound" =>
-            val node = Cypher.node(options.query.value).named(Neo4jQuery.NODE_ALIAS)
-            session.run(
-              cypherRenderer.render(Cypher.`match`(node).returning(node).limit(options.query.schemaFlattenLimit).build())
-            ).list.asScala.flatMap(record => {
-              record.get(Neo4jQuery.NODE_ALIAS).asNode.asMap.asScala.toList
-            })
-              .groupBy(t => t._1)
-              .map(t => {
-                val value = t._2.head._2
-                StructField(t._1, cypherToSparkType(value match {
-                  case l: java.util.List[Any] => s"${l.get(0).getClass.getSimpleName}Array"
-                  case _ => value.getClass.getSimpleName
-                }))
-              }).toBuffer
+          case "Neo.ClientError.Procedure.ProcedureNotFound" => retrieveSchema
         }
     })
       .sortBy(t => t.name)
@@ -81,6 +62,32 @@ class SchemaService(private val options: Neo4jOptions, private val jobId: String
     structFields += StructField(Neo4jQuery.INTERNAL_LABELS_FIELD, DataTypes.createArrayType(DataTypes.StringType), nullable = true)
     structFields += StructField(Neo4jQuery.INTERNAL_ID_FIELD, DataTypes.IntegerType, nullable = false)
     StructType(structFields.reverse)
+  }
+
+  private def retrieveSchemaFromApoc: mutable.Buffer[StructField] = {
+    session.run(
+      "CALL apoc.meta.nodeTypeProperties({ includeLabels: $labels })",
+      Collections.singletonMap[String, Object]("labels", options.query.value.split(":").toSeq.asJava)
+    ).list.asScala.map(record => {
+      StructField(record.get("propertyName").asString, cypherToSparkType(record.get("propertyTypes").asList.get(0).toString))
+    })
+  }
+
+  private def retrieveSchema: mutable.Buffer[StructField] = {
+    val node = Cypher.node(options.query.value).named(Neo4jQuery.NODE_ALIAS)
+    session.run(
+      cypherRenderer.render(Cypher.`match`(node).returning(node).limit(options.query.schemaFlattenLimit).build())
+    ).list.asScala.flatMap(record => {
+      record.get(Neo4jQuery.NODE_ALIAS).asNode.asMap.asScala.toList
+    })
+      .groupBy(t => t._1)
+      .map(t => {
+        val value = t._2.head._2
+        StructField(t._1, cypherToSparkType(value match {
+          case l: java.util.List[Any] => s"${l.get(0).getClass.getSimpleName}Array"
+          case _ => value.getClass.getSimpleName
+        }))
+      }).toBuffer
   }
 
   def queryForRelationship(): StructType = StructType(Array.empty[StructField])
