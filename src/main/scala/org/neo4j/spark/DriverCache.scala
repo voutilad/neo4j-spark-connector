@@ -14,7 +14,7 @@ object DriverCache {
 class DriverCache(private val options: Neo4jDriverOptions, private val jobId: String) extends Serializable with AutoCloseable {
   def getOrCreate(): Driver = {
     jobIdCache.put(jobId, true)
-    cache.computeIfAbsent(options, (t: Neo4jDriverOptions) => GraphDatabase.driver(t.url))
+    cache.computeIfAbsent(options, (t: Neo4jDriverOptions) => GraphDatabase.driver(t.url, t.toNeo4jAuth, t.toDriverConfig))
   }
 
   def close(): Unit = {

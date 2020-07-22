@@ -11,6 +11,7 @@ import org.neo4j.spark.util.Neo4jUtil
 import org.neo4j.spark.{DriverCache, Neo4jOptions, Neo4jQuery}
 
 import collection.JavaConverters._
+import scala.collection.mutable
 
 class SchemaService(private val options: Neo4jOptions, private val jobId: String) extends AutoCloseable {
 
@@ -46,7 +47,7 @@ class SchemaService(private val options: Neo4jOptions, private val jobId: String
   }
 
   def queryForNode(): StructType = {
-    val structFields = try {
+    var structFields: mutable.Buffer[StructField] = (try {
       session.run(
         "CALL apoc.meta.nodeTypeProperties({ includeLabels: $labels })",
         Collections.singletonMap[String, Object]("labels", options.query.value.split(":").toSeq.asJava)
@@ -59,17 +60,21 @@ class SchemaService(private val options: Neo4jOptions, private val jobId: String
           case "Neo.ClientError.Procedure.ProcedureNotFound" =>
             val node = Cypher.node(options.query.value).named(Neo4jQuery.NODE_ALIAS)
             session.run(
-              cypherRenderer.render(Cypher.`match`(node).returning(node).limit(1).build())
+              cypherRenderer.render(Cypher.`match`(node).returning(node).limit(options.query.schemaFlattenLimit).build())
             ).list.asScala.flatMap(record => {
-              record.get(Neo4jQuery.NODE_ALIAS).asNode.asMap.asScala.map(t => {
-                StructField(t._1, cypherToSparkType(t._2 match {
-                  case l: java.util.List[Any] => s"${l.get(0).getClass.getSimpleName}Array"
-                  case _ => t._2.getClass.getSimpleName
-                }))
-              })
+              record.get(Neo4jQuery.NODE_ALIAS).asNode.asMap.asScala.toList
             })
+              .groupBy(t => t._1)
+              .map(t => {
+                val value = t._2.head._2
+                StructField(t._1, cypherToSparkType(value match {
+                  case l: java.util.List[Any] => s"${l.get(0).getClass.getSimpleName}Array"
+                  case _ => value.getClass.getSimpleName
+                }))
+              }).toBuffer
         }
-    }
+    })
+      .sortBy(t => t.name)
 
     structFields += StructField(Neo4jQuery.INTERNAL_LABELS_FIELD, DataTypes.createArrayType(DataTypes.StringType), nullable = true)
     structFields += StructField(Neo4jQuery.INTERNAL_ID_FIELD, DataTypes.IntegerType, nullable = false)

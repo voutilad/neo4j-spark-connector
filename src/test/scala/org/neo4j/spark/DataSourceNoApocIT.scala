@@ -4,9 +4,9 @@ import java.sql.Timestamp
 
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema
+import org.junit.Assert._
 import org.junit.Test
 import org.neo4j.driver.{SessionConfig, Transaction}
-import org.junit.Assert._
 
 class DataSourceNoApocIT extends SparkConnectorScalaBaseNoApocTSE {
 

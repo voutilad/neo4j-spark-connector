@@ -160,6 +160,26 @@ class SchemaServiceApocModeIT extends SparkConnectorScalaBaseApocTSE {
     assertEquals(getExpectedStructType(Seq(StructField("ages", DataTypes.createArrayType(DataTypes.IntegerType)))), schema)
   }
 
+  @Test
+  def testGetSchemaFromMultipleNodes(): Unit = {
+    initTest(
+      """
+      CREATE (p1:Person {age: 31, name: 'Jane Doe'}),
+        (p2:Person {name: 'John Doe', age: 33, location: null}),
+        (p3:Person {age: 25, location: point({latitude: 12.12, longitude: 31.13})})
+    """)
+    val options: java.util.Map[String, String] = new util.HashMap[String, String]()
+    options.put(QueryType.LABELS.toString.toLowerCase, "Person")
+
+    val schema = getSchema(options)
+
+    assertEquals(getExpectedStructType(Seq(
+      StructField("age", DataTypes.IntegerType),
+      StructField("location", SchemaService.pointType),
+      StructField("name", DataTypes.StringType)
+    )), schema)
+  }
+
   private def getExpectedStructType(structFields: Seq[StructField]): StructType = {
     val additionalFields: Seq[StructField] = Seq(
       StructField(Neo4jQuery.INTERNAL_LABELS_FIELD, DataTypes.createArrayType(DataTypes.StringType), nullable = true),

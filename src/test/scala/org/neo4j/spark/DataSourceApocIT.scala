@@ -1,5 +1,7 @@
 package org.neo4j.spark
 
+import java.sql.Timestamp
+
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema
 import org.junit.Assert._
