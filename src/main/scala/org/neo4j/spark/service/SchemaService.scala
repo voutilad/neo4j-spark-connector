@@ -35,7 +35,7 @@ class SchemaService(private val options: Neo4jOptions, private val jobId: String
       case "LocalDateTime" | "DateTime" | "ZonedDateTime" | "OffsetTime" | "Time" => DataTypes.TimestampType
       case "LocalDate" | "Date" => DataTypes.DateType
       case "Duration" | "InternalIsoDuration" => durationType
-      case "StringArray" => DataTypes.createArrayType(DataTypes.StringType)
+      case "StringArray" | "LocalTimeArray" => DataTypes.createArrayType(DataTypes.StringType)
       case "DurationArray" | "InternalIsoDurationArray" => DataTypes.createArrayType(durationType)
       case "LongArray" => DataTypes.createArrayType(DataTypes.IntegerType)
       case "DoubleArray" => DataTypes.createArrayType(DataTypes.DoubleType)

@@ -1,8 +1,9 @@
 package org.neo4j.spark.util
 
 import java.sql.Timestamp
+import java.time.format.DateTimeFormatter
 import java.time.temporal.TemporalAmount
-import java.time.{Duration, Instant, LocalDate, LocalDateTime, OffsetTime, Period, ZoneOffset, ZonedDateTime}
+import java.time.{Duration, Instant, LocalDate, LocalDateTime, LocalTime, OffsetTime, Period, ZoneOffset, ZonedDateTime}
 import java.util.GregorianCalendar
 
 import org.apache.spark.sql.catalyst.InternalRow
@@ -36,9 +37,10 @@ object Neo4jUtil {
     case d: InternalIsoDuration =>
       val months: Integer = d.months().toInt
       val days: Integer = d.days().toInt
-      val nanoseconds: Integer = d.nanoseconds().toInt
+      val nanoseconds: Integer = d.nanoseconds()
       val seconds: Integer = d.seconds().toInt
       InternalRow.fromSeq(Seq(UTF8String.fromString(d.toString), months, days, seconds, nanoseconds))
+    case lt: LocalTime => UTF8String.fromString(lt.format(DateTimeFormatter.ISO_TIME))
     case dt: ZonedDateTime => new Timestamp(DateTimeUtils.fromUTCTime(dt.toInstant.toEpochMilli, dt.getZone.getId))
     case dt: LocalDateTime => new Timestamp(DateTimeUtils.fromUTCTime(dt.toInstant(ZoneOffset.UTC).toEpochMilli, "UTC"))
     case d: LocalDate => d.toEpochDay.toInt

@@ -55,6 +55,13 @@ class DataSourceApocIT extends SparkConnectorScalaBaseApocTSE {
   }
 
   @Test
+  def testReadNodeWithLocalTime(): Unit = {
+    val df: DataFrame = initTest(s"CREATE (p:Person {aTime: localtime({hour:12, minute: 23, second: 0, millisecond: 294})})")
+
+    assertEquals("12:23:00.294", df.select("aTime").collectAsList().get(0).getString(0))
+  }
+
+  @Test
   def testReadNodeWithPoint(): Unit = {
     val df: DataFrame = initTest(s"CREATE (p:Person {location: point({x: 12.12, y: 13.13})})")
 
@@ -143,6 +150,16 @@ class DataSourceApocIT extends SparkConnectorScalaBaseApocTSE {
 
     assertEquals(22.33, res.head, 0)
     assertEquals(44.55, res(1), 0)
+  }
+
+  @Test
+  def testReadNodeWithLocalTimeArray(): Unit = {
+    val df: DataFrame = initTest(s"CREATE (p:Person {someTimes: [localtime({hour:12}), localtime({hour:1, minute: 3})]})")
+
+    val res = df.select("someTimes").collectAsList().get(0).getAs[Seq[String]](0)
+
+    assertEquals("12:00:00", res.head)
+    assertEquals("01:03:00", res(1))
   }
 
   @Test
