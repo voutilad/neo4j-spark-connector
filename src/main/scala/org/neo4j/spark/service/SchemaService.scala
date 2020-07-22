@@ -34,7 +34,9 @@ class SchemaService(private val options: Neo4jOptions, private val jobId: String
       case "Point" | "InternalPoint2D" | "InternalPoint3D" => pointType
       case "LocalDateTime" | "DateTime" | "ZonedDateTime" | "OffsetTime" | "Time" => DataTypes.TimestampType
       case "LocalDate" | "Date" => DataTypes.DateType
-      case "StringArray" | "DurationArray" | "InternalIsoDurationArray" => DataTypes.createArrayType(DataTypes.StringType)
+      case "Duration" | "InternalIsoDuration" => durationType
+      case "StringArray" => DataTypes.createArrayType(DataTypes.StringType)
+      case "DurationArray" | "InternalIsoDurationArray" => DataTypes.createArrayType(durationType)
       case "LongArray" => DataTypes.createArrayType(DataTypes.IntegerType)
       case "DoubleArray" => DataTypes.createArrayType(DataTypes.DoubleType)
       case "BooleanArray" => DataTypes.createArrayType(DataTypes.BooleanType)
@@ -99,7 +101,19 @@ class SchemaService(private val options: Neo4jOptions, private val jobId: String
 }
 
 object SchemaService {
+  val POINT_TYPE_2D = "point-2d"
+  val POINT_TYPE_3D = "point-3d"
+
+  val durationType: DataType = DataTypes.createStructType(Array(
+    DataTypes.createStructField("value", DataTypes.StringType, false),
+    DataTypes.createStructField("months", DataTypes.IntegerType, false),
+    DataTypes.createStructField("days", DataTypes.IntegerType, false),
+    DataTypes.createStructField("seconds", DataTypes.IntegerType, false),
+    DataTypes.createStructField("nanoseconds", DataTypes.IntegerType, false)
+  ))
+
   val pointType: DataType = DataTypes.createStructType(Array(
+    DataTypes.createStructField("type", DataTypes.StringType, false),
     DataTypes.createStructField("srid", DataTypes.IntegerType, false),
     DataTypes.createStructField("x", DataTypes.DoubleType, false),
     DataTypes.createStructField("y", DataTypes.DoubleType, false),

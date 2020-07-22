@@ -10,6 +10,7 @@ import org.apache.spark.sql.catalyst.util.{ArrayData, DateTimeUtils}
 import org.apache.spark.unsafe.types.UTF8String
 import org.neo4j.driver.{Session, Transaction}
 import org.neo4j.driver.internal.{InternalIsoDuration, InternalPoint2D, InternalPoint3D}
+import org.neo4j.spark.service.SchemaService
 
 import collection.JavaConverters._
 
@@ -32,7 +33,12 @@ object Neo4jUtil {
   }
 
   def convertFromNeo4j(value: Any): Any = value match {
-    case d: InternalIsoDuration => UTF8String.fromString(d.toString)
+    case d: InternalIsoDuration =>
+      val months: Integer = d.months().toInt
+      val days: Integer = d.days().toInt
+      val nanoseconds: Integer = d.nanoseconds().toInt
+      val seconds: Integer = d.seconds().toInt
+      InternalRow.fromSeq(Seq(UTF8String.fromString(d.toString), months, days, seconds, nanoseconds))
     case dt: ZonedDateTime => new Timestamp(DateTimeUtils.fromUTCTime(dt.toInstant.toEpochMilli, dt.getZone.getId))
     case dt: LocalDateTime => new Timestamp(DateTimeUtils.fromUTCTime(dt.toInstant(ZoneOffset.UTC).toEpochMilli, "UTC"))
     case d: LocalDate => d.toEpochDay.toInt
@@ -40,10 +46,10 @@ object Neo4jUtil {
     case i: Long => i.intValue()
     case p: InternalPoint2D =>
       val srid: Integer = p.srid()
-      InternalRow.fromSeq(Seq(srid, p.x(), p.y(), p.z()))
+      InternalRow.fromSeq(Seq(UTF8String.fromString(SchemaService.POINT_TYPE_2D), srid, p.x(), p.y(), null))
     case p: InternalPoint3D =>
       val srid: Integer = p.srid()
-      InternalRow.fromSeq(Seq(srid, p.x(), p.y(), p.z()))
+      InternalRow.fromSeq(Seq(UTF8String.fromString(SchemaService.POINT_TYPE_3D), srid, p.x(), p.y(), p.z()))
     case l: java.util.List[Any] => ArrayData.toArrayData(l.asScala.map(convertFromNeo4j).toArray)
     case s: String => UTF8String.fromString(s)
     case _ => value

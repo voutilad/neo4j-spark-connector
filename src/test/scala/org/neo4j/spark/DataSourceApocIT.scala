@@ -1,7 +1,5 @@
 package org.neo4j.spark
 
-import java.sql.Timestamp
-
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema
 import org.junit.Assert._
@@ -62,9 +60,10 @@ class DataSourceApocIT extends SparkConnectorScalaBaseApocTSE {
 
     val res = df.select("location").collectAsList().get(0).getAs[GenericRowWithSchema](0);
 
-    assertEquals(7203, res.get(0))
-    assertEquals(12.12, res.get(1))
-    assertEquals(13.13, res.get(2))
+    assertEquals("point-2d", res.get(0))
+    assertEquals(7203, res.get(1))
+    assertEquals(12.12, res.get(2))
+    assertEquals(13.13, res.get(3))
   }
 
   @Test
@@ -73,9 +72,10 @@ class DataSourceApocIT extends SparkConnectorScalaBaseApocTSE {
 
     val res = df.select("location").collectAsList().get(0).getAs[GenericRowWithSchema](0);
 
-    assertEquals(4326, res.get(0))
-    assertEquals(12.12, res.get(1))
-    assertEquals(13.13, res.get(2))
+    assertEquals("point-2d", res.get(0))
+    assertEquals(4326, res.get(1))
+    assertEquals(12.12, res.get(2))
+    assertEquals(13.13, res.get(3))
   }
 
   @Test
@@ -84,10 +84,11 @@ class DataSourceApocIT extends SparkConnectorScalaBaseApocTSE {
 
     val res = df.select("location").collectAsList().get(0).getAs[GenericRowWithSchema](0)
 
-    assertEquals(9157, res.get(0))
-    assertEquals(12.12, res.get(1))
-    assertEquals(13.13, res.get(2))
-    assertEquals(1.0, res.get(3))
+    assertEquals("point-3d", res.get(0))
+    assertEquals(9157, res.get(1))
+    assertEquals(12.12, res.get(2))
+    assertEquals(13.13, res.get(3))
+    assertEquals(1.0, res.get(4))
   }
 
   @Test
@@ -105,9 +106,13 @@ class DataSourceApocIT extends SparkConnectorScalaBaseApocTSE {
     val df: DataFrame = initTest(s"CREATE (p:Person {range: duration({days: 14, hours:16, minutes: 12})})")
 
     val list = df.select("range").collectAsList()
-    val res = list.get(0).getString(0)
+    val res = list.get(0).getAs[GenericRowWithSchema](0)
 
-    assertEquals("P0M14DT58320S", res)
+    assertEquals("P0M14DT58320S", res(0))
+    assertEquals(0, res(1))
+    assertEquals(14, res(2))
+    assertEquals(58320, res(3))
+    assertEquals(0, res(4))
   }
 
   @Test
@@ -156,13 +161,15 @@ class DataSourceApocIT extends SparkConnectorScalaBaseApocTSE {
 
     val res = df.select("locations").collectAsList().get(0).getAs[Seq[GenericRowWithSchema]](0)
 
-    assertEquals(7203, res.head.get(0))
-    assertEquals(11.0, res.head.get(1))
-    assertEquals(33.111, res.head.get(2))
+    assertEquals("point-2d", res.head.get(0))
+    assertEquals(7203, res.head.get(1))
+    assertEquals(11.0, res.head.get(2))
+    assertEquals(33.111, res.head.get(3))
 
-    assertEquals(7203, res(1).get(0))
-    assertEquals(22.0, res(1).get(1))
-    assertEquals(44.222, res(1).get(2))
+    assertEquals("point-2d", res(1).get(0))
+    assertEquals(7203, res(1).get(1))
+    assertEquals(22.0, res(1).get(2))
+    assertEquals(44.222, res(1).get(3))
   }
 
   @Test
@@ -171,13 +178,15 @@ class DataSourceApocIT extends SparkConnectorScalaBaseApocTSE {
 
     val res = df.select("locations").collectAsList().get(0).getAs[Seq[GenericRowWithSchema]](0)
 
-    assertEquals(4326, res.head.get(0))
-    assertEquals(11.0, res.head.get(1))
-    assertEquals(33.111, res.head.get(2))
+    assertEquals("point-2d", res.head.get(0))
+    assertEquals(4326, res.head.get(1))
+    assertEquals(11.0, res.head.get(2))
+    assertEquals(33.111, res.head.get(3))
 
-    assertEquals(4326, res(1).get(0))
-    assertEquals(22.0, res(1).get(1))
-    assertEquals(44.222, res(1).get(2))
+    assertEquals("point-2d", res(1).get(0))
+    assertEquals(4326, res(1).get(1))
+    assertEquals(22.0, res(1).get(2))
+    assertEquals(44.222, res(1).get(3))
   }
 
   @Test
@@ -186,15 +195,17 @@ class DataSourceApocIT extends SparkConnectorScalaBaseApocTSE {
 
     val res = df.select("locations").collectAsList().get(0).getAs[Seq[GenericRowWithSchema]](0)
 
-    assertEquals(9157, res.head.get(0))
-    assertEquals(11.0, res.head.get(1))
-    assertEquals(33.111, res.head.get(2))
-    assertEquals(12.0, res.head.get(3))
+    assertEquals("point-3d", res.head.get(0))
+    assertEquals(9157, res.head.get(1))
+    assertEquals(11.0, res.head.get(2))
+    assertEquals(33.111, res.head.get(3))
+    assertEquals(12.0, res.head.get(4))
 
-    assertEquals(9157, res(1).get(0))
-    assertEquals(22.0, res(1).get(1))
-    assertEquals(44.222, res(1).get(2))
-    assertEquals(99.1, res(1).get(3))
+    assertEquals("point-3d", res(1).get(0))
+    assertEquals(9157, res(1).get(1))
+    assertEquals(22.0, res(1).get(2))
+    assertEquals(44.222, res(1).get(3))
+    assertEquals(99.1, res(1).get(4))
   }
 
   @Test
@@ -211,10 +222,19 @@ class DataSourceApocIT extends SparkConnectorScalaBaseApocTSE {
   def testReadNodeWithArrayDurations(): Unit = {
     val df: DataFrame = initTest(s"CREATE (p:Person {durations: [duration({months: 0.75}), duration({weeks: 2.5})]})")
 
-    val res = df.select("durations").collectAsList().get(0).getAs[Seq[java.sql.Date]](0)
+    val res = df.select("durations").collectAsList().get(0).getAs[Seq[GenericRowWithSchema]](0)
 
-    assertEquals("P0M22DT71509.500000000S", res.head)
-    assertEquals("P0M17DT43200S", res(1))
+    assertEquals("P0M22DT71509.500000000S", res.head.get(0))
+    assertEquals(0, res.head.get(1))
+    assertEquals(22, res.head.get(2))
+    assertEquals(71509, res.head.get(3))
+    assertEquals(500000000, res.head.get(4))
+
+    assertEquals("P0M17DT43200S", res(1).get(0))
+    assertEquals(0, res(1).get(1))
+    assertEquals(17, res(1).get(2))
+    assertEquals(43200, res(1).get(3))
+    assertEquals(0, res(1).get(4))
   }
 
   @Test
