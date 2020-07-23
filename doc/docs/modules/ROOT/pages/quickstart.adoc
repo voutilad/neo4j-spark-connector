@@ -176,6 +176,49 @@ Spark works with data in a tabular fixed schema. To accomplish this Neo4j Connec
 
 TK list of supported data types
 
+==== Complex Data Types
+
+Spark doesn't support all Neo4j data types (ie: Point, Time, Duration). Such types are transformed into Struct types containing all the useful data.
+
+|===
+
+|Type |Struct 
+
+|`Duration`
+a|
+----
+Struct(Array(
+    ("value", DataTypes.StringType, false),
+    ("months", DataTypes.IntegerType, false),
+    ("days", DataTypes.IntegerType, false),
+    ("seconds", DataTypes.IntegerType, false),
+    ("nanoseconds", DataTypes.IntegerType, false)
+  ))
+----
+
+|`Point`
+a|
+----
+Struct(Array(
+    ("type", DataTypes.StringType, false),
+    ("srid", DataTypes.IntegerType, false),
+    ("x", DataTypes.DoubleType, false),
+    ("y", DataTypes.DoubleType, false),
+    ("z", DataTypes.DoubleType, true),
+  ))
+----
+
+|`Time`
+a|
+----
+Struct(Array(
+    ("type", DataTypes.StringType, false),
+    ("value", DataTypes.StringType, false)
+  ))
+----
+
+|=== 
+
 === Read data by Node Labels
 
 You can both specify a single label, like this example
