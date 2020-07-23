@@ -190,5 +190,3 @@ Under the hod the Spark Connector will flatten the data in this way:
 |NY
 
 |===
-
-
