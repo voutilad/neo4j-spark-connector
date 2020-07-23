@@ -91,7 +91,7 @@ class SchemaServiceNoApocModeIT extends SparkConnectorScalaBaseNoApocTSE {
 
     val schema = getSchema(options)
 
-    assertEquals(getExpectedStructType(Seq(StructField("arrived_at", DataTypes.TimestampType))), schema)
+    assertEquals(getExpectedStructType(Seq(StructField("arrived_at", SchemaService.timeType))), schema)
   }
 
   @Test
@@ -102,7 +102,7 @@ class SchemaServiceNoApocModeIT extends SparkConnectorScalaBaseNoApocTSE {
 
     val schema = getSchema(options)
 
-    assertEquals(getExpectedStructType(Seq(StructField("arrived_at", DataTypes.TimestampType))), schema)
+    assertEquals(getExpectedStructType(Seq(StructField("arrived_at", SchemaService.timeType))), schema)
   }
 
   @Test
@@ -135,7 +135,7 @@ class SchemaServiceNoApocModeIT extends SparkConnectorScalaBaseNoApocTSE {
 
     val schema = getSchema(options)
 
-    assertEquals(getExpectedStructType(Seq(StructField("dates", DataTypes.createArrayType(DataTypes.TimestampType)))), schema)
+    assertEquals(getExpectedStructType(Seq(StructField("dates", DataTypes.createArrayType(SchemaService.timeType)))), schema)
   }
 
   @Test
@@ -146,7 +146,7 @@ class SchemaServiceNoApocModeIT extends SparkConnectorScalaBaseNoApocTSE {
 
     val schema = getSchema(options)
 
-    assertEquals(getExpectedStructType(Seq(StructField("dates", DataTypes.createArrayType(DataTypes.TimestampType)))), schema)
+    assertEquals(getExpectedStructType(Seq(StructField("dates", DataTypes.createArrayType(SchemaService.timeType)))), schema)
   }
 
   @Test

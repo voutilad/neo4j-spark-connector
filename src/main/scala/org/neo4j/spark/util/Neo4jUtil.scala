@@ -1,6 +1,6 @@
 package org.neo4j.spark.util
 
-import java.sql.Timestamp
+import java.sql.{Time, Timestamp}
 import java.time.format.DateTimeFormatter
 import java.time.temporal.TemporalAmount
 import java.time.{Duration, Instant, LocalDate, LocalDateTime, LocalTime, OffsetTime, Period, ZoneOffset, ZonedDateTime}
@@ -41,11 +41,21 @@ object Neo4jUtil {
       val seconds: Integer = d.seconds().toInt
       InternalRow.fromSeq(Seq(UTF8String.fromString(d.toString), months, days, seconds, nanoseconds))
     }
-    case lt: LocalTime => UTF8String.fromString(lt.format(DateTimeFormatter.ISO_TIME))
     case dt: ZonedDateTime => new Timestamp(DateTimeUtils.fromUTCTime(dt.toInstant.toEpochMilli, dt.getZone.getId))
     case dt: LocalDateTime => new Timestamp(DateTimeUtils.fromUTCTime(dt.toInstant(ZoneOffset.UTC).toEpochMilli, "UTC"))
     case d: LocalDate => d.toEpochDay.toInt
-    case t: OffsetTime => new Timestamp(t.atDate(LocalDate.ofEpochDay(0)).toInstant.toEpochMilli)
+    case lt: LocalTime => {
+      InternalRow.fromSeq(Seq(
+        UTF8String.fromString(SchemaService.TIME_TYPE_LOCAL),
+        UTF8String.fromString(lt.format(DateTimeFormatter.ISO_TIME))
+      ))
+    }
+    case t: OffsetTime => {
+      InternalRow.fromSeq(Seq(
+        UTF8String.fromString(SchemaService.TIME_TYPE_OFFSET),
+        UTF8String.fromString(t.format(DateTimeFormatter.ISO_TIME))
+      ))
+    }
     case i: Long => i.intValue()
     case p: InternalPoint2D => {
       val srid: Integer = p.srid()

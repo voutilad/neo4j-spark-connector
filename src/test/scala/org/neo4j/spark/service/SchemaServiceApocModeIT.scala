@@ -91,7 +91,7 @@ class SchemaServiceApocModeIT extends SparkConnectorScalaBaseApocTSE {
 
     val schema = getSchema(options)
 
-    assertEquals(getExpectedStructType(Seq(StructField("arrived_at", DataTypes.TimestampType))), schema)
+    assertEquals(getExpectedStructType(Seq(StructField("arrived_at", SchemaService.timeType))), schema)
   }
 
   @Test
@@ -102,7 +102,7 @@ class SchemaServiceApocModeIT extends SparkConnectorScalaBaseApocTSE {
 
     val schema = getSchema(options)
 
-    assertEquals(getExpectedStructType(Seq(StructField("arrived_at", DataTypes.TimestampType))), schema)
+    assertEquals(getExpectedStructType(Seq(StructField("arrived_at", SchemaService.timeType))), schema)
   }
 
   @Test
@@ -135,7 +135,7 @@ class SchemaServiceApocModeIT extends SparkConnectorScalaBaseApocTSE {
 
     val schema = getSchema(options)
 
-    assertEquals(getExpectedStructType(Seq(StructField("dates", DataTypes.createArrayType(DataTypes.TimestampType)))), schema)
+    assertEquals(getExpectedStructType(Seq(StructField("dates", DataTypes.createArrayType(SchemaService.timeType)))), schema)
   }
 
   @Test
@@ -146,7 +146,7 @@ class SchemaServiceApocModeIT extends SparkConnectorScalaBaseApocTSE {
 
     val schema = getSchema(options)
 
-    assertEquals(getExpectedStructType(Seq(StructField("dates", DataTypes.createArrayType(DataTypes.TimestampType)))), schema)
+    assertEquals(getExpectedStructType(Seq(StructField("dates", DataTypes.createArrayType(SchemaService.timeType)))), schema)
   }
 
   @Test
@@ -168,6 +168,7 @@ class SchemaServiceApocModeIT extends SparkConnectorScalaBaseApocTSE {
         (p2:Person {name: 'John Doe', age: 33, location: null}),
         (p3:Person {age: 25, location: point({latitude: 12.12, longitude: 31.13})})
     """)
+
     val options: java.util.Map[String, String] = new util.HashMap[String, String]()
     options.put(QueryType.LABELS.toString.toLowerCase, "Person")
 
@@ -187,6 +188,7 @@ class SchemaServiceApocModeIT extends SparkConnectorScalaBaseApocTSE {
     )
     StructType(structFields.union(additionalFields).reverse)
   }
+
   private def initTest(query: String): Unit = {
     SparkConnectorScalaSuiteApocIT.session()
       .writeTransaction((tx: Transaction) => tx.run(query).consume())

@@ -58,7 +58,20 @@ class DataSourceApocIT extends SparkConnectorScalaBaseApocTSE {
   def testReadNodeWithLocalTime(): Unit = {
     val df: DataFrame = initTest(s"CREATE (p:Person {aTime: localtime({hour:12, minute: 23, second: 0, millisecond: 294})})")
 
-    assertEquals("12:23:00.294", df.select("aTime").collectAsList().get(0).getString(0))
+    val result = df.select("aTime").collectAsList().get(0).getAs[GenericRowWithSchema](0)
+
+    assertEquals("local-time", result.get(0))
+    assertEquals("12:23:00.294", result.get(1))
+  }
+
+  @Test
+  def testReadNodeWithTime(): Unit = {
+    val df: DataFrame = initTest(s"CREATE (p:Person {aTime: time({hour:12, minute: 23, second: 0, millisecond: 294})})")
+
+    val result = df.select("aTime").collectAsList().get(0).getAs[GenericRowWithSchema](0)
+
+    assertEquals("offset-time", result.get(0))
+    assertEquals("12:23:00.294Z", result.get(1))
   }
 
   @Test
@@ -156,10 +169,12 @@ class DataSourceApocIT extends SparkConnectorScalaBaseApocTSE {
   def testReadNodeWithLocalTimeArray(): Unit = {
     val df: DataFrame = initTest(s"CREATE (p:Person {someTimes: [localtime({hour:12}), localtime({hour:1, minute: 3})]})")
 
-    val res = df.select("someTimes").collectAsList().get(0).getAs[Seq[String]](0)
+    val res = df.select("someTimes").collectAsList().get(0).getAs[Seq[GenericRowWithSchema]](0)
 
-    assertEquals("12:00:00", res.head)
-    assertEquals("01:03:00", res(1))
+    assertEquals("local-time", res.head.get(0))
+    assertEquals("12:00:00", res.head.get(1))
+    assertEquals("local-time", res(1).get(0))
+    assertEquals("01:03:00", res(1).get(1))
   }
 
   @Test

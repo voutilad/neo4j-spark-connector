@@ -32,17 +32,17 @@ class SchemaService(private val options: Neo4jOptions, private val jobId: String
       case "Long" => DataTypes.IntegerType
       case "Double" => DataTypes.DoubleType
       case "Point" | "InternalPoint2D" | "InternalPoint3D" => pointType
-      case "LocalDateTime" | "DateTime" | "ZonedDateTime" | "OffsetTime" | "Time" => DataTypes.TimestampType
+      case "LocalDateTime" | "LocalTime" | "DateTime" | "ZonedDateTime" | "OffsetTime" | "Time" => timeType
       case "LocalDate" | "Date" => DataTypes.DateType
       case "Duration" | "InternalIsoDuration" => durationType
-      case "StringArray" | "LocalTimeArray" => DataTypes.createArrayType(DataTypes.StringType)
+      case "StringArray" => DataTypes.createArrayType(DataTypes.StringType)
       case "DurationArray" | "InternalIsoDurationArray" => DataTypes.createArrayType(durationType)
       case "LongArray" => DataTypes.createArrayType(DataTypes.IntegerType)
       case "DoubleArray" => DataTypes.createArrayType(DataTypes.DoubleType)
       case "BooleanArray" => DataTypes.createArrayType(DataTypes.BooleanType)
       case "PointArray" | "InternalPoint2DArray" | "InternalPoint3DArray" => DataTypes.createArrayType(pointType)
       case "LocalDateTimeArray" | "DateTimeArray" | "ZonedDateTimeArray" | "OffsetTimeArray"
-           | "TimeArray" => DataTypes.createArrayType(DataTypes.TimestampType)
+           | "TimeArray" | "LocalTimeArray" => DataTypes.createArrayType(timeType)
       case "LocalDateArray" | "DateArray" => DataTypes.createArrayType(DataTypes.DateType)
       case _ => DataTypes.StringType
     }
@@ -111,6 +111,9 @@ object SchemaService {
   val POINT_TYPE_2D = "point-2d"
   val POINT_TYPE_3D = "point-3d"
 
+  val TIME_TYPE_OFFSET = "offset-time"
+  val TIME_TYPE_LOCAL = "local-time"
+
   val durationType: DataType = DataTypes.createStructType(Array(
     DataTypes.createStructField("value", DataTypes.StringType, false),
     DataTypes.createStructField("months", DataTypes.IntegerType, false),
@@ -125,5 +128,10 @@ object SchemaService {
     DataTypes.createStructField("x", DataTypes.DoubleType, false),
     DataTypes.createStructField("y", DataTypes.DoubleType, false),
     DataTypes.createStructField("z", DataTypes.DoubleType, true),
+  ))
+
+  val timeType: DataType = DataTypes.createStructType(Array(
+    DataTypes.createStructField("type", DataTypes.StringType, false),
+    DataTypes.createStructField("value", DataTypes.StringType, false)
   ))
 }
