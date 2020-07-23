@@ -39,7 +39,7 @@ object Neo4jUtil {
       val days: Integer = d.days().toInt
       val nanoseconds: Integer = d.nanoseconds()
       val seconds: Integer = d.seconds().toInt
-      InternalRow.fromSeq(Seq(UTF8String.fromString(d.toString), months, days, seconds, nanoseconds))
+      InternalRow.fromSeq(Seq(UTF8String.fromString(SchemaService.DURATION_TYPE), months, days, seconds, nanoseconds, UTF8String.fromString(d.toString)))
     }
     case dt: ZonedDateTime => new Timestamp(DateTimeUtils.fromUTCTime(dt.toInstant.toEpochMilli, dt.getZone.getId))
     case dt: LocalDateTime => new Timestamp(DateTimeUtils.fromUTCTime(dt.toInstant(ZoneOffset.UTC).toEpochMilli, "UTC"))

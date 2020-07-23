@@ -211,12 +211,6 @@
         </dependency>
 
         <dependency>
-            <groupId>io.github.resilience4j</groupId>
-            <artifactId>resilience4j-retry</artifactId>
-            <version>${resilience4j.version}</version>
-        </dependency>
-
-        <dependency>
             <groupId>org.scala-lang</groupId>
             <artifactId>scala-reflect</artifactId>
             <version>${project.scala.version}</version>
@@ -251,22 +245,9 @@
 
         <dependency>
             <groupId>org.apache.spark</groupId>
-            <artifactId>spark-graphx_${project.scala.binary.version}</artifactId>
-            <version>${spark.version}</version>
-            <scope>provided</scope>
-        </dependency>
-
-        <dependency>
-            <groupId>org.apache.spark</groupId>
             <artifactId>spark-sql_${project.scala.binary.version}</artifactId>
             <version>${spark.version}</version>
             <scope>provided</scope>
-        </dependency>
-
-        <dependency>
-            <groupId>graphframes</groupId>
-            <artifactId>graphframes</artifactId>
-            <version>${graphframes.version}</version>
         </dependency>
 
         <dependency>

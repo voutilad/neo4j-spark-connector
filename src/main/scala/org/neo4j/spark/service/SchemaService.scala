@@ -114,12 +114,15 @@ object SchemaService {
   val TIME_TYPE_OFFSET = "offset-time"
   val TIME_TYPE_LOCAL = "local-time"
 
+  val DURATION_TYPE = "duration"
+
   val durationType: DataType = DataTypes.createStructType(Array(
-    DataTypes.createStructField("value", DataTypes.StringType, false),
+    DataTypes.createStructField("type", DataTypes.StringType, false),
     DataTypes.createStructField("months", DataTypes.IntegerType, false),
     DataTypes.createStructField("days", DataTypes.IntegerType, false),
     DataTypes.createStructField("seconds", DataTypes.IntegerType, false),
-    DataTypes.createStructField("nanoseconds", DataTypes.IntegerType, false)
+    DataTypes.createStructField("nanoseconds", DataTypes.IntegerType, false),
+    DataTypes.createStructField("value", DataTypes.StringType, false)
   ))
 
   val pointType: DataType = DataTypes.createStructType(Array(

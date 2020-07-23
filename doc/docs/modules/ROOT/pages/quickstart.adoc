@@ -188,11 +188,12 @@ Spark doesn't support all Neo4j data types (ie: Point, Time, Duration). Such typ
 a|
 ----
 Struct(Array(
-    ("value", DataTypes.StringType, false),
+    ("type", DataTypes.StringType, false),
     ("months", DataTypes.IntegerType, false),
     ("days", DataTypes.IntegerType, false),
     ("seconds", DataTypes.IntegerType, false),
-    ("nanoseconds", DataTypes.IntegerType, false)
+    ("nanoseconds", DataTypes.IntegerType, false),
+    ("value", DataTypes.StringType, false)
   ))
 ----
 

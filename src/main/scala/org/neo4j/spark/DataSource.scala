@@ -12,5 +12,5 @@ class DataSource extends DataSourceV2 with ReadSupport with DataSourceRegister {
 
   def createReader(options: DataSourceOptions) = new Neo4jDataSourceReader(options, jobId)
 
-  override def shortName(): String = "neo4j"
+  override def shortName: String = "neo4j"
 }

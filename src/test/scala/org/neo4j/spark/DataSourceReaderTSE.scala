@@ -128,11 +128,12 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
     val list = df.select("range").collectAsList()
     val res = list.get(0).getAs[GenericRowWithSchema](0)
 
-    assertEquals("P0M14DT58320S", res(0))
+    assertEquals("duration", res(0))
     assertEquals(0, res(1))
     assertEquals(14, res(2))
     assertEquals(58320, res(3))
     assertEquals(0, res(4))
+    assertEquals("P0M14DT58320S", res(5))
   }
 
   @Test
@@ -256,17 +257,19 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
 
     val res = df.select("durations").collectAsList().get(0).getAs[Seq[GenericRowWithSchema]](0)
 
-    assertEquals("P0M22DT71509.500000000S", res.head.get(0))
+    assertEquals("duration", res.head.get(0))
     assertEquals(0, res.head.get(1))
     assertEquals(22, res.head.get(2))
     assertEquals(71509, res.head.get(3))
     assertEquals(500000000, res.head.get(4))
+    assertEquals("P0M22DT71509.500000000S", res.head.get(5))
 
-    assertEquals("P0M17DT43200S", res(1).get(0))
+    assertEquals("duration", res(1).get(0))
     assertEquals(0, res(1).get(1))
     assertEquals(17, res(1).get(2))
     assertEquals(43200, res(1).get(3))
     assertEquals(0, res(1).get(4))
+    assertEquals("P0M17DT43200S", res(1).get(5))
   }
 
   @Test
