@@ -10,31 +10,31 @@ import org.junit.rules.TestName
 import org.neo4j.driver.summary.ResultSummary
 import org.neo4j.driver.{Transaction, TransactionWork}
 
-object SparkConnectorScalaBaseNoApocTSE {
+object SparkConnectorScalaBaseTSE {
 
   private var startedFromSuite = true
 
   @BeforeClass
   def setUpContainer() = {
-    if (!SparkConnectorScalaSuiteNoApocIT.server.isRunning) {
+    if (!SparkConnectorScalaSuiteIT.server.isRunning) {
       startedFromSuite = false
-      SparkConnectorScalaSuiteNoApocIT.setUpContainer()
+      SparkConnectorScalaSuiteIT.setUpContainer()
     }
   }
 
   @AfterClass
   def tearDownContainer() = {
     if (!startedFromSuite) {
-      SparkConnectorScalaSuiteNoApocIT.tearDownContainer()
+      SparkConnectorScalaSuiteIT.tearDownContainer()
     }
   }
 
 }
 
-class SparkConnectorScalaBaseNoApocTSE {
+class SparkConnectorScalaBaseTSE {
 
-  val conf: SparkConf = SparkConnectorScalaSuiteNoApocIT.conf
-  val ss: SparkSession = SparkConnectorScalaSuiteNoApocIT.ss
+  val conf: SparkConf = SparkConnectorScalaSuiteIT.conf
+  val ss: SparkSession = SparkConnectorScalaSuiteIT.ss
 
   val _testName: TestName = new TestName
 
@@ -43,7 +43,7 @@ class SparkConnectorScalaBaseNoApocTSE {
 
   @Before
   def before() {
-    SparkConnectorScalaSuiteNoApocIT.session()
+    SparkConnectorScalaSuiteIT.session()
       .writeTransaction(new TransactionWork[ResultSummary] {
         override def execute(tx: Transaction): ResultSummary = tx.run("MATCH (n) DETACH DELETE n").consume()
       })
@@ -55,14 +55,14 @@ class SparkConnectorScalaBaseNoApocTSE {
       try {
         utils.Assert.assertEventually(new utils.Assert.ThrowingSupplier[Boolean, Exception] {
           override def get(): Boolean = {
-            val afterConnections = SparkConnectorScalaSuiteNoApocIT.getActiveConnections
-            SparkConnectorScalaSuiteNoApocIT.connections == afterConnections
+            val afterConnections = SparkConnectorScalaSuiteIT.getActiveConnections
+            SparkConnectorScalaSuiteIT.connections == afterConnections
           }
         }, Matchers.equalTo(true), 60, TimeUnit.SECONDS)
       } finally {
-        val afterConnections = SparkConnectorScalaSuiteNoApocIT.getActiveConnections
-        if (SparkConnectorScalaSuiteNoApocIT.connections != afterConnections) { // just for debug purposes
-          println(s"For test ${testName.getMethodName} => connections before: ${SparkConnectorScalaSuiteNoApocIT.connections}, after: $afterConnections")
+        val afterConnections = SparkConnectorScalaSuiteIT.getActiveConnections
+        if (SparkConnectorScalaSuiteIT.connections != afterConnections) { // just for debug purposes
+          println(s"For test ${testName.getMethodName} => connections before: ${SparkConnectorScalaSuiteIT.connections}, after: $afterConnections")
         }
       }
     }

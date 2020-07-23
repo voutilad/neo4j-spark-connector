@@ -8,13 +8,14 @@ import org.junit.{AfterClass, Assume, BeforeClass}
 import org.neo4j.Neo4jContainerExtension
 import org.neo4j.driver.summary.ResultSummary
 import org.neo4j.driver._
-import org.neo4j.spark.service.SchemaServiceNoApocModeIT
+import org.neo4j.spark.service.SchemaServiceWithApocIT
 
 
-object SparkConnectorScalaSuiteNoApocIT {
+object SparkConnectorScalaSuiteWithApocIT {
   val server: Neo4jContainerExtension = new Neo4jContainerExtension("neo4j:4.0.1-enterprise")
     .withNeo4jConfig("dbms.security.auth_enabled", "false")
     .withEnv("NEO4J_ACCEPT_LICENSE_AGREEMENT", "yes")
+    .withEnv("NEO4JLABS_PLUGINS", "[\"apoc\"]")
     .withDatabases(Seq("db1", "db2"))
 
   var conf: SparkConf = _
@@ -77,7 +78,7 @@ object SparkConnectorScalaSuiteNoApocIT {
 
 @RunWith(classOf[Suite])
 @Suite.SuiteClasses(Array(
-  classOf[SchemaServiceNoApocModeIT],
-  classOf[DataSourceNoApocIT]
+  classOf[SchemaServiceWithApocIT],
+  classOf[DataSourceWithApocIT]
 ))
-class SparkConnectorScalaSuiteNoApocIT {}
+class SparkConnectorScalaSuiteWithApocIT {}

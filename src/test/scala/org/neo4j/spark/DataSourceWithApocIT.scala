@@ -6,7 +6,7 @@ import org.junit.Assert._
 import org.junit.Test
 import org.neo4j.driver.{SessionConfig, Transaction}
 
-class DataSourceNoApocIT extends SparkConnectorScalaBaseNoApocTSE {
+class DataSourceWithApocIT extends SparkConnectorScalaBaseWithApocTSE {
 
   @Test
   def testReadNodeHasIdField(): Unit = {
@@ -291,7 +291,7 @@ class DataSourceNoApocIT extends SparkConnectorScalaBaseNoApocTSE {
 
   @Test
   def testMultiDbJoin(): Unit = {
-    SparkConnectorScalaSuiteNoApocIT.driver.session(SessionConfig.forDatabase("db1"))
+    SparkConnectorScalaSuiteWithApocIT.driver.session(SessionConfig.forDatabase("db1"))
       .writeTransaction((tx: Transaction) => tx.run(
         """
       CREATE (p1:Person:Customer {name: 'John Doe'}),
@@ -299,7 +299,7 @@ class DataSourceNoApocIT extends SparkConnectorScalaBaseNoApocTSE {
        (p3:Person:Customer {name: 'Cindy White'})
       """).consume())
 
-    SparkConnectorScalaSuiteNoApocIT.driver.session(SessionConfig.forDatabase("db2"))
+    SparkConnectorScalaSuiteWithApocIT.driver.session(SessionConfig.forDatabase("db2"))
       .writeTransaction((tx: Transaction) => tx.run(
         """
       CREATE (p1:Person:Employee {name: 'Jane Doe'}),
@@ -307,13 +307,13 @@ class DataSourceNoApocIT extends SparkConnectorScalaBaseNoApocTSE {
       """).consume())
 
     val df1 = ss.read.format(classOf[DataSource].getName)
-      .option("url", SparkConnectorScalaSuiteNoApocIT.server.getBoltUrl)
+      .option("url", SparkConnectorScalaSuiteWithApocIT.server.getBoltUrl)
       .option("database", "db1")
       .option("labels", "Person")
       .load()
 
     val df2 = ss.read.format(classOf[DataSource].getName)
-      .option("url", SparkConnectorScalaSuiteNoApocIT.server.getBoltUrl)
+      .option("url", SparkConnectorScalaSuiteWithApocIT.server.getBoltUrl)
       .option("database", "db2")
       .option("labels", "Person")
       .load()
@@ -326,11 +326,11 @@ class DataSourceNoApocIT extends SparkConnectorScalaBaseNoApocTSE {
   }
 
   private def initTest(query: String): DataFrame = {
-    SparkConnectorScalaSuiteNoApocIT.session()
+    SparkConnectorScalaSuiteWithApocIT.session()
       .writeTransaction((tx: Transaction) => tx.run(query).consume())
 
     ss.read.format(classOf[DataSource].getName)
-      .option("url", SparkConnectorScalaSuiteNoApocIT.server.getBoltUrl)
+      .option("url", SparkConnectorScalaSuiteWithApocIT.server.getBoltUrl)
       .option("labels", "Person")
       .load()
   }
