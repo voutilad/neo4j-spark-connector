@@ -17,7 +17,7 @@ Neo4j Spark Connector allows Spark to read from and write to Neo4j databases.
 Reading all the nodes of type `Person` from your local Neo4j instance is as simple as this:
 
 ```scala
-val df = spark.read.format("neo4j")
+val df = spark.read.format("org.neo4j.spark.DataSource")
         .option("url", "bolt://localhost:7687")
         .option("labels", "Person")
         .load()
@@ -28,7 +28,7 @@ val df = spark.read.format("neo4j")
 Spark method `option` is used to configure the Neo4j Connector.
 
 ```scala
-val df = spark.read.format("neo4j")
+val df = spark.read.format("org.neo4j.spark.DataSource")
         .option("url", "bolt://localhost:7687")
         .option("authentication.type", "basic")
         .option("authentication.basic.username", "myuser")
@@ -224,7 +224,7 @@ Struct(Array(
 
 You can both specify a single label, like this example
 ```scala
-val df = spark.read.format("neo4j")
+val df = spark.read.format("org.neo4j.spark.DataSource")
         .option("url", "bolt://localhost:7687")
         .option("labels", "Person")
         .load()
@@ -234,7 +234,7 @@ df.show()
 
 Multiple labels can be specified, separated by `:`
 ```scala
-val df = spark.read.format("neo4j")
+val df = spark.read.format("org.neo4j.spark.DataSource")
         .option("url", "bolt://localhost:7687")
         .option("labels", "Person:Customer:Admin")
         .load()
