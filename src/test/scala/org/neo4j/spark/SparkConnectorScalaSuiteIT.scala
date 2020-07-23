@@ -8,7 +8,7 @@ import org.junit.{AfterClass, Assume, BeforeClass}
 import org.neo4j.Neo4jContainerExtension
 import org.neo4j.driver.summary.ResultSummary
 import org.neo4j.driver._
-import org.neo4j.spark.service.SchemaServiceIT
+import org.neo4j.spark.service.SchemaServiceTSE
 
 
 object SparkConnectorScalaSuiteIT {
@@ -77,7 +77,7 @@ object SparkConnectorScalaSuiteIT {
 
 @RunWith(classOf[Suite])
 @Suite.SuiteClasses(Array(
-  classOf[SchemaServiceIT],
-  classOf[DataSourceIT]
+  classOf[SchemaServiceTSE],
+  classOf[DataSourceReaderTSE]
 ))
 class SparkConnectorScalaSuiteIT {}

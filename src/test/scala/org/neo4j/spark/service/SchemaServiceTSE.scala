@@ -9,11 +9,11 @@ import org.junit.Assert._
 import org.neo4j.driver.Transaction
 import org.neo4j.spark._
 
-class SchemaServiceWithApocIT extends SparkConnectorScalaBaseWithApocTSE {
+class SchemaServiceTSE extends SparkConnectorScalaBaseTSE {
 
   @Before
   def beforeEach(): Unit = {
-    SparkConnectorScalaSuiteWithApocIT.session()
+    SparkConnectorScalaSuiteIT.session()
       .writeTransaction((tx: Transaction) => tx.run("MATCH (n) DETACH DELETE n").consume())
   }
 
@@ -190,12 +190,12 @@ class SchemaServiceWithApocIT extends SparkConnectorScalaBaseWithApocTSE {
   }
 
   private def initTest(query: String): Unit = {
-    SparkConnectorScalaSuiteWithApocIT.session()
+    SparkConnectorScalaSuiteIT.session()
       .writeTransaction((tx: Transaction) => tx.run(query).consume())
   }
 
   private def getSchema(options: java.util.Map[String, String]): StructType = {
-    options.put(Neo4jOptions.URL, SparkConnectorScalaSuiteWithApocIT.server.getBoltUrl)
+    options.put(Neo4jOptions.URL, SparkConnectorScalaSuiteIT.server.getBoltUrl)
     val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
     val uuid: String = UUID.randomUUID().toString
 

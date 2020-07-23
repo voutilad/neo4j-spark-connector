@@ -6,7 +6,7 @@ import org.junit.Assert._
 import org.junit.Test
 import org.neo4j.driver.{SessionConfig, Transaction}
 
-class DataSourceIT extends SparkConnectorScalaBaseTSE {
+class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
 
   @Test
   def testReadNodeHasIdField(): Unit = {
