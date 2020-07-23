@@ -4,8 +4,11 @@ import java.io.File
 import java.net.URI
 import java.util.concurrent.TimeUnit
 
+import org.apache.spark.sql.SaveMode
 import org.neo4j.driver.Config.TrustStrategy
 import org.neo4j.driver._
+import org.neo4j.spark.util.Neo4jUtil
+
 
 class Neo4jOptions(private val parameters: java.util.Map[String, String]) extends Serializable {
 
@@ -13,7 +16,7 @@ class Neo4jOptions(private val parameters: java.util.Map[String, String]) extend
   import QueryType._
 
   private def getRequiredParameter(parameter: String): String = {
-    if (!parameters.containsKey(parameter) || parameters.get((parameter)).isEmpty) {
+    if (!parameters.containsKey(parameter) || parameters.get(parameter).isEmpty) {
       throw new IllegalArgumentException(s"Parameter '$parameter' is required")
     }
 
@@ -21,7 +24,7 @@ class Neo4jOptions(private val parameters: java.util.Map[String, String]) extend
   }
 
   private def getParameter(parameter: String, defaultValue: String = ""): String = {
-    if (!parameters.containsKey(parameter) || parameters.get((parameter)).isEmpty) {
+    if (!parameters.containsKey(parameter) || parameters.get(parameter).isEmpty) {
       return defaultValue
     }
 
@@ -72,7 +75,39 @@ class Neo4jOptions(private val parameters: java.util.Map[String, String]) extend
     getParameter(DATABASE, DEFAULT_EMPTY),
     AccessMode.valueOf(getParameter(ACCESS_MODE, DEFAULT_ACCESS_MODE.toString).toUpperCase())
   )
+
+  val nodeMetadata = initNeo4jNodeMetadata()
+
+  private def initNeo4jNodeMetadata(): Neo4jNodeMetadata = {
+    val nodeKeys = getParameter(NODE_KEYS, "")
+      .split(",")
+      .map(_.trim)
+      .filter(!_.isEmpty)
+    Neo4jNodeMetadata(nodeKeys)
+  }
+
+  val transactionMetadata = initNeo4jTransactionMetadata()
+
+  private def initNeo4jTransactionMetadata(): Neo4jTransactionMetadata = {
+    val retries = getParameter(TRANSACTION_RETRIES, DEFAULT_TRANSACTION_RETRIES.toString).toInt
+    val failOnTransactionCodes = getParameter(TRANSACTION_CODES_FAIL, DEFAULT_EMPTY)
+      .split(",")
+        .map(_.trim)
+        .filter(!_.isEmpty)
+        .toSet
+    val batchSize = getParameter(BATCH_SIZE, DEFAULT_BATCH_SIZE.toString).toInt
+    Neo4jTransactionMetadata(retries, failOnTransactionCodes, batchSize)
+  }
+
+  def validate(validationFunction: Neo4jOptions => Unit): Neo4jOptions = {
+    validationFunction(this)
+    this
+  }
 }
+
+case class Neo4jTransactionMetadata(retries: Int, failOnTransactionCodes: Set[String], batchSize: Int)
+
+case class Neo4jNodeMetadata(nodeKeys: Seq[String])
 
 case class Neo4jQueryOptions(queryType: QueryType.Value, value: String, schemaFlattenLimit: Int) extends Serializable
 
@@ -110,7 +145,7 @@ case class Neo4jDriverOptions(
                              ) extends Serializable {
 
   def toDriverConfig: Config = {
-    val builder = Config.builder()
+    val builder = Config.builder().withUserAgent(s"neo4j-spark-connector/${Neo4jUtil.connectorVersion}")
 
     if (lifetime > -1) builder.withMaxConnectionLifetime(lifetime, TimeUnit.MILLISECONDS)
     if (acquisitionTimeout > -1) builder.withConnectionAcquisitionTimeout(acquisitionTimeout, TimeUnit.MILLISECONDS)
@@ -180,6 +215,15 @@ object Neo4jOptions {
   // schema options
   val SCHEMA_FLATTEN_LIMIT = "schema.flatten.limit"
 
+  // Node Metadata
+  val NODE_KEYS = "node.keys"
+  val BATCH_SIZE = "batch.size"
+  val SUPPORTED_SAVE_MODES = Seq(SaveMode.Overwrite, SaveMode.ErrorIfExists)
+
+  // Transaction Metadata
+  val TRANSACTION_RETRIES = "transaction.retries"
+  val TRANSACTION_CODES_FAIL = "transaction.codes.fail"
+
   // defaults
   val DEFAULT_EMPTY = ""
   val DEFAULT_TIMEOUT: Int = -1
@@ -188,6 +232,8 @@ object Neo4jOptions {
   val DEFAULT_ENCRYPTION_ENABLED = false
   val DEFAULT_ENCRYPTION_TRUST_STRATEGY = TrustStrategy.Strategy.TRUST_SYSTEM_CA_SIGNED_CERTIFICATES
   val DEFAULT_SCHEMA_FLATTEN_LIMIT = 10
+  val DEFAULT_BATCH_SIZE = 5000
+  val DEFAULT_TRANSACTION_RETRIES = 3
 }
 
 object QueryType extends Enumeration {
