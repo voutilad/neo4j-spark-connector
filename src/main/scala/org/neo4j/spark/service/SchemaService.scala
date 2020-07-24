@@ -29,21 +29,22 @@ class SchemaService(private val options: Neo4jOptions, private val jobId: String
     cypherType match {
       case "Boolean" => DataTypes.BooleanType
       case "String" => DataTypes.StringType
-      case "Long" => DataTypes.IntegerType
+      case "Long" => DataTypes.LongType
       case "Double" => DataTypes.DoubleType
       case "Point" | "InternalPoint2D" | "InternalPoint3D" => pointType
-      case "LocalDateTime" | "LocalTime" | "DateTime" | "ZonedDateTime" | "OffsetTime" | "Time" => timeType
+      case "LocalDateTime"  | "DateTime" | "ZonedDateTime" => DataTypes.TimestampType
+      case "OffsetTime" | "Time" | "LocalTime" => timeType
       case "LocalDate" | "Date" => DataTypes.DateType
       case "Duration" | "InternalIsoDuration" => durationType
       case "StringArray" => DataTypes.createArrayType(DataTypes.StringType)
-      case "DurationArray" | "InternalIsoDurationArray" => DataTypes.createArrayType(durationType)
-      case "LongArray" => DataTypes.createArrayType(DataTypes.IntegerType)
+      case "LongArray" => DataTypes.createArrayType(DataTypes.LongType)
       case "DoubleArray" => DataTypes.createArrayType(DataTypes.DoubleType)
       case "BooleanArray" => DataTypes.createArrayType(DataTypes.BooleanType)
       case "PointArray" | "InternalPoint2DArray" | "InternalPoint3DArray" => DataTypes.createArrayType(pointType)
-      case "LocalDateTimeArray" | "DateTimeArray" | "ZonedDateTimeArray" | "OffsetTimeArray"
-           | "TimeArray" | "LocalTimeArray" => DataTypes.createArrayType(timeType)
+      case "LocalDateTimeArray" | "DateTimeArray" | "ZonedDateTimeArray" => DataTypes.createArrayType(DataTypes.TimestampType)
+      case "OffsetTimeArray" | "TimeArray" | "LocalTimeArray" => DataTypes.createArrayType(timeType)
       case "LocalDateArray" | "DateArray" => DataTypes.createArrayType(DataTypes.DateType)
+      case "DurationArray" | "InternalIsoDurationArray" => DataTypes.createArrayType(durationType)
       case _ => DataTypes.StringType
     }
   }
@@ -60,7 +61,7 @@ class SchemaService(private val options: Neo4jOptions, private val jobId: String
       .sortBy(t => t.name)
 
     structFields += StructField(Neo4jQuery.INTERNAL_LABELS_FIELD, DataTypes.createArrayType(DataTypes.StringType), nullable = true)
-    structFields += StructField(Neo4jQuery.INTERNAL_ID_FIELD, DataTypes.IntegerType, nullable = false)
+    structFields += StructField(Neo4jQuery.INTERNAL_ID_FIELD, DataTypes.LongType, nullable = false)
     StructType(structFields.reverse)
   }
 
@@ -118,9 +119,9 @@ object SchemaService {
 
   val durationType: DataType = DataTypes.createStructType(Array(
     DataTypes.createStructField("type", DataTypes.StringType, false),
-    DataTypes.createStructField("months", DataTypes.IntegerType, false),
-    DataTypes.createStructField("days", DataTypes.IntegerType, false),
-    DataTypes.createStructField("seconds", DataTypes.IntegerType, false),
+    DataTypes.createStructField("months", DataTypes.LongType, false),
+    DataTypes.createStructField("days", DataTypes.LongType, false),
+    DataTypes.createStructField("seconds", DataTypes.LongType, false),
     DataTypes.createStructField("nanoseconds", DataTypes.IntegerType, false),
     DataTypes.createStructField("value", DataTypes.StringType, false)
   ))
@@ -130,7 +131,7 @@ object SchemaService {
     DataTypes.createStructField("srid", DataTypes.IntegerType, false),
     DataTypes.createStructField("x", DataTypes.DoubleType, false),
     DataTypes.createStructField("y", DataTypes.DoubleType, false),
-    DataTypes.createStructField("z", DataTypes.DoubleType, true),
+    DataTypes.createStructField("z", DataTypes.DoubleType, true)
   ))
 
   val timeType: DataType = DataTypes.createStructType(Array(

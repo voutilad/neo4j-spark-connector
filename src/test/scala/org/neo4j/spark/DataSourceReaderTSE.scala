@@ -1,10 +1,13 @@
 package org.neo4j.spark
 
+import java.sql.Timestamp
+
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema
 import org.junit.Assert._
 import org.junit.Test
-import org.neo4j.driver.{SessionConfig, Transaction}
+import org.neo4j.driver.summary.ResultSummary
+import org.neo4j.driver.{SessionConfig, Transaction, TransactionWork}
 
 class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
 
@@ -17,7 +20,7 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
      * internally by neo4j, we just check that the <id> field is an integer and is greater
      * than -1
      */
-    assertTrue(df.select("<id>").collectAsList().get(0).getInt(0) > -1)
+    assertTrue(df.select("<id>").collectAsList().get(0).getLong(0) > -1)
   }
 
   @Test
@@ -31,6 +34,15 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
   }
 
   @Test
+  def testReadNodeHasUnusualLabelsField(): Unit = {
+    val df: DataFrame = initTest(s"CREATE (p:`Foo Bar`:Person {name: 'John'})")
+
+    val result = df.select("<labels>").collectAsList().get(0).getAs[Seq[String]](0)
+
+    assertEquals(Set("Person", "Foo Bar"), result.toSet[String])
+  }
+
+  @Test
   def testReadNodeWithString(): Unit = {
     val name: String = "John"
     val df: DataFrame = initTest(s"CREATE (p:Person {name: '$name'})")
@@ -39,11 +51,11 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
   }
 
   @Test
-  def testReadNodeWithInteger(): Unit = {
-    val age: Integer = 42
+  def testReadNodeWithLong(): Unit = {
+    val age: Long = 42
     val df: DataFrame = initTest(s"CREATE (p:Person {age: $age})")
 
-    assertEquals(age, df.select("age").collectAsList().get(0).getInt(0))
+    assertEquals(age, df.select("age").collectAsList().get(0).getLong(0))
   }
 
   @Test
@@ -72,6 +84,24 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
 
     assertEquals("offset-time", result.get(0))
     assertEquals("12:23:00.294Z", result.get(1))
+  }
+
+  @Test
+  def testReadNodeWithLocalDateTime(): Unit = {
+    val df: DataFrame = initTest(s"CREATE (p:Person {aTime: localdatetime({ year:1984, month:10, day:11, hour:12, minute:31, second:14, millisecond: 123, microsecond: 456, nanosecond: 789 })})")
+
+    val result = df.select("aTime").collectAsList().get(0).getTimestamp(0)
+
+    assertEquals(Timestamp.valueOf("1984-10-11 13:31:14.123456"), result)
+  }
+
+  @Test
+  def testReadNodeWithZonedDateTime(): Unit = {
+    val df: DataFrame = initTest(s"CREATE (p:Person {aTime: datetime({ year:1984, month:10, day:11, hour:12, minute:31, second:14, millisecond: 123, microsecond: 456, nanosecond: 789 })})")
+
+    val result = df.select("aTime").collectAsList().get(0).getTimestamp(0)
+
+    assertEquals(Timestamp.valueOf("1984-10-11 13:31:14.123456"), result)
   }
 
   @Test
@@ -129,9 +159,9 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
     val res = list.get(0).getAs[GenericRowWithSchema](0)
 
     assertEquals("duration", res(0))
-    assertEquals(0, res(1))
-    assertEquals(14, res(2))
-    assertEquals(58320, res(3))
+    assertEquals(0L, res(1))
+    assertEquals(14L, res(2))
+    assertEquals(58320L, res(3))
     assertEquals(0, res(4))
     assertEquals("P0M14DT58320S", res(5))
   }
@@ -147,10 +177,10 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
   }
 
   @Test
-  def testReadNodeWithIntegerArray(): Unit = {
+  def testReadNodeWithLongArray(): Unit = {
     val df: DataFrame = initTest(s"CREATE (p:Person {ages: [22, 23]})")
 
-    val res = df.select("ages").collectAsList().get(0).getAs[Seq[Integer]](0)
+    val res = df.select("ages").collectAsList().get(0).getAs[Seq[Long]](0)
 
     assertEquals(22, res.head)
     assertEquals(23, res(1))
@@ -252,22 +282,37 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
   }
 
   @Test
+  def testReadNodeWithArrayZonedDateTime(): Unit = {
+    val df: DataFrame = initTest("""
+     CREATE (p:Person {aTime: [
+      datetime({ year:1984, month:10, day:11, hour:12, minute:31, second:14, timezone: 'UTC' }),
+      datetime({ year:1988, month:1, day:5, hour:7, minute:15, second:33, timezone: 'UTC' })
+     ]})
+     """)
+
+    val result = df.select("aTime").collectAsList().get(0).getAs[Seq[Timestamp]](0)
+
+    assertEquals(Timestamp.valueOf("1984-10-11 13:31:14.0"), result.head)
+    assertEquals(Timestamp.valueOf("1988-01-05 08:15:33.0"), result(1))
+  }
+
+  @Test
   def testReadNodeWithArrayDurations(): Unit = {
     val df: DataFrame = initTest(s"CREATE (p:Person {durations: [duration({months: 0.75}), duration({weeks: 2.5})]})")
 
     val res = df.select("durations").collectAsList().get(0).getAs[Seq[GenericRowWithSchema]](0)
 
     assertEquals("duration", res.head.get(0))
-    assertEquals(0, res.head.get(1))
-    assertEquals(22, res.head.get(2))
-    assertEquals(71509, res.head.get(3))
+    assertEquals(0L, res.head.get(1))
+    assertEquals(22L, res.head.get(2))
+    assertEquals(71509L, res.head.get(3))
     assertEquals(500000000, res.head.get(4))
     assertEquals("P0M22DT71509.500000000S", res.head.get(5))
 
     assertEquals("duration", res(1).get(0))
-    assertEquals(0, res(1).get(1))
-    assertEquals(17, res(1).get(2))
-    assertEquals(43200, res(1).get(3))
+    assertEquals(0L, res(1).get(1))
+    assertEquals(17L, res(1).get(2))
+    assertEquals(43200L, res(1).get(3))
     assertEquals(0, res(1).get(4))
     assertEquals("P0M17DT43200S", res(1).get(5))
   }
@@ -287,6 +332,8 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
     val df: DataFrame = initTest(fixtureQuery)
     val repartitionedDf = df.repartition(10)
 
+    df.printSchema()
+
     assertEquals(10, repartitionedDf.rdd.getNumPartitions)
     val numNode = repartitionedDf.collect().length
     assertEquals(100, numNode)
@@ -295,19 +342,25 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
   @Test
   def testMultiDbJoin(): Unit = {
     SparkConnectorScalaSuiteIT.driver.session(SessionConfig.forDatabase("db1"))
-      .writeTransaction((tx: Transaction) => tx.run(
-        """
+      .writeTransaction(
+        new TransactionWork[ResultSummary] {
+          override def execute(tx: Transaction): ResultSummary = tx.run(
+            """
       CREATE (p1:Person:Customer {name: 'John Doe'}),
        (p2:Person:Customer {name: 'Mark Brown'}),
        (p3:Person:Customer {name: 'Cindy White'})
-      """).consume())
+      """).consume()
+        })
 
     SparkConnectorScalaSuiteIT.driver.session(SessionConfig.forDatabase("db2"))
-      .writeTransaction((tx: Transaction) => tx.run(
-        """
+      .writeTransaction(
+        new TransactionWork[ResultSummary] {
+          override def execute(tx: Transaction): ResultSummary = tx.run(
+            """
       CREATE (p1:Person:Employee {name: 'Jane Doe'}),
        (p2:Person:Employee {name: 'John Doe'})
-      """).consume())
+      """).consume()
+        })
 
     val df1 = ss.read.format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
@@ -330,7 +383,10 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
 
   private def initTest(query: String): DataFrame = {
     SparkConnectorScalaSuiteIT.session()
-      .writeTransaction((tx: Transaction) => tx.run(query).consume())
+      .writeTransaction(
+        new TransactionWork[ResultSummary] {
+          override def execute(tx: Transaction): ResultSummary = tx.run(query).consume()
+        })
 
     ss.read.format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)

@@ -120,7 +120,7 @@ class Neo4jOptionsTest {
     assertEquals("", neo4jOptions.connection.password)
     assertEquals(false, neo4jOptions.connection.encryption)
 
-    assertEquals(TrustStrategy.Strategy.TRUST_SYSTEM_CA_SIGNED_CERTIFICATES, neo4jOptions.connection.trustStrategy)
+    assertEquals(None, neo4jOptions.connection.trustStrategy)
 
     assertEquals("", neo4jOptions.connection.certificatePath)
     assertEquals("", neo4jOptions.connection.ticket)

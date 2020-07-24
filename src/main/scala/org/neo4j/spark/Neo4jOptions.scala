@@ -1,6 +1,7 @@
 package org.neo4j.spark
 
 import java.io.File
+import java.net.URI
 import java.util.concurrent.TimeUnit
 
 import org.apache.spark.unsafe.types.UTF8String
@@ -57,7 +58,7 @@ class Neo4jOptions(private val parameters: java.util.Map[String, String]) extend
     getParameter(AUTH_CUSTOM_REALM, DEFAULT_EMPTY),
     getParameter(AUTH_CUSTOM_SCHEME, DEFAULT_EMPTY),
     getParameter(ENCRYPTION_ENABLED, DEFAULT_ENCRYPTION_ENABLED.toString).toBoolean,
-    TrustStrategy.Strategy.valueOf(getParameter(ENCRYPTION_TRUST_STRATEGY, DEFAULT_ENCRYPTION_TRUST_STRATEGY.name())),
+    Option(getParameter(ENCRYPTION_TRUST_STRATEGY, null)),
     getParameter(ENCRYPTION_CA_CERTIFICATE_PATH, DEFAULT_EMPTY),
     getParameter(CONNECTION_MAX_LIFETIME_MSECS, DEFAULT_TIMEOUT.toString).toInt,
     getParameter(CONNECTION_ACQUISITION_TIMEOUT_MSECS, DEFAULT_TIMEOUT.toString).toInt,
@@ -98,7 +99,7 @@ case class Neo4jDriverOptions(
                                realm: String,
                                schema: String,
                                encryption: Boolean,
-                               trustStrategy: TrustStrategy.Strategy,
+                               trustStrategy: Option[String],
                                certificatePath: String,
                                lifetime: Int,
                                acquisitionTimeout: Int,
@@ -113,17 +114,24 @@ case class Neo4jDriverOptions(
     if (acquisitionTimeout > -1) builder.withConnectionAcquisitionTimeout(acquisitionTimeout, TimeUnit.MILLISECONDS)
     if (livenessCheckTimeout > -1) builder.withConnectionLivenessCheckTimeout(livenessCheckTimeout, TimeUnit.MILLISECONDS)
     if (connectionTimeout > -1) builder.withConnectionTimeout(connectionTimeout, TimeUnit.MILLISECONDS)
-    if (!encryption) {
-      builder.withoutEncryption()
+
+    URI.create(url).getScheme match {
+      case "neo4j+s" | "neo4j+ssc" | "bolt+s" | "bolt+ssc" => Unit
+      case _ => if (!encryption) {
+        builder.withoutEncryption()
+      }
+      else {
+        builder.withEncryption()
+      }
     }
-    else {
-      builder.withEncryption()
-      builder.withTrustStrategy( trustStrategy match {
+
+    trustStrategy
+      .map(Config.TrustStrategy.Strategy.valueOf)
+      .map {
         case TrustStrategy.Strategy.TRUST_ALL_CERTIFICATES => TrustStrategy.trustAllCertificates()
         case TrustStrategy.Strategy.TRUST_SYSTEM_CA_SIGNED_CERTIFICATES => TrustStrategy.trustSystemCertificates()
         case TrustStrategy.Strategy.TRUST_CUSTOM_CA_SIGNED_CERTIFICATES => TrustStrategy.trustCustomCertificateSignedBy(new File(certificatePath))
-      })
-    }
+      }.foreach(builder.withTrustStrategy)
 
     builder.build()
   }

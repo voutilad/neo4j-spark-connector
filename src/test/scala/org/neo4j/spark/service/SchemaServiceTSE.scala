@@ -6,7 +6,8 @@ import java.util.UUID
 import org.apache.spark.sql.types.{DataTypes, StructField, StructType}
 import org.junit.{Before, Test}
 import org.junit.Assert._
-import org.neo4j.driver.Transaction
+import org.neo4j.driver.summary.ResultSummary
+import org.neo4j.driver.{Transaction, TransactionWork}
 import org.neo4j.spark._
 
 class SchemaServiceTSE extends SparkConnectorScalaBaseTSE {
@@ -14,7 +15,10 @@ class SchemaServiceTSE extends SparkConnectorScalaBaseTSE {
   @Before
   def beforeEach(): Unit = {
     SparkConnectorScalaSuiteIT.session()
-      .writeTransaction((tx: Transaction) => tx.run("MATCH (n) DETACH DELETE n").consume())
+      .writeTransaction(
+        new TransactionWork[ResultSummary] {
+          override def execute(tx: Transaction): ResultSummary = tx.run("MATCH (n) DETACH DELETE n").consume()
+        })
   }
 
   @Test
@@ -47,7 +51,7 @@ class SchemaServiceTSE extends SparkConnectorScalaBaseTSE {
 
     val schema = getSchema(options)
 
-    assertEquals(getExpectedStructType(Seq(StructField("age", DataTypes.IntegerType))), schema)
+    assertEquals(getExpectedStructType(Seq(StructField("age", DataTypes.LongType))), schema)
   }
 
   @Test
@@ -91,7 +95,7 @@ class SchemaServiceTSE extends SparkConnectorScalaBaseTSE {
 
     val schema = getSchema(options)
 
-    assertEquals(getExpectedStructType(Seq(StructField("arrived_at", SchemaService.timeType))), schema)
+    assertEquals(getExpectedStructType(Seq(StructField("arrived_at", DataTypes.TimestampType))), schema)
   }
 
   @Test
@@ -135,7 +139,7 @@ class SchemaServiceTSE extends SparkConnectorScalaBaseTSE {
 
     val schema = getSchema(options)
 
-    assertEquals(getExpectedStructType(Seq(StructField("dates", DataTypes.createArrayType(SchemaService.timeType)))), schema)
+    assertEquals(getExpectedStructType(Seq(StructField("dates", DataTypes.createArrayType(DataTypes.TimestampType)))), schema)
   }
 
   @Test
@@ -157,7 +161,7 @@ class SchemaServiceTSE extends SparkConnectorScalaBaseTSE {
 
     val schema = getSchema(options)
 
-    assertEquals(getExpectedStructType(Seq(StructField("ages", DataTypes.createArrayType(DataTypes.IntegerType)))), schema)
+    assertEquals(getExpectedStructType(Seq(StructField("ages", DataTypes.createArrayType(DataTypes.LongType)))), schema)
   }
 
   @Test
@@ -175,7 +179,7 @@ class SchemaServiceTSE extends SparkConnectorScalaBaseTSE {
     val schema = getSchema(options)
 
     assertEquals(getExpectedStructType(Seq(
-      StructField("age", DataTypes.IntegerType),
+      StructField("age", DataTypes.LongType),
       StructField("location", SchemaService.pointType),
       StructField("name", DataTypes.StringType)
     )), schema)
@@ -184,14 +188,17 @@ class SchemaServiceTSE extends SparkConnectorScalaBaseTSE {
   private def getExpectedStructType(structFields: Seq[StructField]): StructType = {
     val additionalFields: Seq[StructField] = Seq(
       StructField(Neo4jQuery.INTERNAL_LABELS_FIELD, DataTypes.createArrayType(DataTypes.StringType), nullable = true),
-      StructField(Neo4jQuery.INTERNAL_ID_FIELD, DataTypes.IntegerType, nullable = false)
+      StructField(Neo4jQuery.INTERNAL_ID_FIELD, DataTypes.LongType, nullable = false)
     )
     StructType(structFields.union(additionalFields).reverse)
   }
 
   private def initTest(query: String): Unit = {
     SparkConnectorScalaSuiteIT.session()
-      .writeTransaction((tx: Transaction) => tx.run(query).consume())
+      .writeTransaction(
+        new TransactionWork[ResultSummary] {
+          override def execute(tx: Transaction): ResultSummary = tx.run(query).consume()
+        })
   }
 
   private def getSchema(options: java.util.Map[String, String]): StructType = {

@@ -58,7 +58,7 @@ class SparkConnectorScalaBaseTSE {
             val afterConnections = SparkConnectorScalaSuiteIT.getActiveConnections
             SparkConnectorScalaSuiteIT.connections == afterConnections
           }
-        }, Matchers.equalTo(true), 60, TimeUnit.SECONDS)
+        }, Matchers.equalTo(true), 30, TimeUnit.SECONDS)
       } finally {
         val afterConnections = SparkConnectorScalaSuiteIT.getActiveConnections
         if (SparkConnectorScalaSuiteIT.connections != afterConnections) { // just for debug purposes
