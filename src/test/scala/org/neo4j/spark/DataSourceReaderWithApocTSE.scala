@@ -97,11 +97,11 @@ class DataSourceReaderWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
 
   @Test
   def testReadNodeWithZonedDateTime(): Unit = {
-    val df: DataFrame = initTest(s"CREATE (p:Person {aTime: datetime({ year:1984, month:10, day:11, hour:12, minute:31, second:14, millisecond: 123, microsecond: 456, nanosecond: 789 })})")
+    val df: DataFrame = initTest(s"CREATE (p:Person {aTime: datetime({ timezone: 'CET', year:1984, month:10, day:11, hour:12, minute:31, second:14, millisecond: 123, microsecond: 456, nanosecond: 789 })})")
 
     val result = df.select("aTime").collectAsList().get(0).getTimestamp(0)
 
-    assertEquals(Timestamp.valueOf("1984-10-11 13:31:14.123456"), result)
+    assertEquals(Timestamp.valueOf("1984-10-11 12:31:14.123456"), result)
   }
 
   @Test
@@ -285,15 +285,15 @@ class DataSourceReaderWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
   def testReadNodeWithArrayZonedDateTime(): Unit = {
     val df: DataFrame = initTest("""
      CREATE (p:Person {aTime: [
-      datetime({ year:1984, month:10, day:11, hour:12, minute:31, second:14, timezone: 'UTC' }),
-      datetime({ year:1988, month:1, day:5, hour:7, minute:15, second:33, timezone: 'UTC' })
+      datetime({ year:1984, month:10, day:11, hour:12, minute:31, second:14, timezone: 'CET' }),
+      datetime({ year:1988, month:1, day:5, hour:7, minute:15, second:33, timezone: 'CET' })
      ]})
      """)
 
     val result = df.select("aTime").collectAsList().get(0).getAs[Seq[Timestamp]](0)
 
-    assertEquals(Timestamp.valueOf("1984-10-11 13:31:14.0"), result.head)
-    assertEquals(Timestamp.valueOf("1988-01-05 08:15:33.0"), result(1))
+    assertEquals(Timestamp.valueOf("1984-10-11 12:31:14.0"), result.head)
+    assertEquals(Timestamp.valueOf("1988-01-05 07:15:33.0"), result(1))
   }
 
   @Test
