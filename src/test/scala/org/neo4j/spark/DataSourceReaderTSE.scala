@@ -1,6 +1,7 @@
 package org.neo4j.spark
 
 import java.sql.Timestamp
+import java.time.{LocalDateTime, OffsetDateTime, ZoneOffset}
 
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema
@@ -88,20 +89,24 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
 
   @Test
   def testReadNodeWithLocalDateTime(): Unit = {
-    val df: DataFrame = initTest(s"CREATE (p:Person {aTime: localdatetime({ year:1984, month:10, day:11, hour:12, minute:31, second:14, millisecond: 123, microsecond: 456, nanosecond: 789 })})")
+    val localDateTime = "2007-12-03T10:15:30"
+    val df: DataFrame = initTest(s"CREATE (p:Person {aTime: localdatetime('$localDateTime')})")
 
     val result = df.select("aTime").collectAsList().get(0).getTimestamp(0)
 
-    assertEquals(Timestamp.valueOf("1984-10-11 13:31:14.123456"), result)
+
+    assertEquals(Timestamp.from(LocalDateTime.parse(localDateTime).toInstant(ZoneOffset.UTC)), result)
   }
 
   @Test
   def testReadNodeWithZonedDateTime(): Unit = {
-    val df: DataFrame = initTest(s"CREATE (p:Person {aTime: datetime({ timezone: 'CET', year:1984, month:10, day:11, hour:12, minute:31, second:14, millisecond: 123, microsecond: 456, nanosecond: 789 })})")
+    val datetime = "2015-06-24T12:50:35.556+01:00"
+    val df: DataFrame = initTest(s"CREATE (p:Person {aTime: datetime('$datetime')})")
 
     val result = df.select("aTime").collectAsList().get(0).getTimestamp(0)
 
-    assertEquals(Timestamp.valueOf("1984-10-11 12:31:14.123456"), result)
+
+    assertEquals(Timestamp.from(OffsetDateTime.parse(datetime).toInstant), result)
   }
 
   @Test
@@ -283,17 +288,19 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
 
   @Test
   def testReadNodeWithArrayZonedDateTime(): Unit = {
-    val df: DataFrame = initTest("""
+    val datetime1 = "2015-06-24T12:50:35.556+01:00"
+    val datetime2 = "2015-06-23T12:50:35.556+01:00"
+    val df: DataFrame = initTest(s"""
      CREATE (p:Person {aTime: [
-      datetime({ year:1984, month:10, day:11, hour:12, minute:31, second:14, timezone: 'CET' }),
-      datetime({ year:1988, month:1, day:5, hour:7, minute:15, second:33, timezone: 'CET' })
+      datetime('$datetime1'),
+      datetime('$datetime2')
      ]})
      """)
 
     val result = df.select("aTime").collectAsList().get(0).getAs[Seq[Timestamp]](0)
 
-    assertEquals(Timestamp.valueOf("1984-10-11 12:31:14.0"), result.head)
-    assertEquals(Timestamp.valueOf("1988-01-05 07:15:33.0"), result(1))
+    assertEquals(Timestamp.from(OffsetDateTime.parse(datetime1).toInstant), result.head)
+    assertEquals(Timestamp.from(OffsetDateTime.parse(datetime2).toInstant), result(1))
   }
 
   @Test
