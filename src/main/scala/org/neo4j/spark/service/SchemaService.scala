@@ -81,7 +81,7 @@ class SchemaService(private val options: Neo4jOptions, private val jobId: String
     ).list.asScala.flatMap(record => {
       record.get(Neo4jQuery.NODE_ALIAS).asNode.asMap.asScala.toList
     })
-      .groupBy(t => t._1)
+      .groupBy(_._1)
       .map(t => {
         val value = t._2.head._2
         StructField(t._1, cypherToSparkType(value match {

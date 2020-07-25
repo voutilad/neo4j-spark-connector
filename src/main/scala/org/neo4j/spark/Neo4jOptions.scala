@@ -4,9 +4,8 @@ import java.io.File
 import java.net.URI
 import java.util.concurrent.TimeUnit
 
-import org.apache.spark.unsafe.types.UTF8String
-import org.neo4j.driver.{AccessMode, AuthToken, AuthTokens, Config, SessionConfig}
 import org.neo4j.driver.Config.TrustStrategy
+import org.neo4j.driver._
 
 class Neo4jOptions(private val parameters: java.util.Map[String, String]) extends Serializable {
 
@@ -37,7 +36,10 @@ class Neo4jOptions(private val parameters: java.util.Map[String, String]) extend
     getParameter(RELATIONSHIP.toString.toLowerCase())
   ) match {
     case (query, "", "") => Neo4jQueryOptions(QUERY, query, schemaFlattenLimit)
-    case ("", label, "") => Neo4jQueryOptions(LABELS, label, schemaFlattenLimit)
+    case ("", label, "") => {
+      val parsed = if (label.trim.startsWith(":")) label.substring(1) else label
+      Neo4jQueryOptions(LABELS, parsed, schemaFlattenLimit)
+    }
     case ("", "", relationship) => Neo4jQueryOptions(RELATIONSHIP, relationship, schemaFlattenLimit)
     case _ => throw new IllegalArgumentException(
       s"You need to specify just one of these options: ${
@@ -114,24 +116,24 @@ case class Neo4jDriverOptions(
     if (acquisitionTimeout > -1) builder.withConnectionAcquisitionTimeout(acquisitionTimeout, TimeUnit.MILLISECONDS)
     if (livenessCheckTimeout > -1) builder.withConnectionLivenessCheckTimeout(livenessCheckTimeout, TimeUnit.MILLISECONDS)
     if (connectionTimeout > -1) builder.withConnectionTimeout(connectionTimeout, TimeUnit.MILLISECONDS)
-
     URI.create(url).getScheme match {
       case "neo4j+s" | "neo4j+ssc" | "bolt+s" | "bolt+ssc" => Unit
-      case _ => if (!encryption) {
-        builder.withoutEncryption()
-      }
-      else {
-        builder.withEncryption()
+      case _ => {
+        if (!encryption) {
+          builder.withoutEncryption()
+        }
+        else {
+          builder.withEncryption()
+        }
+        trustStrategy
+          .map(Config.TrustStrategy.Strategy.valueOf)
+          .map {
+            case TrustStrategy.Strategy.TRUST_ALL_CERTIFICATES => TrustStrategy.trustAllCertificates()
+            case TrustStrategy.Strategy.TRUST_SYSTEM_CA_SIGNED_CERTIFICATES => TrustStrategy.trustSystemCertificates()
+            case TrustStrategy.Strategy.TRUST_CUSTOM_CA_SIGNED_CERTIFICATES => TrustStrategy.trustCustomCertificateSignedBy(new File(certificatePath))
+          }.foreach(builder.withTrustStrategy)
       }
     }
-
-    trustStrategy
-      .map(Config.TrustStrategy.Strategy.valueOf)
-      .map {
-        case TrustStrategy.Strategy.TRUST_ALL_CERTIFICATES => TrustStrategy.trustAllCertificates()
-        case TrustStrategy.Strategy.TRUST_SYSTEM_CA_SIGNED_CERTIFICATES => TrustStrategy.trustSystemCertificates()
-        case TrustStrategy.Strategy.TRUST_CUSTOM_CA_SIGNED_CERTIFICATES => TrustStrategy.trustCustomCertificateSignedBy(new File(certificatePath))
-      }.foreach(builder.withTrustStrategy)
 
     builder.build()
   }

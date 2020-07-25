@@ -83,13 +83,8 @@ val df = spark.read.format("org.neo4j.spark.DataSource")
 |``
 |No
 
-|`authentication.custom.schema`
-|This it the authentication scheme, specifying what kind of authentication that should be used
-|``
-|No
-
 |`encryption.enabled`
-|Specify if encryption should be enabled
+|Specify if encryption should be enabled. This setting is totally ignored if you use a URI scheme with +s or +ssc
 |`false`
 |No
 
@@ -127,7 +122,8 @@ val df = spark.read.format("org.neo4j.spark.DataSource")
 4+|*Session Options*
 
 |`database`
-|Database name to connect to
+|Database name to connect to. As the driver allows to define the database in the URL,
+in case you set this option will have the priority compared to the one defined in the URL
 |``
 |No
 
@@ -189,9 +185,9 @@ a|
 ----
 Struct(Array(
     ("type", DataTypes.StringType, false),
-    ("months", DataTypes.IntegerType, false),
-    ("days", DataTypes.IntegerType, false),
-    ("seconds", DataTypes.IntegerType, false),
+    ("months", DataTypes.LongType, false),
+    ("days", DataTypes.LongType, false),
+    ("seconds", DataTypes.LongType, false),
     ("nanoseconds", DataTypes.IntegerType, false),
     ("value", DataTypes.StringType, false)
   ))
@@ -241,10 +237,6 @@ val df = spark.read.format("org.neo4j.spark.DataSource")
 
 df.show()
 ```
-
-[NOTE]
-Remember that the first Label is considered to be the primary label.
-
 
 When reading data with this method, the Dataframe will contain all the fields contained in the nodes, plus 2 additional columns.
 
