@@ -37,15 +37,16 @@
     </licenses>
 
     <properties>
-        <project.scala.version>2.12.11</project.scala.version>
-        <project.scala.binary.version>2.12</project.scala.binary.version>
+        <project.scala.version>2.11.12</project.scala.version>
+        <project.scala.binary.version>2.11</project.scala.binary.version>
         <neo4j.version>4.0.4</neo4j.version>
-        <driver.version>4.0.1</driver.version>
+        <driver.version>4.1.0</driver.version>
         <spark.version>2.4.5</spark.version>
         <graphframes.version>0.8.0-spark3.0-s_2.12</graphframes.version>
         <testcontainers.version>1.12.5</testcontainers.version>
         <xbean.version>4.10</xbean.version>
         <resilience4j.version>1.2.0</resilience4j.version>
+        <cypherdsl.version>2020.0.0</cypherdsl.version>
         <node.version>v12.16.0</node.version>
         <npm.version>6.13.7</npm.version>
 
@@ -210,12 +211,6 @@
         </dependency>
 
         <dependency>
-            <groupId>io.github.resilience4j</groupId>
-            <artifactId>resilience4j-retry</artifactId>
-            <version>${resilience4j.version}</version>
-        </dependency>
-
-        <dependency>
             <groupId>org.scala-lang</groupId>
             <artifactId>scala-reflect</artifactId>
             <version>${project.scala.version}</version>
@@ -250,22 +245,15 @@
 
         <dependency>
             <groupId>org.apache.spark</groupId>
-            <artifactId>spark-graphx_${project.scala.binary.version}</artifactId>
-            <version>${spark.version}</version>
-            <scope>provided</scope>
-        </dependency>
-
-        <dependency>
-            <groupId>org.apache.spark</groupId>
             <artifactId>spark-sql_${project.scala.binary.version}</artifactId>
             <version>${spark.version}</version>
             <scope>provided</scope>
         </dependency>
 
         <dependency>
-            <groupId>graphframes</groupId>
-            <artifactId>graphframes</artifactId>
-            <version>${graphframes.version}</version>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-cypher-dsl</artifactId>
+            <version>${cypherdsl.version}</version>
         </dependency>
 
         <dependency>

@@ -1,7 +1,5 @@
 package org.neo4j.spark
 
-import java.util
-
 import org.junit.Assert._
 import org.junit.Test
 import org.neo4j.driver.AccessMode
@@ -19,7 +17,7 @@ class Neo4jOptionsTest {
 
   @Test
   def testUrlIsRequired(): Unit = {
-    val options: java.util.Map[String, String] = new util.HashMap[String, String]()
+    val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(QueryType.QUERY.toString.toLowerCase, "Person")
 
     _expectedException.expect(classOf[IllegalArgumentException])
@@ -30,39 +28,39 @@ class Neo4jOptionsTest {
 
   @Test
   def testQueryAndNodeShouldThrowError(): Unit = {
-    val options: java.util.Map[String, String] = new util.HashMap[String, String]()
+    val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
     options.put(QueryType.QUERY.toString.toLowerCase, "MATCH n RETURN n")
-    options.put(QueryType.NODE.toString.toLowerCase, "Person")
+    options.put(QueryType.LABELS.toString.toLowerCase, "Person")
 
     _expectedException.expect(classOf[IllegalArgumentException])
-    _expectedException.expectMessage("You need to specify just one of these options: 'node', 'query', 'relationship'")
+    _expectedException.expectMessage("You need to specify just one of these options: 'labels', 'query', 'relationship'")
 
     new Neo4jOptions(options)
   }
 
   @Test
   def testQueryAndRelationshipShouldThrowError(): Unit = {
-    val options: java.util.Map[String, String] = new util.HashMap[String, String]()
+    val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
     options.put(QueryType.QUERY.toString.toLowerCase, "MATCH n RETURN n")
     options.put(QueryType.RELATIONSHIP.toString.toLowerCase, "KNOWS")
 
     _expectedException.expect(classOf[IllegalArgumentException])
-    _expectedException.expectMessage("You need to specify just one of these options: 'node', 'query', 'relationship'")
+    _expectedException.expectMessage("You need to specify just one of these options: 'labels', 'query', 'relationship'")
 
     new Neo4jOptions(options)
   }
 
   @Test
   def testNodeAndRelationshipShouldThrowError(): Unit = {
-    val options: java.util.Map[String, String] = new util.HashMap[String, String]()
+    val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
-    options.put(QueryType.NODE.toString.toLowerCase, "PERSON")
+    options.put(QueryType.LABELS.toString.toLowerCase, "PERSON")
     options.put(QueryType.RELATIONSHIP.toString.toLowerCase, "KNOWS")
 
     _expectedException.expect(classOf[IllegalArgumentException])
-    _expectedException.expectMessage("You need to specify just one of these options: 'node', 'query', 'relationship'")
+    _expectedException.expectMessage("You need to specify just one of these options: 'labels', 'query', 'relationship'")
 
     new Neo4jOptions(options)
   }
@@ -70,7 +68,7 @@ class Neo4jOptionsTest {
   @Test
   def testQueryShouldHaveQueryType(): Unit = {
     val query: String = "MATCH n RETURN n"
-    val options: java.util.Map[String, String] = new util.HashMap[String, String]()
+    val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
     options.put(QueryType.QUERY.toString.toLowerCase, query)
 
@@ -81,48 +79,59 @@ class Neo4jOptionsTest {
   }
 
   @Test
-  def testNodeShouldHaveNodeType(): Unit = {
+  def testNodeShouldHaveLabelType(): Unit = {
     val label: String = "Person"
-    val options: java.util.Map[String, String] = new util.HashMap[String, String]()
+    val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
-    options.put(QueryType.NODE.toString.toLowerCase, label)
+    options.put(QueryType.LABELS.toString.toLowerCase, label)
 
     val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
 
-    assertEquals(QueryType.NODE, neo4jOptions.query.queryType)
+    assertEquals(QueryType.LABELS, neo4jOptions.query.queryType)
     assertEquals(label, neo4jOptions.query.value)
   }
 
   @Test
   def testRelationshipShouldHaveRelationshipType(): Unit = {
     val relationship: String = "KNOWS"
-    val options: java.util.Map[String, String] = new util.HashMap[String, String]()
+    val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
-    options.put(QueryType.NODE.toString.toLowerCase, relationship)
+    options.put(QueryType.LABELS.toString.toLowerCase, relationship)
 
     val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
 
-    assertEquals(QueryType.NODE, neo4jOptions.query.queryType)
+    assertEquals(QueryType.LABELS, neo4jOptions.query.queryType)
     assertEquals(relationship, neo4jOptions.query.value)
   }
 
   @Test
-  def testDrierDefaults(): Unit = {
-    val options: java.util.Map[String, String] = new util.HashMap[String, String]()
+  def testDriverDefaults(): Unit = {
+    val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
     options.put(QueryType.QUERY.toString.toLowerCase, "MATCH n RETURN n")
 
     val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
 
     assertEquals("", neo4jOptions.session.database)
-    assertEquals(AccessMode.READ, neo4jOptions.session.accessMode)
+    assertEquals(AccessMode.WRITE, neo4jOptions.session.accessMode)
+
     assertEquals("basic", neo4jOptions.connection.auth)
     assertEquals("", neo4jOptions.connection.username)
     assertEquals("", neo4jOptions.connection.password)
     assertEquals(false, neo4jOptions.connection.encryption)
-    assertEquals(TrustStrategy.Strategy.TRUST_SYSTEM_CA_SIGNED_CERTIFICATES, neo4jOptions.connection.trustStrategy)
+
+    assertEquals(None, neo4jOptions.connection.trustStrategy)
+
     assertEquals("", neo4jOptions.connection.certificatePath)
-    assertEquals(1000, neo4jOptions.connection.lifetime)
-    assertEquals(1000, neo4jOptions.connection.timeout)
+    assertEquals("", neo4jOptions.connection.ticket)
+    assertEquals("", neo4jOptions.connection.principal)
+    assertEquals("", neo4jOptions.connection.credentials)
+    assertEquals("", neo4jOptions.connection.realm)
+    assertEquals("", neo4jOptions.connection.schema)
+
+    assertEquals(-1, neo4jOptions.connection.lifetime)
+    assertEquals(-1, neo4jOptions.connection.acquisitionTimeout)
+    assertEquals(-1, neo4jOptions.connection.connectionTimeout)
+    assertEquals(-1, neo4jOptions.connection.livenessCheckTimeout)
   }
 }
