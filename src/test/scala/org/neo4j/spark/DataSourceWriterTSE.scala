@@ -519,4 +519,43 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
     assertEquals(Set("name", "surname", "age"), keys.asScala.toSet)
   }
 
+  @Test
+  def `should throw an exception for a read only query`(): Unit = {
+    val ds = (1 to 100).map(i => Person("Andrea " + i, "Santurbano " + i, 36, null)).toDS()
+
+    try {
+      ds.write
+        .format(classOf[DataSource].getName)
+        .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+        .option("query", "MATCH (r:Read) RETURN r")
+        .option("batch.size", "11")
+        .save()
+    } catch {
+      case illegalArgumentException: IllegalArgumentException => assertTrue(illegalArgumentException.getMessage.equals("Please provide a valid WRITE query"))
+      case t: Throwable => fail(s"should be thrown a ${classOf[IllegalArgumentException].getName}, but it's ${t.getClass.getSimpleName}")
+    }
+  }
+
+  @Test
+  def `should insert data with a custom query`(): Unit = {
+    val ds = (1 to 100).map(i => Person("Andrea " + i, "Santurbano " + i, 36, null)).toDS()
+
+    ds.write
+      .format(classOf[DataSource].getName)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("query", "CREATE (n:MyNode{fullName: event.name + event.surname, age: event.age - 10})")
+      .option("batch.size", "11")
+      .save()
+
+    val count = SparkConnectorScalaSuiteIT.session().run(
+      """
+        |MATCH (p:MyNode)
+        |WHERE p.fullName CONTAINS 'Andrea'
+        |AND p.fullName CONTAINS 'Santurbano'
+        |AND p.age = 26
+        |RETURN count(p) AS count
+        |""".stripMargin).single().get("count").asLong()
+    assertEquals(ds.count(), count)
+  }
+
 }
