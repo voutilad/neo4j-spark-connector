@@ -10,6 +10,8 @@ import org.junit.Test
 import org.neo4j.driver.summary.ResultSummary
 import org.neo4j.driver.{SessionConfig, Transaction, TransactionWork}
 
+import scala.collection.JavaConverters._
+
 class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
 
   @Test
@@ -386,6 +388,94 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
 
     val dfJoin = df1.join(df2, df1("name") === df2("name"))
     assertEquals(1, dfJoin.count())
+  }
+
+  @Test
+  def testRelationshipsFlatten(): Unit = {
+    val total = 100
+    val fixtureQuery: String =
+      s"""UNWIND range(1, $total) as id
+        |CREATE (pr:Product {id: id * rand(), name: 'Product ' + id})
+        |CREATE (pe:Person {id: id, fullName: 'Person ' + id})
+        |CREATE (pe)-[:BOUGHT{when: rand(), quantity: rand() * 1000}]->(pr)
+        |RETURN *
+    """.stripMargin
+
+    SparkConnectorScalaSuiteIT.session()
+      .writeTransaction(
+        new TransactionWork[ResultSummary] {
+          override def execute(tx: Transaction): ResultSummary = tx.run(fixtureQuery).consume()
+        })
+
+    val df: DataFrame = ss.read.format(classOf[DataSource].getName)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("relationship", "BOUGHT")
+      .option("relationship.nodes.map", "false")
+      .option("relationship.source.labels", ":Person")
+      .option("relationship.target.labels", ":Product")
+      .load()
+
+    val count = df.collectAsList()
+      .asScala
+      .filter(row =>row.getAs[Long]("<rel.id>") != null
+        && row.getAs[String]("<rel.type>") != null
+        && row.getAs[Long]("rel.when") != null
+        && row.getAs[Long]("rel.quantity") != null
+        && row.getAs[Long]("<source.id>") != null
+        && row.getAs[Long]("source.id") != null
+        && !row.getAs[List[String]]("<source.labels>").isEmpty
+        && row.getAs[String]("source.fullName") != null
+        && row.getAs[Long]("<target.id>") != null
+        && row.getAs[Long]("target.id") != null
+        && !row.getAs[List[String]]("<target.labels>").isEmpty
+        && row.getAs[String]("target.name") != null)
+      .size
+    assertEquals(total, count)
+  }
+
+  @Test
+  def testRelationshipsMap(): Unit = {
+    val total = 100
+    val fixtureQuery: String =
+      s"""UNWIND range(1, $total) as id
+         |CREATE (pr:Product {id: id * rand(), name: 'Product ' + id})
+         |CREATE (pe:Person {id: id, fullName: 'Person ' + id})
+         |CREATE (pe)-[:BOUGHT{when: rand(), quantity: rand() * 1000}]->(pr)
+         |RETURN *
+    """.stripMargin
+
+    SparkConnectorScalaSuiteIT.session()
+      .writeTransaction(
+        new TransactionWork[ResultSummary] {
+          override def execute(tx: Transaction): ResultSummary = tx.run(fixtureQuery).consume()
+        })
+
+    val df: DataFrame = ss.read.format(classOf[DataSource].getName)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("relationship", "BOUGHT")
+      .option("relationship.source.labels", ":Person")
+      .option("relationship.target.labels", ":Product")
+      .load()
+
+    val rows = df.collectAsList().asScala
+    val count = rows
+      .filter(row =>row.getAs[Long]("<rel.id>") != null
+        && row.getAs[String]("<rel.type>") != null
+        && row.getAs[Long]("rel.when") != null
+        && row.getAs[Long]("rel.quantity") != null
+        && row.getAs[Map[String, String]]("<source>") != null
+        && row.getAs[Map[String, String]]("<target>") != null)
+      .size
+    assertEquals(total, count)
+
+    val countSourceMap = rows.map(row => row.getAs[Map[String, String]]("<source>"))
+      .filter(row => row.keys == Set("id", "fullName", "<id>", "<labels>"))
+      .size
+    assertEquals(total, countSourceMap)
+    val countTargetMap = rows.map(row => row.getAs[Map[String, String]]("<target>"))
+      .filter(row => row.keys == Set("id", "name", "<id>", "<labels>"))
+      .size
+    assertEquals(total, countTargetMap)
   }
 
   private def initTest(query: String): DataFrame = {

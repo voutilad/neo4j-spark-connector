@@ -4,11 +4,12 @@ import java.util
 import java.util.UUID
 
 import org.apache.spark.sql.types.{DataTypes, StructField, StructType}
-import org.junit.{Before, Test}
 import org.junit.Assert._
+import org.junit.{Before, Test}
 import org.neo4j.driver.summary.ResultSummary
 import org.neo4j.driver.{Transaction, TransactionWork}
 import org.neo4j.spark._
+import org.neo4j.spark.util.Neo4jUtil
 
 class SchemaServiceWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
 
@@ -187,8 +188,8 @@ class SchemaServiceWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
 
   private def getExpectedStructType(structFields: Seq[StructField]): StructType = {
     val additionalFields: Seq[StructField] = Seq(
-      StructField(Neo4jQuery.INTERNAL_LABELS_FIELD, DataTypes.createArrayType(DataTypes.StringType), nullable = true),
-      StructField(Neo4jQuery.INTERNAL_ID_FIELD, DataTypes.LongType, nullable = false)
+      StructField(Neo4jUtil.INTERNAL_LABELS_FIELD, DataTypes.createArrayType(DataTypes.StringType), nullable = true),
+      StructField(Neo4jUtil.INTERNAL_ID_FIELD, DataTypes.LongType, nullable = false)
     )
     StructType(structFields.union(additionalFields).reverse)
   }
@@ -208,7 +209,7 @@ class SchemaServiceWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
 
     val schemaService: SchemaService = new SchemaService(neo4jOptions, uuid)
 
-    val schema: StructType = schemaService.fromQuery()
+    val schema: StructType = schemaService.struct()
     schemaService.close()
 
     new DriverCache(neo4jOptions.connection, uuid).close()

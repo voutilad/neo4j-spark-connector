@@ -6,7 +6,7 @@ import java.util.Properties
 
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{GenericRowWithSchema, UnsafeArrayData, UnsafeMapData, UnsafeRow}
-import org.apache.spark.sql.catalyst.util.{ArrayData, DateTimeUtils}
+import org.apache.spark.sql.catalyst.util.{ArrayBasedMapData, ArrayData, DateTimeUtils}
 import org.apache.spark.sql.types._
 import org.apache.spark.unsafe.types.UTF8String
 import org.neo4j.driver.internal.{InternalIsoDuration, InternalPoint2D, InternalPoint3D}
@@ -16,6 +16,15 @@ import org.neo4j.spark.service.SchemaService
 import scala.collection.JavaConverters._
 
 object Neo4jUtil {
+
+  val NODE_ALIAS = "n"
+  val INTERNAL_ID_FIELD = "<id>"
+  val INTERNAL_LABELS_FIELD = "<labels>"
+  val INTERNAL_REL_ID_FIELD = "<rel.id>"
+  val INTERNAL_REL_TYPE_FIELD = "<rel.type>"
+  val RELATIONSHIP_SOURCE_ALIAS = "source"
+  val RELATIONSHIP_TARGET_ALIAS = "target"
+  val RELATIONSHIP_ALIAS = "rel"
 
   private val properties = new Properties()
   properties.load(Thread.currentThread().getContextClassLoader().getResourceAsStream("neo4j-spark-connector.properties"))
@@ -70,7 +79,8 @@ object Neo4jUtil {
       val srid: Integer = p.srid()
       InternalRow.fromSeq(Seq(UTF8String.fromString(SchemaService.POINT_TYPE_3D), srid, p.x(), p.y(), p.z()))
     }
-    case l: java.util.List[Any] => ArrayData.toArrayData(l.asScala.map(convertFromNeo4j).toArray)
+    case l: java.util.List[_] => ArrayData.toArrayData(l.asScala.map(convertFromNeo4j).toArray)
+    case map: java.util.Map[_, _] => ArrayBasedMapData(map.asScala.map(t => (convertFromNeo4j(t._1), convertFromNeo4j(t._2))))
     case s: String => UTF8String.fromString(s)
     case _ => value
   }

@@ -78,12 +78,26 @@ class Neo4jOptions(private val parameters: java.util.Map[String, String]) extend
 
   val nodeMetadata = initNeo4jNodeMetadata()
 
-  private def initNeo4jNodeMetadata(): Neo4jNodeMetadata = {
-    val nodeKeys = getParameter(NODE_KEYS, "")
+  private def initNeo4jNodeMetadata(nodeKeysString: String = getParameter(NODE_KEYS, ""),
+                                    labelsString: String = query.value): Neo4jNodeMetadata = {
+    val nodeKeys = nodeKeysString
       .split(",")
       .map(_.trim)
       .filter(!_.isEmpty)
-    Neo4jNodeMetadata(nodeKeys)
+      .map(s => {
+        val keys = s.split(":")
+        if (keys.length == 2) {
+          (keys(0), keys(1))
+        } else {
+          (keys(0), keys(0))
+        }
+      })
+      .toMap
+    val labels = labelsString
+      .split(":")
+      .map(_.trim)
+      .filter(!_.isEmpty)
+    Neo4jNodeMetadata(labels, nodeKeys)
   }
 
   val transactionMetadata = initNeo4jTransactionMetadata()
@@ -99,6 +113,18 @@ class Neo4jOptions(private val parameters: java.util.Map[String, String]) extend
     Neo4jTransactionMetadata(retries, failOnTransactionCodes, batchSize)
   }
 
+  val relationshipMetadata = initNeo4jRelationshipMetadata()
+
+  def initNeo4jRelationshipMetadata(): Neo4jRelationshipMetadata = {
+    val source = initNeo4jNodeMetadata(getParameter(RELATIONSHIP_SOURCE_NODE_KEYS, ""),
+      getParameter(RELATIONSHIP_SOURCE_LABELS, ""))
+    val target = initNeo4jNodeMetadata(getParameter(RELATIONSHIP_TARGET_NODE_KEYS, ""),
+      getParameter(RELATIONSHIP_TARGET_LABELS, ""))
+    val nodeMap = getParameter(RELATIONSHIP_NODES_MAP, DEFAULT_RELATIONSHIP_NODES_MAP.toString).toString
+      .toBoolean
+    Neo4jRelationshipMetadata(source, target, query.value, nodeMap)
+  }
+
   def validate(validationFunction: Neo4jOptions => Unit): Neo4jOptions = {
     validationFunction(this)
     this
@@ -107,7 +133,8 @@ class Neo4jOptions(private val parameters: java.util.Map[String, String]) extend
 
 case class Neo4jTransactionMetadata(retries: Int, failOnTransactionCodes: Set[String], batchSize: Int)
 
-case class Neo4jNodeMetadata(nodeKeys: Seq[String])
+case class Neo4jNodeMetadata(labels: Seq[String], nodeKeys: Map[String, String])
+case class Neo4jRelationshipMetadata(source: Neo4jNodeMetadata, target: Neo4jNodeMetadata, relationshipType: String, nodeMap: Boolean)
 
 case class Neo4jQueryOptions(queryType: QueryType.Value, value: String, schemaFlattenLimit: Int) extends Serializable
 
@@ -220,6 +247,13 @@ object Neo4jOptions {
   val BATCH_SIZE = "batch.size"
   val SUPPORTED_SAVE_MODES = Seq(SaveMode.Overwrite, SaveMode.ErrorIfExists)
 
+  // Relationship Metadata
+  val RELATIONSHIP_SOURCE_LABELS = s"${QueryType.RELATIONSHIP.toString.toLowerCase}.source.${QueryType.LABELS.toString.toLowerCase}"
+  val RELATIONSHIP_SOURCE_NODE_KEYS = s"${QueryType.RELATIONSHIP.toString.toLowerCase}.source.$NODE_KEYS"
+  val RELATIONSHIP_TARGET_LABELS = s"${QueryType.RELATIONSHIP.toString.toLowerCase}.target.${QueryType.LABELS.toString.toLowerCase}"
+  val RELATIONSHIP_TARGET_NODE_KEYS = s"${QueryType.RELATIONSHIP.toString.toLowerCase}.target.$NODE_KEYS"
+  val RELATIONSHIP_NODES_MAP = s"${QueryType.RELATIONSHIP.toString.toLowerCase}.nodes.map"
+
   // Transaction Metadata
   val TRANSACTION_RETRIES = "transaction.retries"
   val TRANSACTION_CODES_FAIL = "transaction.codes.fail"
@@ -234,6 +268,7 @@ object Neo4jOptions {
   val DEFAULT_SCHEMA_FLATTEN_LIMIT = 10
   val DEFAULT_BATCH_SIZE = 5000
   val DEFAULT_TRANSACTION_RETRIES = 3
+  val DEFAULT_RELATIONSHIP_NODES_MAP = true
 }
 
 object QueryType extends Enumeration {
