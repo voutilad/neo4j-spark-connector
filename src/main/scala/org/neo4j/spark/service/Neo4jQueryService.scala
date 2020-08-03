@@ -5,7 +5,10 @@ import org.neo4j.spark.{Neo4jOptions, QueryType}
 import org.neo4j.spark.util.Neo4jImplicits._
 
 class Neo4jQueryWriteStrategy(private val saveMode: SaveMode) extends Neo4jQueryStrategy {
-  override def createStatementForQuery(options: Neo4jOptions): String = throw new UnsupportedOperationException("TODO implement method")
+  override def createStatementForQuery(options: Neo4jOptions): String =
+    s"""UNWIND ${"$"}events AS event
+      |${options.query.value}
+      |""".stripMargin
 
   override def createStatementForRelationships(options: Neo4jOptions): String = throw new UnsupportedOperationException("TODO implement method")
 

@@ -191,4 +191,28 @@ Under the hod the Spark Connector will flatten the data in this way:
 
 |===
 
+===== Query
 
+In case you use the option `query` the Spark Connector will persist the entire Dataset by using the provided query.
+The nodes will be sent to Neo4j in a batch of rows defined in the `batch.size` property and we will
+perform the under the hood un `UNWIND` operation over the batch.
+
+So given the following simple Spark program:
+
+----
+ds.write
+  .format("org.neo4j.spark.DataSource")
+  .option("url", "bolt://localhost:7687")
+  .option("query", "CREATE (n:Person{fullName: event.name + event.surname})")
+  .save()
+----
+
+Under the hod the Spark Connector will perform the following Cypher query:
+
+[source,cypher]
+----
+UNwIND $events AS event
+CREATE (n:Person{fullName: event.name + event.surname})
+----
+
+Where `event` represents each Dataset row.

@@ -7,6 +7,7 @@ import org.neo4j.cypherdsl.core.Cypher
 import org.neo4j.cypherdsl.core.renderer.Renderer
 import org.neo4j.driver.exceptions.ClientException
 import org.neo4j.driver.Session
+import org.neo4j.driver.summary.QueryType
 import org.neo4j.spark.util.Neo4jUtil
 import org.neo4j.spark.{DriverCache, Neo4jOptions, Neo4jQuery}
 
@@ -101,6 +102,11 @@ class SchemaService(private val options: Neo4jOptions, private val jobId: String
       case RELATIONSHIP => queryForRelationship()
       case QUERY => query()
     }
+  }
+
+  def isReadQuery(query: String): Boolean = {
+    val queryType = session.run(s"EXPLAIN $query").consume().queryType()
+    queryType == QueryType.READ_ONLY || queryType == QueryType.SCHEMA_WRITE
   }
 
   override def close(): Unit = {

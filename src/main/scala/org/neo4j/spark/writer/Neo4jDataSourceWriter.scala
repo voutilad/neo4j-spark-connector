@@ -5,6 +5,7 @@ import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.sources.v2.DataSourceOptions
 import org.apache.spark.sql.sources.v2.writer.{DataSourceWriter, DataWriterFactory, WriterCommitMessage}
 import org.apache.spark.sql.types.StructType
+import org.neo4j.spark.util.Validations
 import org.neo4j.spark.{DriverCache, Neo4jOptions}
 
 class Neo4jDataSourceWriter(jobId: String,
@@ -13,16 +14,7 @@ class Neo4jDataSourceWriter(jobId: String,
                             options: DataSourceOptions) extends DataSourceWriter {
 
   private val neo4jOptions: Neo4jOptions = new Neo4jOptions(options.asMap())
-    .validate(neo4jOptions => {
-      saveMode match {
-        case SaveMode.Overwrite => {
-          if (neo4jOptions.nodeMetadata.nodeKeys.isEmpty) {
-            throw new IllegalArgumentException(s"${Neo4jOptions.NODE_KEYS} is required when Save Mode is Overwrite")
-          }
-        }
-        case _ => Unit
-      }
-    })
+    .validate(neo4jOptions => Validations.writer(neo4jOptions, jobId, saveMode))
 
   private val driverCache = new DriverCache(neo4jOptions.connection, jobId)
 
