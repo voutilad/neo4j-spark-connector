@@ -149,6 +149,22 @@ in case you set this option will have the priority compared to the one defined i
 |``
 |Yes^*^
 
+|`relationship.nodes.map`
+|If true return `source` and `target` nodes as Map<String, String>, otherwise we flatten the properties by returning
+every single node property as column prefixed by `source` or `target`
+|`true`
+|No
+
+|`relationship.source.labels`
+|List of source node Labels separated by `:`
+|``
+|Yes^*^
+
+|`relationship.target.labels`
+|List of target node Labels separated by `:`
+|``
+|Yes^*^
+
 |`schema.flatten.limit`
 |Number of records to be used to create the Schema (only if APOC are not installed)
 |`10`
@@ -171,6 +187,45 @@ Reading data from a Neo4j Database can be done in 3 ways:
 Spark works with data in a tabular fixed schema. To accomplish this Neo4j Connector has a schema infer system that creates the schema based on the data requested for the read. Each read data method has is own strategy to create it, that will be explained it each section.
 
 TK list of supported data types
+
+==== How we extract the schema
+
+As Neo4j has ha schema-less approach and Spark needs a Schema in order to create a Dataset,
+we use several approaches in order to sample the dataset into Neo4j and compute the schema for Spark's Dataset.
+
+===== Extract schema for Nodes
+
+In case you're extracting nodes from Neo4j we try as first step to invoke the `apoc.meta.nodeTypeProperties` procedure,
+in case the procedure is not installed we'll execute the following Cypher query:
+
+```cypher
+MATCH (n:<labels>)
+RETURN n
+ORDER BY rand()
+LIMIT <limit>
+```
+
+Where `<labels>` is the list of labels provided via `.option("labels", ":MyLabel:MyOtherLabel")` and `<limit>` is the
+value provided via `.option("schema.flatten.limit", "100")`
+
+===== Extract schema for Relationships
+
+In case you're extracting nodes from Neo4j we try as first step to invoke the `apoc.meta.relTypeProperties` procedure,
+in case the procedure is not installed we'll execute the following Cypher query:
+
+```cypher
+MATCH (source:<source_labels>)-[rel:<relationship>]->(target:<target_labels>)
+RETURN rel
+ORDER BY rand()
+LIMIT <limit>
+```
+
+Where:
+
+ * `<source_labels>` is the list of labels provided via `.option("relationship.source.labels", ":MyLabel:MyOtherLabel")`
+ * `<target_labels>` is the list of labels provided via `.option("relationship.target.labels", ":MyLabel:MyOtherLabel")`
+ * `<relationship>` is the list of labels provided via `.option("relationship", "MY_RELATIONSHIP")`
+ * `<limit>` is the value provided via `.option("schema.flatten.limit", "100")`
 
 ==== Complex Data Types
 
@@ -271,3 +326,43 @@ Will create this schema
 |location|Point
 
 |===
+
+=== Read data by Relationship Type
+
+You can both specify a Cypher Path in this way:
+```scala
+val df = spark.read.format("org.neo4j.spark.DataSource")
+      .option("relationship", "BOUGHT")
+      .option("relationship.source.labels", "Person")
+      .option("relationship.target.labels", "Product")
+
+df.show()
+```
+
+This will create a Cypher Query as it follows:
+
+```cypher
+MATCH (source:Person)-[rel:BOUGHT]->(target:Product)
+RETURN source, rel, target
+```
+
+When reading data with this method, the Dataframe will contain all the fields contained in the relationship, plus:
+
+* `<id>` the internal Neo4j id
+* `<relationshipType>` the relationship type
+
+and depending on the value of `relationship.node.map` option, if `true`:
+
+* `source` the Map<String, String> of source node
+* `target` the Map<String, String> of target node
+
+otherwise if `false`:
+
+* `<sourceId>` the internal Neo4j id of source node
+* `<sourceLabels>` a list of labels for source node
+* `<targetId>` the internal Neo4j id of target node
+* `<targetLabels>` a list of labels for target node
+
+==== Schema
+
+If APOC are installed, schema will be created with `apoc.meta.relTypeProperties`. Otherwise the first 10 (or any number specified by the `schema.flatten.limit` option) results will be flattened and the schema will be create from those properties.

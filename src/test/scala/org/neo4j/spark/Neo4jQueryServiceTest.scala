@@ -1,9 +1,10 @@
 package org.neo4j.spark
 
-import org.junit.Test
 import org.junit.Assert._
+import org.junit.Test
+import org.neo4j.spark.service.{Neo4jQueryReadStrategy, Neo4jQueryService}
 
-class Neo4jQueryTest {
+class Neo4jQueryServiceTest {
 
   @Test
   def testNodeOneLabel(): Unit = {
@@ -12,7 +13,7 @@ class Neo4jQueryTest {
     options.put(QueryType.LABELS.toString.toLowerCase, "Person")
     val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
 
-    val query: String = Neo4jQuery.build(neo4jOptions.query)
+    val query: String = new Neo4jQueryService(neo4jOptions, new Neo4jQueryReadStrategy()).createQuery()
 
     assertEquals("MATCH (n:`Person`) RETURN n", query)
   }
@@ -24,7 +25,7 @@ class Neo4jQueryTest {
     options.put(QueryType.LABELS.toString.toLowerCase, ":Person:Player:Midfield")
     val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
 
-    val query: String = Neo4jQuery.build(neo4jOptions.query)
+    val query: String = new Neo4jQueryService(neo4jOptions, new Neo4jQueryReadStrategy()).createQuery()
 
     assertEquals("MATCH (n:`Person`:`Player`:`Midfield`) RETURN n", query)
   }

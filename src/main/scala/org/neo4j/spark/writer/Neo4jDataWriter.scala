@@ -11,7 +11,7 @@ import org.apache.spark.sql.sources.v2.writer.{DataWriter, WriterCommitMessage}
 import org.apache.spark.sql.types.StructType
 import org.neo4j.driver.exceptions.{Neo4jException, ServiceUnavailableException, SessionExpiredException}
 import org.neo4j.driver.{Session, Transaction, Values}
-import org.neo4j.spark.service.{MappingService, Neo4jQueryService, Neo4jQueryWriteStrategy}
+import org.neo4j.spark.service.{MappingService, Neo4jQueryService, Neo4jQueryWriteStrategy, Neo4jWriteMappingStrategy}
 import org.neo4j.spark.util.Neo4jUtil._
 import org.neo4j.spark.util.Neo4jImplicits._
 import org.neo4j.spark.util.Neo4jUtil
@@ -28,7 +28,7 @@ class Neo4jDataWriter(jobId: String,
   private var transaction: Transaction = _
   private var session: Session = _
 
-  private val mappingService = new MappingService(options)
+  private val mappingService = new MappingService(new Neo4jWriteMappingStrategy(options), options)
 
   private val batch: util.List[java.util.Map[String, Object]] = new util.ArrayList[util.Map[String, Object]]()
 
@@ -37,7 +37,7 @@ class Neo4jDataWriter(jobId: String,
   val query: String = new Neo4jQueryService(options, new Neo4jQueryWriteStrategy(saveMode)).createQuery()
 
   override def write(record: InternalRow): Unit = {
-    batch.add(mappingService.toParameter(record, structType))
+    batch.add(mappingService.convert(record, structType))
     if (batch.size() == options.transactionMetadata.batchSize) {
       writeBatch
     }

@@ -8,12 +8,14 @@ import org.apache.spark.sql.sources.v2.reader.{DataSourceReader, InputPartition}
 import org.apache.spark.sql.types.StructType
 import org.neo4j.spark.Neo4jOptions
 import org.neo4j.spark.service.SchemaService
+import org.neo4j.spark.util.Validations
 
 class Neo4jDataSourceReader(private val options: DataSourceOptions, private val jobId: String) extends DataSourceReader {
 
   private val neo4jOptions: Neo4jOptions = new Neo4jOptions(options.asMap())
+    .validate(Validations.read)
 
-  override def readSchema(): StructType = new SchemaService(neo4jOptions, jobId).fromQuery()
+  override def readSchema(): StructType = new SchemaService(neo4jOptions, jobId).struct()
 
   override def planInputPartitions: util.ArrayList[InputPartition[InternalRow]] = {
     val schema = readSchema()
