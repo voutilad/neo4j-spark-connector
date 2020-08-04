@@ -1,10 +1,10 @@
 site:
   title: Neo4j Spark Connector User Guide
-  url: /docs
+  url: /neo4j-spark-docs
 content:
   sources:
-    - url: ../
-      branches: antora_docs
+    - url: https://github.com/neo4j-contrib/neo4j-spark-connector
+      branches: '4.0'
       start_path: doc/docs
 ui:
   bundle:
