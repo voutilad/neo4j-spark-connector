@@ -13,9 +13,16 @@ import org.neo4j.spark.util.Validations
 class Neo4jDataSourceReader(private val options: DataSourceOptions, private val jobId: String) extends DataSourceReader {
 
   private val neo4jOptions: Neo4jOptions = new Neo4jOptions(options.asMap())
-    .validate(Validations.read)
+    .validate(options => Validations.read(options, jobId))
 
-  override def readSchema(): StructType = new SchemaService(neo4jOptions, jobId).struct()
+  override def readSchema(): StructType = {
+    val schemaService = new SchemaService(neo4jOptions, jobId)
+    try {
+      schemaService.struct()
+    } finally {
+      schemaService.close()
+    }
+  }
 
   override def planInputPartitions: util.ArrayList[InputPartition[InternalRow]] = {
     val schema = readSchema()

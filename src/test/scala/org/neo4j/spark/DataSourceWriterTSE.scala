@@ -374,7 +374,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
     assertEquals(total, records.size)
   }
 
-  @Test
+  @Test(expected = classOf[SparkException])
   def `should throw an error because the node already exists`(): Unit = {
     SparkConnectorScalaSuiteIT.session()
       .writeTransaction(new TransactionWork[Result] {
@@ -398,6 +398,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       case sparkException: SparkException => {
         val clientException = ExceptionUtils.getRootCause(sparkException)
         assertTrue(clientException.getMessage.endsWith("already exists with label `Person` and property `surname` = 'Santurbano'"))
+        throw sparkException
       }
       case _ => fail(s"should be thrown a ${classOf[SparkException].getName}")
     } finally {

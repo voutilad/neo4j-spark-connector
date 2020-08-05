@@ -4,12 +4,13 @@ import java.util.Collections
 
 import org.apache.spark.sql.types.{DataType, DataTypes, StructField, StructType}
 import org.neo4j.cypherdsl.core.renderer.Renderer
-import org.neo4j.driver.{Record, Session}
 import org.neo4j.driver.exceptions.ClientException
-import org.neo4j.spark.QueryType
-import org.neo4j.spark.service.SchemaService.{durationType, pointType, timeType}
-import org.neo4j.spark.util.Neo4jUtil
-import org.neo4j.spark.{DriverCache, Neo4jOptions}
+import org.neo4j.driver.types.Entity
+import org.neo4j.driver.{Record, Session}
+import org.neo4j.spark.service.SchemaService.{cypherToSparkType, normalizedClassName, normalizedClassNameFromGraphEntity}
+import org.neo4j.spark.util.Neo4jImplicits.EntityImplicits
+import org.neo4j.spark.util.{Neo4jUtil, ValidationUtil}
+import org.neo4j.spark.{DriverCache, Neo4jOptions, QueryType, SchemaStrategy}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -22,30 +23,6 @@ class SchemaService(private val options: Neo4jOptions, private val jobId: String
   private val driverCache: DriverCache = new DriverCache(options.connection, jobId)
 
   private val session: Session = driverCache.getOrCreate().session(options.session.toNeo4jSession)
-
-  private def cypherToSparkType(cypherType: String): DataType = {
-    cypherType match {
-      case "Boolean" => DataTypes.BooleanType
-      case "String" => DataTypes.StringType
-      case "Long" => DataTypes.LongType
-      case "Double" => DataTypes.DoubleType
-      case "Point" | "InternalPoint2D" | "InternalPoint3D" => pointType
-      case "LocalDateTime"  | "DateTime" | "ZonedDateTime" => DataTypes.TimestampType
-      case "OffsetTime" | "Time" | "LocalTime" => timeType
-      case "LocalDate" | "Date" => DataTypes.DateType
-      case "Duration" | "InternalIsoDuration" => durationType
-      case "StringArray" => DataTypes.createArrayType(DataTypes.StringType)
-      case "LongArray" => DataTypes.createArrayType(DataTypes.LongType)
-      case "DoubleArray" => DataTypes.createArrayType(DataTypes.DoubleType)
-      case "BooleanArray" => DataTypes.createArrayType(DataTypes.BooleanType)
-      case "PointArray" | "InternalPoint2DArray" | "InternalPoint3DArray" => DataTypes.createArrayType(pointType)
-      case "LocalDateTimeArray" | "DateTimeArray" | "ZonedDateTimeArray" => DataTypes.createArrayType(DataTypes.TimestampType)
-      case "OffsetTimeArray" | "TimeArray" | "LocalTimeArray" => DataTypes.createArrayType(timeType)
-      case "LocalDateArray" | "DateArray" => DataTypes.createArrayType(DataTypes.DateType)
-      case "DurationArray" | "InternalIsoDurationArray" => DataTypes.createArrayType(durationType)
-      case _ => DataTypes.StringType
-    }
-  }
 
   private def structForNode(labels: Seq[String] = options.nodeMetadata.labels): StructType = {
     var structFields: mutable.Buffer[StructField] = (try {
@@ -61,7 +38,7 @@ class SchemaService(private val options: Neo4jOptions, private val jobId: String
               val query = s"""MATCH (${Neo4jUtil.NODE_ALIAS}:${labels.mkString(":")})
                 |RETURN ${Neo4jUtil.NODE_ALIAS}
                 |ORDER BY rand()
-                |LIMIT ${options.query.schemaFlattenLimit}
+                |LIMIT ${options.schemaMetadata.flattenLimit}
                 |""".stripMargin
               val params = Collections.emptyMap[String, AnyRef]()
               retrieveSchema(query, params, { record => record.get(Neo4jUtil.NODE_ALIAS).asNode.asMap.asScala.toMap })
@@ -90,12 +67,17 @@ class SchemaService(private val options: Neo4jOptions, private val jobId: String
     session.run(query, params).list.asScala
       .flatMap(extractFunction)
       .groupBy(_._1)
-      .map(t => {
-        val value = t._2.head._2
-        StructField(t._1, cypherToSparkType(value match {
-          case l: java.util.List[_] => s"${l.get(0).getClass.getSimpleName}Array"
-          case _ => value.getClass.getSimpleName
-        }))
+      .map(t => options.schemaMetadata.strategy match {
+        case SchemaStrategy.SAMPLE => {
+          val value = t._2.head._2
+          val cypherType = if (options.query.queryType == QueryType.QUERY) {
+            normalizedClassName(value)
+          } else {
+            normalizedClassNameFromGraphEntity(value)
+          }
+          StructField(t._1, cypherToSparkType(cypherType, value))
+        }
+        case SchemaStrategy.STRING => StructField(t._1, DataTypes.StringType)
       })
       .toBuffer
   }
@@ -141,7 +123,7 @@ class SchemaService(private val options: Neo4jOptions, private val jobId: String
                 |MATCH (${Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS})-[${Neo4jUtil.RELATIONSHIP_ALIAS}:${options.relationshipMetadata.relationshipType}]->(${Neo4jUtil.RELATIONSHIP_TARGET_ALIAS})
                 |RETURN ${Neo4jUtil.RELATIONSHIP_ALIAS}
                 |ORDER BY rand()
-                |LIMIT ${options.query.schemaFlattenLimit}
+                |LIMIT ${options.schemaMetadata.flattenLimit}
                 |""".stripMargin
               val params = Collections.emptyMap[String, AnyRef]()
               retrieveSchema(query, params, { record => record.get(Neo4jUtil.RELATIONSHIP_ALIAS).asRelationship.asMap.asScala.toMap })
@@ -153,14 +135,27 @@ class SchemaService(private val options: Neo4jOptions, private val jobId: String
     StructType(structFields)
   }
 
-  def structForQuery(): StructType = StructType(Array.empty[StructField])
+  def structForQuery(): StructType = {
+    val query = s"""CALL { ${options.query.value} }
+                   |RETURN *
+                   |ORDER BY rand()
+                   |LIMIT ${options.schemaMetadata.flattenLimit}
+                   |""".stripMargin
+    val params = Collections.emptyMap[String, AnyRef]()
+    val structFields = retrieveSchema(query, params, { record => record.asMap.asScala.toMap })
+    StructType(structFields)
+  }
 
   def struct(): StructType = {
-    options.query.queryType match {
+    val struct = options.query.queryType match {
       case QueryType.LABELS => structForNode()
       case QueryType.RELATIONSHIP => structForRelationship()
       case QueryType.QUERY => structForQuery()
     }
+    ValidationUtil.isNotEmpty(struct,
+      """Cannot compute the StructType for the provided query type,
+        |please check the params or the query""".stripMargin)
+    struct
   }
 
   def isReadQuery(query: String): Boolean = {
@@ -203,4 +198,69 @@ object SchemaService {
     DataTypes.createStructField("type", DataTypes.StringType, false),
     DataTypes.createStructField("value", DataTypes.StringType, false)
   ))
+
+  private val cleanTerms = "Unmodifiable|Internal|Iso|2D|3D|Offset|Local|Zoned"
+
+  def normalizedClassName(value: AnyRef): String = value match {
+    case list: java.util.List[_] => "Array"
+    case map: java.util.Map[String, _] => "Map"
+    case _ => value.getClass.getSimpleName
+  }
+
+  // from nodes and relationships we cannot have maps as properties and elements in collections are the same type
+  def normalizedClassNameFromGraphEntity(value: AnyRef): String = value match {
+    case list: java.util.List[_] => s"${list.get(0).getClass.getSimpleName}Array"
+    case _ => value.getClass.getSimpleName
+  }
+
+  def cypherToSparkType(cypherType: String, value: Any = null): DataType = {
+    cypherType.replaceAll(cleanTerms, "") match {
+      case "Node" | "Relationship" => if (value != null) value.asInstanceOf[Entity].toStruct() else DataTypes.NullType
+      case "NodeArray" | "RelationshipArray" => if (value != null) DataTypes.createArrayType(value.asInstanceOf[Entity].toStruct()) else DataTypes.NullType
+      case "Boolean" => DataTypes.BooleanType
+      case "Long" => DataTypes.LongType
+      case "Double" => DataTypes.DoubleType
+      case "Point" => pointType
+      case "DateTime" => DataTypes.TimestampType
+      case "Time" => timeType
+      case "Date" => DataTypes.DateType
+      case "Duration" => durationType
+      case "Map" => {
+        val valueType = if (value == null) {
+          DataTypes.NullType
+        } else {
+          val map = value.asInstanceOf[java.util.Map[String, AnyRef]].asScala
+          val types = map.values
+            .map(normalizedClassName)
+            .toSet
+          if (types.size == 1) cypherToSparkType(types.head, map.values.head) else DataTypes.StringType
+        }
+        DataTypes.createMapType(DataTypes.StringType, valueType)
+      }
+      case "Array" => {
+        val valueType = if (value == null) {
+          DataTypes.NullType
+        } else {
+          val list = value.asInstanceOf[java.util.List[AnyRef]].asScala
+          val types = list
+            .map(normalizedClassName)
+            .toSet
+          if (types.size == 1) cypherToSparkType(types.head, list.head) else DataTypes.StringType
+        }
+        DataTypes.createArrayType(valueType)
+      }
+      // These are from APOC
+      case "StringArray" => DataTypes.createArrayType(DataTypes.StringType)
+      case "LongArray" => DataTypes.createArrayType(DataTypes.LongType)
+      case "DoubleArray" => DataTypes.createArrayType(DataTypes.DoubleType)
+      case "BooleanArray" => DataTypes.createArrayType(DataTypes.BooleanType)
+      case "PointArray" => DataTypes.createArrayType(pointType)
+      case "DateTimeArray" => DataTypes.createArrayType(DataTypes.TimestampType)
+      case "TimeArray" => DataTypes.createArrayType(timeType)
+      case "DateArray" => DataTypes.createArrayType(DataTypes.DateType)
+      case "DurationArray" => DataTypes.createArrayType(durationType)
+      // Default is String
+      case _ => DataTypes.StringType
+    }
+  }
 }

@@ -40,7 +40,7 @@ class Neo4jQueryWriteStrategy(private val saveMode: SaveMode) extends Neo4jQuery
 class Neo4jQueryReadStrategy extends Neo4jQueryStrategy {
   private val renderer: Renderer = Renderer.getDefaultRenderer
 
-  override def createStatementForQuery(options: Neo4jOptions): String = throw new UnsupportedOperationException("TODO implement")
+  override def createStatementForQuery(options: Neo4jOptions): String = options.query.value
 
   override def createStatementForRelationships(options: Neo4jOptions): String = {
     s"""MATCH (${Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS}:${options.relationshipMetadata.source.labels.mkString(":")})
