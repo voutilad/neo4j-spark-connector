@@ -70,7 +70,7 @@ class Neo4jReadMappingStrategy(private val options: Neo4jOptions) extends Neo4jM
 
   private def mapToInternalRow(map: util.Map[String, Any],
                                schema: StructType) = InternalRow.fromSeq(schema
-    .map(field => Neo4jUtil.convertFromNeo4j(map.get(field.name))))
+    .map(field => Neo4jUtil.convertFromNeo4j(map.get(field.name), field.dataType)))
 
   private def flatRelNodeMapping(node: Node, alias: String): mutable.Map[String, Any] = {
     val nodeMap: mutable.Map[String, Any] = node.asMap().asScala
@@ -89,8 +89,8 @@ class Neo4jReadMappingStrategy(private val options: Neo4jOptions) extends Neo4jM
       override def apply(t: Value): String = t.toString
     }))
 
-    nodeMap.put(Neo4jUtil.INTERNAL_ID_FIELD, node.id().toString)
-    nodeMap.put(Neo4jUtil.INTERNAL_LABELS_FIELD, Values.value(node.labels()).toString)
+    nodeMap.put(Neo4jUtil.INTERNAL_ID_FIELD, Neo4jUtil.mapper.writeValueAsString(node.id()))
+    nodeMap.put(Neo4jUtil.INTERNAL_LABELS_FIELD, Neo4jUtil.mapper.writeValueAsString(node.labels()))
     Map(s"<$alias>" -> nodeMap)
   }
 
@@ -120,7 +120,9 @@ class Neo4jReadMappingStrategy(private val options: Neo4jOptions) extends Neo4jM
     mapToInternalRow(relMap, schema)
   }
 
-  override def query(elem: Record, schema: StructType): InternalRow = ???
+  override def query(elem: Record, schema: StructType): InternalRow = mapToInternalRow(elem.asMap(new function.Function[Value, Any] {
+    override def apply(t: Value): Any = t.asObject()
+  }), schema)
 }
 
 abstract class Neo4jMappingStrategy[IN, OUT] extends Serializable {

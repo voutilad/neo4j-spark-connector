@@ -128,8 +128,9 @@ in case you set this option will have the priority compared to the one defined i
 |No
 
 |`access.mode`
-|Access mode
-|`write`
+|Used only while you're pulling data from Neo4j. In case is `read` the connector, in a cluster environment
+will route the requests to the followers, otherwise to the leader.
+|`read`
 |No
 
 4+|*Data Read Options*
@@ -168,6 +169,12 @@ every single node property as column prefixed by `source` or `target`
 |`schema.flatten.limit`
 |Number of records to be used to create the Schema (only if APOC are not installed)
 |`10`
+|No
+
+|`schema.strategy`
+|Strategy used by the connector in order to compute the Schema definition for the Dataset. Values `string` and
+`sample`. If `string` coerces all the properties to String otherwise it will try to sample the Neo4j's dataset.
+|`sample`
 |No
 
 |===
@@ -329,12 +336,13 @@ Will create this schema
 
 === Read data by Relationship Type
 
-You can both specify a Cypher Path in this way:
+You can specify a Cypher Path in this way:
 ```scala
 val df = spark.read.format("org.neo4j.spark.DataSource")
       .option("relationship", "BOUGHT")
       .option("relationship.source.labels", "Person")
       .option("relationship.target.labels", "Product")
+      .load()
 
 df.show()
 ```
@@ -362,6 +370,49 @@ otherwise if `false`:
 * `<sourceLabels>` a list of labels for source node
 * `<targetId>` the internal Neo4j id of target node
 * `<targetLabels>` a list of labels for target node
+
+==== Schema
+
+If APOC are installed, schema will be created with `apoc.meta.relTypeProperties`. Otherwise the first 10 (or any number specified by the `schema.flatten.limit` option) results will be flattened and the schema will be create from those properties.
+
+=== Read data by custom Cypher Query
+
+You can specify a Cypher query in this way:
+```scala
+val df = spark.read.format("org.neo4j.spark.DataSource")
+      .option("query", "MATCH (n:Person) WITH n LIMIT 2 RETURN collect(n) AS nodes")
+      .load()
+
+df.show()
+```
+
+[NOTE]
+We recommend that individual property fields be returned, rather than returning  graph entity (node, relationship, and path) types.
+This best maps to spark's type system and yields best results.
+So instead writing this `MATCH (p:Person) RETURN p` please write this: `MATCH (p:Person) RETURN id(p) as id, p.name as name`.
+If your query returns a graph entity please use the `labels` or `relationship`.
+
+The struct of the Dataset returned by the query is influenced by the query itself, in this particular context it could happen
+that the connector could not be able to sample the Schema from the query, in these particular cases we suggest trying with
+the option `schema.strategy` defined as `string` as it follows:
+
+```scala
+val df = spark.read.format("org.neo4j.spark.DataSource")
+      .option("query", "MATCH (n:Person) WITH n LIMIT 2 RETURN collect(n) AS nodes")
+      .option("schema.strategy", "string")
+      .load()
+
+df.show()
+```
+
+This means that the struct returned by the query will be composed by strings that you can than cast via simply Spark's
+transformations.
+
+[NOTE]
+Inference (`schema.strategy` = `sample`) is good when all instances of a property in neo4j are the same type,
+and string followed by cast is better when property types may differ.
+Remember that Neo4j does not enforce property typing, and so `person.age` could sometimes be a `long
+and sometimes be a `string`.
 
 ==== Schema
 

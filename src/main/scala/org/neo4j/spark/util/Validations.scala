@@ -34,22 +34,33 @@ object Validations {
     }
   }
 
-  val read: Neo4jOptions => Unit = { neo4jOptions =>
-    neo4jOptions.query.queryType match {
-      case QueryType.LABELS => {
-        ValidationUtil.isNotEmpty(neo4jOptions.nodeMetadata.labels,
-          s"You need to set the ${QueryType.LABELS.toString.toLowerCase} option")
-      }
-      case QueryType.RELATIONSHIP => {
-        ValidationUtil.isNotBlank(neo4jOptions.relationshipMetadata.relationshipType,
-          s"You need to set the ${QueryType.RELATIONSHIP.toString.toLowerCase} option")
+  val read: (Neo4jOptions, String) => Unit = { (neo4jOptions, jobId) =>
+    val schemaService = new SchemaService(neo4jOptions, jobId)
+    val cache = new DriverCache(neo4jOptions.connection, jobId)
+    try {
+      neo4jOptions.query.queryType match {
+        case QueryType.LABELS => {
+          ValidationUtil.isNotEmpty(neo4jOptions.nodeMetadata.labels,
+            s"You need to set the ${QueryType.LABELS.toString.toLowerCase} option")
+        }
+        case QueryType.RELATIONSHIP => {
+          ValidationUtil.isNotBlank(neo4jOptions.relationshipMetadata.relationshipType,
+            s"You need to set the ${QueryType.RELATIONSHIP.toString.toLowerCase} option")
 
-        ValidationUtil.isNotEmpty(neo4jOptions.relationshipMetadata.source.labels,
-          s"You need to set the ${Neo4jOptions.RELATIONSHIP_SOURCE_LABELS} option")
+          ValidationUtil.isNotEmpty(neo4jOptions.relationshipMetadata.source.labels,
+            s"You need to set the ${Neo4jOptions.RELATIONSHIP_SOURCE_LABELS} option")
 
-        ValidationUtil.isNotEmpty(neo4jOptions.relationshipMetadata.target.labels,
-          s"You need to set the ${Neo4jOptions.RELATIONSHIP_TARGET_LABELS} option")
+          ValidationUtil.isNotEmpty(neo4jOptions.relationshipMetadata.target.labels,
+            s"You need to set the ${Neo4jOptions.RELATIONSHIP_TARGET_LABELS} option")
+        }
+        case QueryType.QUERY => {
+          ValidationUtil.isTrue(schemaService.isReadQuery(neo4jOptions.query.value),
+            "Please provide a valid READ query")
+        }
       }
+    } finally {
+      schemaService.close()
+      cache.close()
     }
   }
 }

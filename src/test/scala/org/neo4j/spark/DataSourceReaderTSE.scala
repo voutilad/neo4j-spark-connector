@@ -3,8 +3,11 @@ package org.neo4j.spark
 import java.sql.Timestamp
 import java.time.{LocalDateTime, OffsetDateTime, ZoneOffset}
 
-import org.apache.spark.sql.DataFrame
+import org.apache.commons.lang3.exception.ExceptionUtils
+import org.apache.spark.SparkException
+import org.apache.spark.sql.{DataFrame, Row}
 import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema
+import org.apache.spark.sql.catalyst.util.ArrayBasedMapData
 import org.junit.Assert._
 import org.junit.Test
 import org.neo4j.driver.summary.ResultSummary
@@ -476,6 +479,117 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
       .filter(row => row.keys == Set("id", "name", "<id>", "<labels>"))
       .size
     assertEquals(total, countTargetMap)
+  }
+
+  @Test
+  def testQueries(): Unit = {
+    val dfMap = ss.read.format(classOf[DataSource].getName)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("query", "RETURN {a: 1, b: '3'} AS map")
+      .load()
+    val map = dfMap.collect()(0).getAs[Map[String, String]]("map")
+    val expectedMap = Map("a" -> "1", "b" -> "3")
+    assertEquals(expectedMap, map)
+
+    val dfArrayMap = ss.read.format(classOf[DataSource].getName)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("query", "RETURN [{a: 1, b: '3'}, {a: 'foo'}] AS listMap")
+      .load()
+    val listMap = dfArrayMap.collect()(0).getAs[Seq[_]]("listMap").toList
+    val expectedListMap = Seq(Map("a" -> "1", "b" -> "3"), Map("a" -> "foo"))
+    assertEquals(expectedListMap, listMap)
+
+    val dfArray = ss.read.format(classOf[DataSource].getName)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("query", "RETURN [1, 'foo'] AS list")
+      .load()
+    val list = dfArray.collect()(0).getAs[Seq[_]]("list")
+    val expectedList = Seq("1", "foo")
+    assertEquals(expectedList, list)
+  }
+
+  @Test
+  def testComplexQuery(): Unit = {
+    val total = 100
+    val fixtureQuery: String =
+      s"""UNWIND range(1, $total) as id
+         |CREATE (pr:Product {id: id * rand(), name: 'Product ' + id})
+         |CREATE (pe:Person {id: id, fullName: 'Person ' + id})
+         |CREATE (pe)-[:BOUGHT{when: rand(), quantity: rand() * 1000}]->(pr)
+         |RETURN *
+    """.stripMargin
+
+    SparkConnectorScalaSuiteIT.session()
+      .writeTransaction(
+        new TransactionWork[ResultSummary] {
+          override def execute(tx: Transaction): ResultSummary = tx.run(fixtureQuery).consume()
+        })
+
+    val df: DataFrame = ss.read.format(classOf[DataSource].getName)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("query", "MATCH (n:Person) WITH n LIMIT 2 RETURN collect(n) AS nodes")
+      .load()
+
+    val data = df.collect()
+    val count = data.flatMap(row => row.getAs[Seq[Row]]("nodes"))
+      .filter(row => row.getAs[Long]("<id>") != null
+        && !row.getAs[Seq[String]]("<labels>").isEmpty
+        && !row.getAs[String]("fullName").isEmpty
+        && row.getAs[Long]("id") != null)
+      .size
+    assertEquals(2, count)
+
+    val dfString: DataFrame = ss.read.format(classOf[DataSource].getName)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("query",
+        """MATCH (p:Person)-[b:BOUGHT]->(pr:Product)
+          |RETURN id(p) AS personId, id(pr) AS productId, {quantity: b.quantity, when: b.when} AS map""".stripMargin)
+      .option("schema.strategy", "string")
+      .load()
+
+    val dataString = dfString.collect()
+    val countString = dataString
+      .filter(row => !row.getAs[String]("personId").isEmpty
+        && !row.getAs[String]("productId").isEmpty
+        && !row.getAs[String]("map").isEmpty)
+      .size
+    assertEquals(100, countString)
+
+    val dfRel: DataFrame = ss.read.format(classOf[DataSource].getName)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("query",
+        """MATCH (p:Person)-[b:BOUGHT]->(pr:Product)
+          |RETURN b AS rel""".stripMargin)
+      .load()
+    val dataRel = dfRel.collect()
+    val countRel = dataRel
+      .map(_.getAs[Row]("rel"))
+      .filter(row =>
+        row.getAs[Long]("<rel.id>") != null
+        && !row.getAs[String]("<rel.type>").isEmpty
+        && row.getAs[Long]("<source.id>") != null
+        && row.getAs[Long]("<target.id>") != null
+        && row.getAs[Double]("when") != null
+        && row.getAs[Double]("quantity") != null
+      )
+      .size
+    assertEquals(100, countRel)
+  }
+
+  @Test(expected = classOf[IllegalArgumentException])
+  def testThrowsExceptionOnWriteQuery(): Unit = {
+    try {
+      ss.read.format(classOf[DataSource].getName)
+        .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+        .option("query", "CREATE (p:Person)")
+        .load()
+    } catch {
+      case iae: IllegalArgumentException => {
+        assertTrue(iae.getMessage.endsWith("Please provide a valid READ query"))
+        throw iae
+      }
+      case _ => fail(s"should be thrown a ${classOf[IllegalArgumentException].getName}")
+    }
   }
 
   private def initTest(query: String): DataFrame = {

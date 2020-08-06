@@ -31,19 +31,21 @@ class Neo4jOptions(private val parameters: java.util.Map[String, String]) extend
     parameters.get(parameter).trim()
   }
 
-  private val schemaFlattenLimit = getParameter(SCHEMA_FLATTEN_LIMIT, DEFAULT_SCHEMA_FLATTEN_LIMIT.toString).toInt
+
+  val schemaMetadata = Neo4jSchemaMetadata(getParameter(SCHEMA_FLATTEN_LIMIT, DEFAULT_SCHEMA_FLATTEN_LIMIT.toString).toInt,
+    SchemaStrategy.withName(getParameter(SCHEMA_STRATEGY, DEFAULT_SCHEMA_STRATEGY.toString).toUpperCase))
 
   val query: Neo4jQueryOptions = (
     getParameter(QUERY.toString.toLowerCase),
     getParameter(LABELS.toString.toLowerCase),
     getParameter(RELATIONSHIP.toString.toLowerCase())
   ) match {
-    case (query, "", "") => Neo4jQueryOptions(QUERY, query, schemaFlattenLimit)
+    case (query, "", "") => Neo4jQueryOptions(QUERY, query)
     case ("", label, "") => {
       val parsed = if (label.trim.startsWith(":")) label.substring(1) else label
-      Neo4jQueryOptions(LABELS, parsed, schemaFlattenLimit)
+      Neo4jQueryOptions(LABELS, parsed)
     }
-    case ("", "", relationship) => Neo4jQueryOptions(RELATIONSHIP, relationship, schemaFlattenLimit)
+    case ("", "", relationship) => Neo4jQueryOptions(RELATIONSHIP, relationship)
     case _ => throw new IllegalArgumentException(
       s"You need to specify just one of these options: ${
         QueryType.values.toSeq.map(value => s"'${value.toString.toLowerCase()}'")
@@ -131,12 +133,13 @@ class Neo4jOptions(private val parameters: java.util.Map[String, String]) extend
   }
 }
 
+case class Neo4jSchemaMetadata(flattenLimit: Int, strategy: SchemaStrategy.Value)
 case class Neo4jTransactionMetadata(retries: Int, failOnTransactionCodes: Set[String], batchSize: Int)
 
 case class Neo4jNodeMetadata(labels: Seq[String], nodeKeys: Map[String, String])
 case class Neo4jRelationshipMetadata(source: Neo4jNodeMetadata, target: Neo4jNodeMetadata, relationshipType: String, nodeMap: Boolean)
 
-case class Neo4jQueryOptions(queryType: QueryType.Value, value: String, schemaFlattenLimit: Int) extends Serializable
+case class Neo4jQueryOptions(queryType: QueryType.Value, value: String)
 
 case class Neo4jSessionOptions(database: String, accessMode: AccessMode = AccessMode.READ) {
   def toNeo4jSession: SessionConfig = {
@@ -240,6 +243,7 @@ object Neo4jOptions {
   val ACCESS_MODE = "access.mode"
 
   // schema options
+  val SCHEMA_STRATEGY = "schema.strategy"
   val SCHEMA_FLATTEN_LIMIT = "schema.flatten.limit"
 
   // Node Metadata
@@ -261,7 +265,7 @@ object Neo4jOptions {
   // defaults
   val DEFAULT_EMPTY = ""
   val DEFAULT_TIMEOUT: Int = -1
-  val DEFAULT_ACCESS_MODE = AccessMode.WRITE
+  val DEFAULT_ACCESS_MODE = AccessMode.READ
   val DEFAULT_AUTH_TYPE = "basic"
   val DEFAULT_ENCRYPTION_ENABLED = false
   val DEFAULT_ENCRYPTION_TRUST_STRATEGY = TrustStrategy.Strategy.TRUST_SYSTEM_CA_SIGNED_CERTIFICATES
@@ -269,8 +273,13 @@ object Neo4jOptions {
   val DEFAULT_BATCH_SIZE = 5000
   val DEFAULT_TRANSACTION_RETRIES = 3
   val DEFAULT_RELATIONSHIP_NODES_MAP = true
+  val DEFAULT_SCHEMA_STRATEGY = SchemaStrategy.SAMPLE
 }
 
 object QueryType extends Enumeration {
   val QUERY, LABELS, RELATIONSHIP = Value
+}
+
+object SchemaStrategy extends Enumeration {
+  val STRING, SAMPLE = Value
 }

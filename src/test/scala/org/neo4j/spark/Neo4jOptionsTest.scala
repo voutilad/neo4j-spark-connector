@@ -113,7 +113,7 @@ class Neo4jOptionsTest {
     val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
 
     assertEquals("", neo4jOptions.session.database)
-    assertEquals(AccessMode.WRITE, neo4jOptions.session.accessMode)
+    assertEquals(AccessMode.READ, neo4jOptions.session.accessMode)
 
     assertEquals("basic", neo4jOptions.connection.auth)
     assertEquals("", neo4jOptions.connection.username)
