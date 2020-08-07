@@ -36,7 +36,33 @@ class Neo4jWriteMappingStrategy(private val options: Neo4jOptions)
     rowMap
   }
 
-  override def relationship(elem: InternalRow, schema: StructType): java.util.Map[String, AnyRef] = ???
+  override def relationship(row: InternalRow, schema: StructType): java.util.Map[String, AnyRef] = {
+    val rowMap: java.util.Map[String, AnyRef]= new java.util.HashMap[String, AnyRef]
+
+    val relMap = new util.HashMap[String, AnyRef]()
+    val sourceMap = new util.HashMap[String, AnyRef]()
+    val targetMap = new util.HashMap[String, AnyRef]()
+
+    query(row, schema)
+      .forEach(new BiConsumer[String, AnyRef] {
+        override def accept(key: String, value: AnyRef): Unit =
+          if (key.startsWith(Neo4jUtil.RELATIONSHIP_ALIAS.concat("."))) {
+            relMap.put(key.split('.').drop(1).mkString("."), value)
+          }
+          else if (key.startsWith(Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS.concat("."))) {
+            sourceMap.put(key.split('.').drop(1).mkString("."), value)
+          }
+          else if (key.startsWith(Neo4jUtil.RELATIONSHIP_TARGET_ALIAS.concat("."))) {
+            targetMap.put(key.split('.').drop(1).mkString("."), value)
+          }
+      })
+
+    rowMap.put(Neo4jUtil.RELATIONSHIP_ALIAS, relMap)
+    rowMap.put(Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS, sourceMap)
+    rowMap.put(Neo4jUtil.RELATIONSHIP_TARGET_ALIAS, targetMap)
+
+    rowMap
+  }
 
   override def query(row: InternalRow, schema: StructType): java.util.Map[String, AnyRef] = {
     val seq = row.toSeq(schema)

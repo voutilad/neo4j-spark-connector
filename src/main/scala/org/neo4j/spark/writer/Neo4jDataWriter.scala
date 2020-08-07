@@ -52,9 +52,7 @@ class Neo4jDataWriter(jobId: String,
     }
     try {
       log.info(s"Writing a batch of ${batch.size()} elements to Neo4j, for jobId=$jobId and partitionId=$partitionId")
-      if (log.isDebugEnabled) {
-        log.debug(s"Writing batch into Neo4j with query: $query")
-      }
+      log.info(s"Writing batch into Neo4j with query: $query")
       val result = transaction.run(query,
         Values.value(Collections.singletonMap[String, Object]("events", batch)))
       if (log.isDebugEnabled) {
@@ -78,8 +76,8 @@ class Neo4jDataWriter(jobId: String,
       case neo4jTransientException: Neo4jException => {
         val code = neo4jTransientException.code()
         if ((neo4jTransientException.isInstanceOf[SessionExpiredException] || neo4jTransientException.isInstanceOf[ServiceUnavailableException])
-            && !(Neo4jUtil.unsupportedTransientCodes ++ options.transactionMetadata.failOnTransactionCodes).contains(code)
-            && retries.getCount > 0) {
+          && !(Neo4jUtil.unsupportedTransientCodes ++ options.transactionMetadata.failOnTransactionCodes).contains(code)
+          && retries.getCount > 0) {
           retries.countDown()
           log.info(s"Matched Neo4j transient exception next retry is ${options.transactionMetadata.retries - retries.getCount}")
           close

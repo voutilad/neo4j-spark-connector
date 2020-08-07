@@ -7,8 +7,9 @@ import org.junit.Assert._
 import org.junit.Test
 import org.neo4j.driver.internal.types.InternalTypeSystem
 import org.neo4j.driver.internal.{InternalPoint2D, InternalPoint3D}
+import org.neo4j.driver.summary.ResultSummary
 import org.neo4j.driver.types.{IsoDuration, Type}
-import org.neo4j.driver.{Result, Transaction, TransactionWork}
+import org.neo4j.driver.{Result, SessionConfig, Transaction, TransactionWork}
 
 import scala.collection.JavaConverters._
 import scala.util.Random
@@ -557,6 +558,61 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
         |RETURN count(p) AS count
         |""".stripMargin).single().get("count").asLong()
     assertEquals(ds.count(), count)
+  }
+
+  @Test
+  def `should read relations and write relation`(): Unit = {
+    val total = 100
+    val fixtureQuery: String =
+      s"""UNWIND range(1, $total) as id
+         |CREATE (pr:Product {id: id * rand(), name: 'Product ' + id})
+         |CREATE (pe:Person {id: id, fullName: 'Person ' + id})
+         |CREATE (pe)-[:BOUGHT{when: rand(), quantity: rand() * 1000}]->(pr)
+         |RETURN *
+    """.stripMargin
+
+    SparkConnectorScalaSuiteIT.driver.session(SessionConfig.forDatabase("db1"))
+      .writeTransaction(
+        new TransactionWork[ResultSummary] {
+          override def execute(tx: Transaction): ResultSummary = tx.run(fixtureQuery).consume()
+        })
+
+    SparkConnectorScalaSuiteIT.driver.session(SessionConfig.forDatabase("db2"))
+      .writeTransaction(
+        new TransactionWork[ResultSummary] {
+          override def execute(tx: Transaction): ResultSummary = tx.run("MATCH (n) DETACH DELETE n").consume()
+        })
+
+    val df: DataFrame = ss.read.format(classOf[DataSource].getName)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("database", "db1")
+      .option("relationship", "BOUGHT")
+      .option("relationship.nodes.map", "false")
+      .option("relationship.source.labels", ":Person")
+      .option("relationship.target.labels", ":Product")
+      .load()
+
+    df.show()
+
+    df.write
+      .format(classOf[DataSource].getName)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("database", "db2")
+      .option("relationship", "SOLD")
+      .option("relationship.source.labels", ":Person")
+      .option("relationship.target.labels", ":Product")
+      .option("batch.size", "11")
+      .save()
+
+    ss.read.format(classOf[DataSource].getName)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("database", "db2")
+      .option("relationship", "SOLD")
+      .option("relationship.nodes.map", "false")
+      .option("relationship.source.labels", ":Person")
+      .option("relationship.target.labels", ":Product")
+      .load()
+      .show()
   }
 
 }
