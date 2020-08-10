@@ -66,6 +66,19 @@ class Neo4jOptionsTest {
   }
 
   @Test
+  def testRelationshipWriteStrategyIsNotPresentShouldThrowException(): Unit = {
+    val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
+    options.put(Neo4jOptions.URL, "bolt://localhost")
+    options.put(QueryType.LABELS.toString.toLowerCase, "PERSON")
+    options.put("relationship.write.strategy", "nope")
+
+    _expectedException.expect(classOf[IllegalArgumentException])
+    _expectedException.expectMessage("The relationship write strategy `nope` is not valid, use one of 'native', 'source_keys'")
+
+    new Neo4jOptions(options)
+  }
+
+  @Test
   def testQueryShouldHaveQueryType(): Unit = {
     val query: String = "MATCH n RETURN n"
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
@@ -133,6 +146,7 @@ class Neo4jOptionsTest {
     assertEquals(-1, neo4jOptions.connection.acquisitionTimeout)
     assertEquals(-1, neo4jOptions.connection.connectionTimeout)
     assertEquals(-1, neo4jOptions.connection.livenessCheckTimeout)
+    assertEquals(RelationshipWriteStrategy.NATIVE, neo4jOptions.relationshipMetadata.writeStrategy)
 
     assertTrue(neo4jOptions.pushdownFiltersEnabled)
   }

@@ -592,7 +592,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .option("relationship.target.labels", ":Product")
       .load()
 
-    df.show()
+    val df1count = df.count()
 
     df.write
       .format(classOf[DataSource].getName)
@@ -604,7 +604,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .option("batch.size", "11")
       .save()
 
-    ss.read.format(classOf[DataSource].getName)
+    val df2count = ss.read.format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
       .option("database", "db2")
       .option("relationship", "SOLD")
@@ -612,7 +612,9 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .option("relationship.source.labels", ":Person")
       .option("relationship.target.labels", ":Product")
       .load()
-      .show()
+      .count()
+
+    assertEquals(df1count, df2count)
   }
 
 }

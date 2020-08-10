@@ -14,6 +14,7 @@ class Neo4jOptions(private val parameters: java.util.Map[String, String]) extend
 
   import Neo4jOptions._
   import QueryType._
+  import RelationshipWriteStrategy._
 
   private def getRequiredParameter(parameter: String): String = {
     if (!parameters.containsKey(parameter) || parameters.get(parameter).isEmpty) {
@@ -125,7 +126,19 @@ class Neo4jOptions(private val parameters: java.util.Map[String, String]) extend
       getParameter(RELATIONSHIP_TARGET_LABELS, ""))
     val nodeMap = getParameter(RELATIONSHIP_NODES_MAP, DEFAULT_RELATIONSHIP_NODES_MAP.toString).toString
       .toBoolean
-    Neo4jRelationshipMetadata(source, target, query.value, nodeMap)
+
+    val writeStrategy = RelationshipWriteStrategy
+      .values
+      .find(_.toString == getParameter(RELATIONSHIP_WRITE_STRATEGY, DEFAULT_RELATIONSHIP_WRITE_STRATEGY.toString).toUpperCase)
+
+    if(writeStrategy.isEmpty) {
+      throw new IllegalArgumentException(s"The relationship write strategy `${getParameter(RELATIONSHIP_WRITE_STRATEGY)}` is not valid, use one of ${
+        RelationshipWriteStrategy.values.toSeq.map(value => s"'${value.toString.toLowerCase()}'")
+          .sorted.mkString(", ")
+      }")
+    }
+
+    Neo4jRelationshipMetadata(source, target, query.value, nodeMap, writeStrategy.get)
   }
 
   def initNeo4jQueryMetadata(): Neo4jQueryMetadata = Neo4jQueryMetadata(
@@ -146,7 +159,13 @@ case class Neo4jSchemaMetadata(flattenLimit: Int, strategy: SchemaStrategy.Value
 case class Neo4jTransactionMetadata(retries: Int, failOnTransactionCodes: Set[String], batchSize: Int)
 
 case class Neo4jNodeMetadata(labels: Seq[String], nodeKeys: Map[String, String])
-case class Neo4jRelationshipMetadata(source: Neo4jNodeMetadata, target: Neo4jNodeMetadata, relationshipType: String, nodeMap: Boolean)
+case class Neo4jRelationshipMetadata(
+                                      source: Neo4jNodeMetadata,
+                                      target: Neo4jNodeMetadata,
+                                      relationshipType: String,
+                                      nodeMap: Boolean,
+                                      writeStrategy: RelationshipWriteStrategy.Value
+                                    )
 case class Neo4jQueryMetadata(query: String, queryCount: String)
 
 case class Neo4jQueryOptions(queryType: QueryType.Value, value: String)
@@ -272,6 +291,7 @@ object Neo4jOptions {
   val RELATIONSHIP_TARGET_LABELS = s"${QueryType.RELATIONSHIP.toString.toLowerCase}.target.${QueryType.LABELS.toString.toLowerCase}"
   val RELATIONSHIP_TARGET_NODE_KEYS = s"${QueryType.RELATIONSHIP.toString.toLowerCase}.target.$NODE_KEYS"
   val RELATIONSHIP_NODES_MAP = s"${QueryType.RELATIONSHIP.toString.toLowerCase}.nodes.map"
+  val RELATIONSHIP_WRITE_STRATEGY = s"${QueryType.RELATIONSHIP.toString.toLowerCase}.write.strategy"
 
   // Query metadata
   val QUERY_COUNT = "query.count"
@@ -291,6 +311,7 @@ object Neo4jOptions {
   val DEFAULT_BATCH_SIZE = 5000
   val DEFAULT_TRANSACTION_RETRIES = 3
   val DEFAULT_RELATIONSHIP_NODES_MAP = true
+  val DEFAULT_RELATIONSHIP_WRITE_STRATEGY = RelationshipWriteStrategy.NATIVE
   val DEFAULT_SCHEMA_STRATEGY = SchemaStrategy.SAMPLE
   val DEFAULT_PUSHDOWN_FILTERS_ENABLED = true
   val DEFAULT_PARTITIONS = 1
@@ -298,6 +319,10 @@ object Neo4jOptions {
 
 object QueryType extends Enumeration {
   val QUERY, LABELS, RELATIONSHIP = Value
+}
+
+object RelationshipWriteStrategy extends Enumeration {
+  val NATIVE, SOURCE_KEYS = Value
 }
 
 object SchemaStrategy extends Enumeration {
