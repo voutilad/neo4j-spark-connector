@@ -14,7 +14,6 @@ class Neo4jOptions(private val parameters: java.util.Map[String, String]) extend
 
   import Neo4jOptions._
   import QueryType._
-  import RelationshipWriteStrategy._
 
   private def getRequiredParameter(parameter: String): String = {
     if (!parameters.containsKey(parameter) || parameters.get(parameter).isEmpty) {

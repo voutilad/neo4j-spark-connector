@@ -4,7 +4,8 @@ import org.apache.commons.lang3.exception.ExceptionUtils
 import org.apache.spark.SparkException
 import org.apache.spark.sql.{DataFrame, SaveMode, SparkSession}
 import org.junit.Assert._
-import org.junit.Test
+import org.junit.rules.ExpectedException
+import org.junit.{Rule, Test}
 import org.neo4j.driver.internal.types.InternalTypeSystem
 import org.neo4j.driver.internal.{InternalPoint2D, InternalPoint3D}
 import org.neo4j.driver.summary.ResultSummary
@@ -39,6 +40,11 @@ case class EmptyRow[T](data: T)
 class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
   val sparkSession = SparkSession.builder().getOrCreate()
   import sparkSession.implicits._
+
+  val _expectedException: ExpectedException = ExpectedException.none
+
+  @Rule
+  def exceptionRule: ExpectedException = _expectedException
 
   private def testType[T](ds: DataFrame, neo4jType: Type): Unit = {
     ds.write
@@ -628,8 +634,6 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       (15, "John Butler", "Guitar")
     ).toDF("experience", "name", "instrument")
 
-    musicDf.show()
-
     musicDf.write
       .format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
@@ -641,7 +645,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .option("relationship.target.node.keys", "instrument:name")
       .save()
 
-    val df2count = ss.read.format(classOf[DataSource].getName)
+    val df2 = ss.read.format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
       .option("relationship.nodes.map", "false")
       .option("relationship", "PLAYS")
@@ -649,7 +653,106 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .option("relationship.target.labels", ":Instrument")
       .load()
 
-    df2count.show()
+    assertEquals(4, df2.count())
+
+    val result = df2.select("`source.name`").orderBy("`source.name`").collectAsList()
+
+    assertEquals("John Bonham", result.get(0).getString(0))
+  }
+
+  @Test
+  def `should read relations and write relation with overwrite mode`(): Unit = {
+    val fixtureQuery: String =
+      s"""CREATE (m:Musician {name: "John Bonham"})
+         |CREATE (i:Instrument {name: "Drums"})
+         |CREATE (m)-[:PLAYS {experience: 10}]->(i)
+         |RETURN *
+    """.stripMargin
+
+    SparkConnectorScalaSuiteIT.driver.session(SessionConfig.forDatabase("db1"))
+      .writeTransaction(
+        new TransactionWork[ResultSummary] {
+          override def execute(tx: Transaction): ResultSummary = tx.run(fixtureQuery).consume()
+        })
+
+    val musicDf = Seq(
+      (12, "John Bonham", "Drums"),
+      (19, "John Mayer", "Guitar"),
+      (32, "John Scofield", "Guitar"),
+      (15, "John Butler", "Guitar")
+    ).toDF("experience", "name", "instrument")
+
+    musicDf.write
+      .format(classOf[DataSource].getName)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("relationship.nodes.map", "false")
+      .option("relationship.source.access.mode", "overwrite")
+      .option("relationship.target.access.mode", "overwrite")
+      .option("relationship", "PLAYS")
+      .option("relationship.write.strategy", "keys")
+      .option("relationship.source.labels", ":Musician")
+      .option("relationship.source.node.keys", "name:name")
+      .option("relationship.target.labels", ":Instrument")
+      .option("relationship.target.node.keys", "instrument:name")
+      .save()
+
+    val df2 = ss.read.format(classOf[DataSource].getName)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("relationship.nodes.map", "false")
+      .option("relationship", "PLAYS")
+      .option("relationship.source.labels", ":Musician")
+      .option("relationship.target.labels", ":Instrument")
+      .load()
+
+    val experience = df2.select("`rel.experience`").where("`source.name` = 'John Bonham'")
+      .collectAsList().get(0).getLong(0)
+
+    assertEquals(12, experience)
+  }
+
+  @Test
+  def `should read relations and write relation with match mode`(): Unit = {
+    val fixtureQuery: String =
+      s"""CREATE (m:Musician {name: "John Bonham"})
+         |RETURN *
+    """.stripMargin
+
+    SparkConnectorScalaSuiteIT.driver.session(SessionConfig.forDatabase("db1"))
+      .writeTransaction(
+        new TransactionWork[ResultSummary] {
+          override def execute(tx: Transaction): ResultSummary = tx.run(fixtureQuery).consume()
+        })
+
+    val musicDf = Seq(
+      (12, 32, "John Bonham", "Drums")
+    ).toDF("experience", "age", "name", "instrument")
+
+    musicDf.write
+      .format(classOf[DataSource].getName)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("relationship.nodes.map", "false")
+      .option("relationship.source.access.mode", "match")
+      .option("relationship.target.access.mode", "ErrorIfExists")
+      .option("relationship", "PLAYS")
+      .option("relationship.write.strategy", "keys")
+      .option("relationship.source.labels", ":Musician")
+      .option("relationship.source.node.keys", "name:name,age:age")
+      .option("relationship.target.labels", ":Instrument")
+      .option("relationship.target.node.keys", "instrument:name")
+      .save()
+
+    val df2 = ss.read.format(classOf[DataSource].getName)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("relationship.nodes.map", "false")
+      .option("relationship", "PLAYS")
+      .option("relationship.source.labels", ":Musician")
+      .option("relationship.target.labels", ":Instrument")
+      .load()
+
+    val experience = df2.select("`source.age`").where("`source.name` = 'John Bonham'")
+      .collectAsList().get(0).getLong(0)
+
+    assertEquals(32, experience)
   }
 
 }
