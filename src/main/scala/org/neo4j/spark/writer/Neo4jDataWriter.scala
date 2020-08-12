@@ -13,9 +13,8 @@ import org.neo4j.driver.exceptions.{Neo4jException, ServiceUnavailableException,
 import org.neo4j.driver.{Session, Transaction, Values}
 import org.neo4j.spark.service.{MappingService, Neo4jQueryService, Neo4jQueryWriteStrategy, Neo4jWriteMappingStrategy}
 import org.neo4j.spark.util.Neo4jUtil._
-import org.neo4j.spark.util.Neo4jImplicits._
 import org.neo4j.spark.util.Neo4jUtil
-import org.neo4j.spark.{DriverCache, Neo4jOptions}
+import org.neo4j.spark.{DriverCache, Neo4jOptions, NodeSaveMode}
 
 class Neo4jDataWriter(jobId: String,
                       partitionId: Int,
@@ -34,7 +33,7 @@ class Neo4jDataWriter(jobId: String,
 
   private val retries = new CountDownLatch(options.transactionMetadata.retries)
 
-  val query: String = new Neo4jQueryService(options, new Neo4jQueryWriteStrategy(saveMode)).createQuery()
+  val query: String = new Neo4jQueryService(options, new Neo4jQueryWriteStrategy(NodeSaveMode.fromSaveMode(saveMode))).createQuery()
 
   override def write(record: InternalRow): Unit = {
     batch.add(mappingService.convert(record, structType))

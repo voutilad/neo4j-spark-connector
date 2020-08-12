@@ -73,7 +73,7 @@ class Neo4jOptionsTest {
     options.put("relationship.write.strategy", "nope")
 
     _expectedException.expect(classOf[IllegalArgumentException])
-    _expectedException.expectMessage("The relationship write strategy `nope` is not valid, use one of 'native', 'source_keys'")
+    _expectedException.expectMessage("The relationship write strategy `nope` is not valid, use one of 'keys', 'native'")
 
     new Neo4jOptions(options)
   }

@@ -5,23 +5,37 @@ import org.apache.spark.sql.sources.{And, EqualTo, Filter, IsNull, Not, Or}
 import org.neo4j.cypherdsl.core.StatementBuilder.{BuildableStatement, TerminalExposesLimit}
 import org.neo4j.cypherdsl.core.{Condition, Conditions, Cypher, Functions, Node, PropertyContainer, Relationship, Statement, StatementBuilder}
 import org.neo4j.cypherdsl.core.renderer.Renderer
-import org.neo4j.spark.{Neo4jOptions, QueryType}
+import org.neo4j.spark.{Neo4jOptions, NodeSaveMode, QueryType, RelationshipWriteStrategy}
 import org.neo4j.spark.util.Neo4jImplicits._
 import org.neo4j.spark.util.Neo4jUtil
 
 import collection.JavaConverters._
 
-class Neo4jQueryWriteStrategy(private val saveMode: SaveMode) extends Neo4jQueryStrategy {
+class Neo4jQueryWriteStrategy(private val saveMode: NodeSaveMode.Value) extends Neo4jQueryStrategy {
   override def createStatementForQuery(options: Neo4jOptions): String =
     s"""UNWIND ${"$"}events AS event
        |${options.query.value}
        |""".stripMargin
 
   override def createStatementForRelationships(options: Neo4jOptions): String = {
-    val keyword = saveMode match {
-      case SaveMode.Overwrite => "MERGE"
-      case SaveMode.ErrorIfExists => "CREATE"
+    val relationshipKeyword = saveMode match {
+      case NodeSaveMode.Overwrite => "MERGE"
+      case NodeSaveMode.ErrorIfExists => "CREATE"
       case _ => throw new UnsupportedOperationException(s"SaveMode $saveMode not supported")
+    }
+
+    val sourceKeyword = saveMode match {
+      case NodeSaveMode.Overwrite => "MERGE"
+      case NodeSaveMode.ErrorIfExists => "CREATE"
+      case NodeSaveMode.Match => "MATCH"
+      case _ => throw new UnsupportedOperationException(s"Source SaveMode $saveMode not supported")
+    }
+
+    val targetKeyword = saveMode match {
+      case NodeSaveMode.Overwrite => "MERGE"
+      case NodeSaveMode.ErrorIfExists => "CREATE"
+      case NodeSaveMode.Match => "MATCH"
+      case _ => throw new UnsupportedOperationException(s"Target SaveMode $saveMode not supported")
     }
 
     val relationship = options.relationshipMetadata.relationshipType.quote()
@@ -32,27 +46,37 @@ class Neo4jQueryWriteStrategy(private val saveMode: SaveMode) extends Neo4jQuery
       .map(_.quote)
       .mkString(":")
 
-    /*
-    * source.asadsada
-    * target.sadsad
-     */
+    options.relationshipMetadata.writeStrategy match {
+      case RelationshipWriteStrategy.NATIVE => s"""UNWIND ${"$"}events AS event
+                                                  |$sourceKeyword (${Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS}${if (sourceLabels.isEmpty) "" else s":$sourceLabels"} )
+                                                  |SET ${Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS} = event.${Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS}
+                                                  |$targetKeyword (${Neo4jUtil.RELATIONSHIP_TARGET_ALIAS}${if (targetLabels.isEmpty) "" else s":$targetLabels"})
+                                                  |SET ${Neo4jUtil.RELATIONSHIP_TARGET_ALIAS} = event.${Neo4jUtil.RELATIONSHIP_TARGET_ALIAS}
+                                                  |$relationshipKeyword (${Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS})-[${Neo4jUtil.RELATIONSHIP_ALIAS}:${relationship}]->(${Neo4jUtil.RELATIONSHIP_TARGET_ALIAS})
+                                                  |SET ${Neo4jUtil.RELATIONSHIP_ALIAS} = event.${Neo4jUtil.RELATIONSHIP_ALIAS}
+                                                  |""".stripMargin
+      case RelationshipWriteStrategy.KEYS => {
+        val sourceKeys = options.relationshipMetadata.source.nodeKeys.map(key => {
+          s"${key._2}:event.source.${key._1}"
+        }).mkString(",")
+        val targetKeys = options.relationshipMetadata.target.nodeKeys.map(key => {
+          s"${key._2}:event.source.${key._1}"
+        }).mkString(",")
 
-    // SET source += event.source
-
-    s"""UNWIND ${"$"}events AS event
-       |$keyword (${Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS}${if (sourceLabels.isEmpty) "" else s":$sourceLabels"})
-       |SET ${Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS} = event.${Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS}
-       |$keyword (${Neo4jUtil.RELATIONSHIP_TARGET_ALIAS}${if (targetLabels.isEmpty) "" else s":$targetLabels"})
-       |SET ${Neo4jUtil.RELATIONSHIP_TARGET_ALIAS} = event.${Neo4jUtil.RELATIONSHIP_TARGET_ALIAS}
-       |MERGE (${Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS})-[${Neo4jUtil.RELATIONSHIP_ALIAS}:${relationship}]->(${Neo4jUtil.RELATIONSHIP_TARGET_ALIAS})
-       |SET ${Neo4jUtil.RELATIONSHIP_ALIAS} = event.${Neo4jUtil.RELATIONSHIP_ALIAS}
-       |""".stripMargin
+        s"""UNWIND ${"$"}events AS event
+           |$sourceKeyword (${Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS}${if (sourceLabels.isEmpty) "" else s":$sourceLabels"} ${if (sourceKeys.isEmpty) "" else s"{$sourceKeys}"})
+           |$targetKeyword (${Neo4jUtil.RELATIONSHIP_TARGET_ALIAS}${if (targetLabels.isEmpty) "" else s":$targetLabels"} ${if (targetKeys.isEmpty) "" else s"{$targetKeys}"})
+           |$relationshipKeyword (${Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS})-[${Neo4jUtil.RELATIONSHIP_ALIAS}:${relationship}]->(${Neo4jUtil.RELATIONSHIP_TARGET_ALIAS})
+           |SET ${Neo4jUtil.RELATIONSHIP_ALIAS} = event.${Neo4jUtil.RELATIONSHIP_ALIAS}
+           |""".stripMargin
+      }
+    }
   }
 
   override def createStatementForNodes(options: Neo4jOptions): String = {
     val keyword = saveMode match {
-      case SaveMode.Overwrite => "MERGE"
-      case SaveMode.ErrorIfExists => "CREATE"
+      case NodeSaveMode.Overwrite => "MERGE"
+      case NodeSaveMode.ErrorIfExists => "CREATE"
       case _ => throw new UnsupportedOperationException(s"SaveMode $saveMode not supported")
     }
     val labels = options.nodeMetadata.labels

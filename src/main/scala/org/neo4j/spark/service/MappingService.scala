@@ -10,13 +10,13 @@ import org.neo4j.driver.internal.value.MapValue
 import org.neo4j.driver.types.Node
 import org.neo4j.driver.{Record, Value, Values}
 import org.neo4j.spark.util.Neo4jUtil
-import org.neo4j.spark.{Neo4jOptions, QueryType}
+import org.neo4j.spark.{Neo4jOptions, QueryType, RelationshipWriteStrategy}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 
 class Neo4jWriteMappingStrategy(private val options: Neo4jOptions)
-    extends Neo4jMappingStrategy[InternalRow, java.util.Map[String, AnyRef]] {
+  extends Neo4jMappingStrategy[InternalRow, java.util.Map[String, AnyRef]] {
   override def node(row: InternalRow, schema: StructType): java.util.Map[String, AnyRef] = {
     val rowMap: java.util.Map[String, Object] = new java.util.HashMap[String, Object]
     val keys: java.util.Map[String, Object] = new java.util.HashMap[String, Object]
@@ -36,8 +36,8 @@ class Neo4jWriteMappingStrategy(private val options: Neo4jOptions)
     rowMap
   }
 
-  override def relationship(row: InternalRow, schema: StructType): java.util.Map[String, AnyRef] = {
-    val rowMap: java.util.Map[String, AnyRef]= new java.util.HashMap[String, AnyRef]
+  private def relationshipNativeMap(row: InternalRow, schema: StructType): java.util.Map[String, AnyRef] = {
+    val rowMap: java.util.Map[String, AnyRef] = new java.util.HashMap[String, AnyRef]
 
     val relMap = new util.HashMap[String, AnyRef]()
     val sourceMap = new util.HashMap[String, AnyRef]()
@@ -62,6 +62,41 @@ class Neo4jWriteMappingStrategy(private val options: Neo4jOptions)
     rowMap.put(Neo4jUtil.RELATIONSHIP_TARGET_ALIAS, targetMap)
 
     rowMap
+  }
+
+  private def relationshipKeysMap(row: InternalRow, schema: StructType): java.util.Map[String, AnyRef] = {
+    val rowMap: java.util.Map[String, AnyRef] = new java.util.HashMap[String, AnyRef]
+
+    val relMap = new util.HashMap[String, AnyRef]()
+    val sourceMap = new util.HashMap[String, AnyRef]()
+    val targetMap = new util.HashMap[String, AnyRef]()
+
+    query(row, schema)
+      .forEach(new BiConsumer[String, AnyRef] {
+        override def accept(key: String, value: AnyRef): Unit =
+          if (options.relationshipMetadata.source.nodeKeys.contains(key)) {
+            sourceMap.put(key, value)
+          }
+          else if (options.relationshipMetadata.target.nodeKeys.contains(key)) {
+            targetMap.put(key, value)
+          }
+          else {
+            relMap.put(key, value)
+          }
+      })
+
+    rowMap.put(Neo4jUtil.RELATIONSHIP_ALIAS, relMap)
+    rowMap.put(Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS, sourceMap)
+    rowMap.put(Neo4jUtil.RELATIONSHIP_TARGET_ALIAS, targetMap)
+
+    rowMap
+  }
+
+  override def relationship(row: InternalRow, schema: StructType): java.util.Map[String, AnyRef] = {
+    options.relationshipMetadata.writeStrategy match {
+      case RelationshipWriteStrategy.NATIVE => relationshipNativeMap(row, schema)
+      case RelationshipWriteStrategy.KEYS => relationshipKeysMap(row, schema)
+    }
   }
 
   override def query(row: InternalRow, schema: StructType): java.util.Map[String, AnyRef] = {
@@ -101,11 +136,15 @@ class Neo4jReadMappingStrategy(private val options: Neo4jOptions) extends Neo4jM
   private def flatRelNodeMapping(node: Node, alias: String): mutable.Map[String, Any] = {
     val nodeMap: mutable.Map[String, Any] = node.asMap().asScala
       .map(t => (s"$alias.${t._1}", t._2))
-    nodeMap.put(s"<$alias.${Neo4jUtil.INTERNAL_ID_FIELD
-      .replaceAll("[<|>]", "")}>",
+    nodeMap.put(s"<$alias.${
+      Neo4jUtil.INTERNAL_ID_FIELD
+        .replaceAll("[<|>]", "")
+    }>",
       node.id())
-    nodeMap.put(s"<$alias.${Neo4jUtil.INTERNAL_LABELS_FIELD
-      .replaceAll("[<|>]", "")}>",
+    nodeMap.put(s"<$alias.${
+      Neo4jUtil.INTERNAL_LABELS_FIELD
+        .replaceAll("[<|>]", "")
+    }>",
       node.labels())
     nodeMap
   }

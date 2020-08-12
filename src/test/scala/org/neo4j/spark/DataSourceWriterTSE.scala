@@ -600,7 +600,9 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .option("database", "db2")
       .option("relationship", "SOLD")
       .option("relationship.source.labels", ":Person")
+      .option("relationship.source.write.mode", "ErrorIfExists")
       .option("relationship.target.labels", ":Product")
+      .option("relationship.target.write.mode", "ErrorIfExists")
       .option("batch.size", "11")
       .save()
 
@@ -615,6 +617,39 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .count()
 
     assertEquals(df1count, df2count)
+  }
+
+  @Test
+  def `should write relations with KEYS mode`(): Unit = {
+    val musicDf = Seq(
+      (12, "John Bonham", "Drums"),
+      (19, "John Mayer", "Guitar"),
+      (32, "John Scofield", "Guitar"),
+      (15, "John Butler", "Guitar")
+    ).toDF("experience", "name", "instrument")
+
+    musicDf.show()
+
+    musicDf.write
+      .format(classOf[DataSource].getName)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("relationship", "PLAYS")
+      .option("relationship.write.strategy", "keys")
+      .option("relationship.source.labels", ":Musician")
+      .option("relationship.source.node.keys", "name:name")
+      .option("relationship.target.labels", ":Instrument")
+      .option("relationship.target.node.keys", "instrument:name")
+      .save()
+
+    val df2count = ss.read.format(classOf[DataSource].getName)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("relationship.nodes.map", "false")
+      .option("relationship", "PLAYS")
+      .option("relationship.source.labels", ":Musician")
+      .option("relationship.target.labels", ":Instrument")
+      .load()
+
+    df2count.show()
   }
 
 }
