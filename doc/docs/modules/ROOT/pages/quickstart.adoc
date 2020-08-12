@@ -118,7 +118,6 @@ val df = spark.read.format("org.neo4j.spark.DataSource")
 |(Neo4j Driver default)
 |No
 
-
 4+|*Session Options*
 
 |`database`
@@ -196,6 +195,48 @@ every single node property as column prefixed by `source` or `target`
 |Enable or disable the Push Down Filters support
 |`true`
 |No
+
+4+|Data Write Options
+
+|`batch.size`
+|Number of records to be passed to the transaction
+|`5000`
+|No
+
+|`relationship.access.mode`
+|<<node-keys,Docs here>>
+|``
+|Yes for <<keys-strategy,KEYS>> strategy
+
+|`relationship.source.labels`
+|List of source node Labels separated by `:`
+|``
+|Yes^*^
+
+|`relationship.source.node.keys`
+|<<node-keys,Docs here>>
+|``
+|Yes for <<keys-strategy,KEYS>> strategy
+
+|`relationship.source.access.mode`
+|<<node-access-modes,Node Access Mode>>
+|`Match`
+|No
+
+|`relationship.target.labels`
+|List of target node Labels separated by `:`
+|``
+|Yes^*^
+
+|`relationship.target.access.mode`
+|<<node-access-modes,Node Access Mode>>
+|`Match`
+|No
+
+|`relationship.target.node.keys`
+|<<node-keys,Docs here>>
+|``
+|Yes for <<keys-strategy,KEYS>> strategy
 
 |`partitions`
 |This defines the parallelization level while pulling data from Neo4j.
@@ -437,10 +478,11 @@ Will create this schema
 You can specify a Cypher Path in this way:
 ```scala
 val df = spark.read.format("org.neo4j.spark.DataSource")
-      .option("relationship", "BOUGHT")
-      .option("relationship.source.labels", "Person")
-      .option("relationship.target.labels", "Product")
-      .load()
+        .option("url", "bolt://localhost:7687")
+        .option("relationship", "BOUGHT")
+        .option("relationship.source.labels", "Person")
+        .option("relationship.target.labels", "Product")
+        .load()
 
 df.show()
 ```
@@ -464,10 +506,14 @@ and depending on the value of `relationship.node.map` option, if `true`:
 
 otherwise if `false`:
 
+[[bookmark-rel-read-schema]]
 * `<sourceId>` the internal Neo4j id of source node
 * `<sourceLabels>` a list of labels for source node
 * `<targetId>` the internal Neo4j id of target node
 * `<targetLabels>` a list of labels for target node
+* `source.[property name]` a list of properties of the source node
+* `target.[property name]` a list of properties of the target node
+* `rel.[property name]` a list of properties of the relationship
 
 ==== Filter
 
@@ -500,7 +546,7 @@ df.where("source.name = 'John Doe' AND target.price >= 33")
 
 ==== Schema
 
-If APOC are available, the schema will be created with `apoc.meta.relTypeProperties`. 
+If APOC are available, the schema will be created with `apoc.meta.relTypeProperties`.
 Otherwise the first 10 (or any number specified by the `schema.flatten.limit` option) results will be flattened and the schema will be create from those properties.
 
 === Read data by custom Cypher Query
@@ -545,3 +591,75 @@ and sometimes be a `string`.
 ==== Schema
 
 If APOC are installed, schema will be created with `apoc.meta.relTypeProperties`. Otherwise the first 10 (or any number specified by the `schema.flatten.limit` option) results will be flattened and the schema will be create from those properties.
+
+=== Write data by Relationship Type
+
+You can write a dataframe to Neo4j by specifying source, target and relation.
+There are two strategies you can use to write relationships: *NATIVE* and *KEYS*
+
+==== Native Strategy
+
+This strategy is useful when you have a schema that conforms with the <<bookmark-rel-read-schema,Relationship Read Schema>>
+
+```scala
+df.write
+    .format("org.neo4j.spark.DataSource")
+    .option("url", "bolt://localhost:7687")
+    .option("relationship", "SOLD")
+    .option("relationship.source.labels", ":Person")
+    .option("relationship.source.write.mode", "overwrite")
+    .option("relationship.target.labels", ":Product")
+    .option("relationship.target.write.mode", "overwrite")
+    .save()
+```
+
+You just need to specify the source node labels, the target node labels, and the relationship you want between them.
+
+[NOTE]
+The default write mode for source and target nodes is `match`. This means that the relationship will be created only if the nodes are already in your DB. Look at <<node-access-modes,here>> for more info about node write modes.
+
+[[keys-strategy]]
+==== Keys Strategy
+
+For all the other cases you can usee the *KEYS* strategy.
+Say you have a Dataframe like this:
+
+```scala
+val musicDf = Seq(
+        (12, "John Bonham", "Drums"),
+        (19, "John Mayer", "Guitar"),
+        (32, "John Scofield", "Guitar"),
+        (15, "John Butler", "Guitar")
+    ).toDF("experience", "name", "instrument")
+```
+
+To write it to Neo4j is enough to speficy a list of attributes and
+
+```scala
+musicDf.write
+    .format("org.neo4j.spark.DataSource")
+    .option("url", "bolt://localhost:7687")
+    .option("relationship", "PLAYS")
+    .option("relationship.write.strategy", "keys")
+    .option("relationship.source.labels", ":Musician")
+    .option("relationship.source.write.mode", "overwrite")
+    .option("relationship.source.node.keys", "name:name")
+    .option("relationship.target.labels", ":Instrument")
+    .option("relationship.target.node.keys", "instrument:name")
+    .option("relationship.target.write.mode", "overwrite")
+    .save()
+```
+
+[[node-keys]]
+Here you must speficy which keys of your Dataframe will be writtent in the source node and in the target node.
+All the remaining properties will be written in the relationship.
+You can do this with a comma-separated list of `key:value` paris, where the key is the node property name to be written, and the value is the dataframe column name.
+
+[[node-access-modes]]
+===== Node Access Modes
+
+You can specify 3 different modes to use for writing the nodes:
+
+* `Overwrite`: will perform a `MERGE` on that node
+* `ErrorIfExists`: will perform a `CREATE`
+* `Match`: will perform a `Match`

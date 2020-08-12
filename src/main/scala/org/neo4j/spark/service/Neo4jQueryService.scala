@@ -24,14 +24,14 @@ class Neo4jQueryWriteStrategy(private val saveMode: NodeSaveMode.Value) extends 
       case _ => throw new UnsupportedOperationException(s"SaveMode $saveMode not supported")
     }
 
-    val sourceKeyword = saveMode match {
+    val sourceKeyword = options.relationshipMetadata.sourceSaveMode match {
       case NodeSaveMode.Overwrite => "MERGE"
       case NodeSaveMode.ErrorIfExists => "CREATE"
       case NodeSaveMode.Match => "MATCH"
       case _ => throw new UnsupportedOperationException(s"Source SaveMode $saveMode not supported")
     }
 
-    val targetKeyword = saveMode match {
+    val targetKeyword = options.relationshipMetadata.targetSaveMode match {
       case NodeSaveMode.Overwrite => "MERGE"
       case NodeSaveMode.ErrorIfExists => "CREATE"
       case NodeSaveMode.Match => "MATCH"
