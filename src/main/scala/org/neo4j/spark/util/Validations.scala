@@ -28,8 +28,6 @@ object Validations {
           }
         }
         case QueryType.RELATIONSHIP => {
-          ValidationUtil.isFalse(neo4jOptions.relationshipMetadata.nodeMap,
-            "Writing with Relationship mode is disabled if `relationship.nodes.map` is `true`")
           ValidationUtil.isNotEmpty(neo4jOptions.relationshipMetadata.target.labels,
             s"${Neo4jOptions.RELATIONSHIP_SOURCE_LABELS} is required when Save Mode is Overwrite")
           ValidationUtil.isNotEmpty(neo4jOptions.relationshipMetadata.target.labels,
