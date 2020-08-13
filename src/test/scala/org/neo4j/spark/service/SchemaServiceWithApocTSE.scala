@@ -207,12 +207,13 @@ class SchemaServiceWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
     val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
     val uuid: String = UUID.randomUUID().toString
 
-    val schemaService: SchemaService = new SchemaService(neo4jOptions, uuid)
+    val driverCache = new DriverCache(neo4jOptions.connection, uuid)
+    val schemaService: SchemaService = new SchemaService(neo4jOptions, driverCache)
 
     val schema: StructType = schemaService.struct()
     schemaService.close()
+    driverCache.close()
 
-    new DriverCache(neo4jOptions.connection, uuid).close()
 
     schema
   }

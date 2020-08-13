@@ -5,8 +5,8 @@ import java.time.format.DateTimeFormatter
 import java.util.Properties
 
 import com.fasterxml.jackson.core.JsonGenerator
-import com.fasterxml.jackson.databind.{JsonSerializer, ObjectMapper, SerializerProvider}
 import com.fasterxml.jackson.databind.module.SimpleModule
+import com.fasterxml.jackson.databind.{JsonSerializer, ObjectMapper, SerializerProvider}
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{GenericRowWithSchema, UnsafeArrayData, UnsafeMapData, UnsafeRow}
 import org.apache.spark.sql.catalyst.util.{ArrayBasedMapData, ArrayData, DateTimeUtils}
@@ -15,10 +15,12 @@ import org.apache.spark.sql.types._
 import org.apache.spark.unsafe.types.UTF8String
 import org.neo4j.cypherdsl.core.{Condition, Cypher, Functions}
 import org.neo4j.driver.internal.{InternalIsoDuration, InternalNode, InternalPoint2D, InternalPoint3D, InternalRelationship}
+import org.neo4j.driver.internal._
 import org.neo4j.driver.types.{Entity, Path}
 import org.neo4j.driver.{Session, Transaction, Values}
 import org.neo4j.spark.service.SchemaService
 import org.neo4j.spark.util.Neo4jImplicits.EntityImplicits
+import org.slf4j.Logger
 
 import scala.collection.JavaConverters._
 
@@ -41,7 +43,7 @@ object Neo4jUtil {
   val unsupportedTransientCodes = Set("Neo.TransientError.Transaction.Terminated",
     "Neo.TransientError.Transaction.LockClientStopped") // use the same strategy for TransientException as in the driver
 
-  def closeSafety(autoCloseable: AutoCloseable): Unit = {
+  def closeSafety(autoCloseable: AutoCloseable, logger: Logger = null): Unit = {
     if (autoCloseable == null) {
       return Unit
     }
@@ -53,7 +55,8 @@ object Neo4jUtil {
         case _ => autoCloseable.close()
       }
     } catch {
-      case _ => throw new Exception("This exception should be logged") // @todo Log
+      case t: Throwable => if (logger != null) logger
+        .error(s"Cannot close ${autoCloseable.getClass.getSimpleName} because of the following exception:", t)
     }
   }
 
@@ -214,6 +217,20 @@ object Neo4jUtil {
   })
     .toMap
     .asJava
+
+  def isLong(str: String): Boolean = {
+    if (str == null) {
+      false
+    } else {
+      try {
+        str.trim.toLong
+        true
+      } catch {
+        case nfe: NumberFormatException => false
+        case t: Throwable => throw t
+      }
+    }
+  }
 
   def connectorVersion: String = properties.getOrDefault("version", "UNKNOWN").toString
 

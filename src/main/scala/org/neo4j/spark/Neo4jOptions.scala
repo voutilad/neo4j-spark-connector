@@ -128,6 +128,14 @@ class Neo4jOptions(private val parameters: java.util.Map[String, String]) extend
     Neo4jRelationshipMetadata(source, target, query.value, nodeMap)
   }
 
+  def initNeo4jQueryMetadata(): Neo4jQueryMetadata = Neo4jQueryMetadata(
+    query.value.trim, getParameter(QUERY_COUNT, "").trim
+  )
+
+  val queryMetadata = initNeo4jQueryMetadata()
+
+  val partitions = getParameter(PARTITIONS, DEFAULT_PARTITIONS.toString).toInt
+
   def validate(validationFunction: Neo4jOptions => Unit): Neo4jOptions = {
     validationFunction(this)
     this
@@ -139,6 +147,7 @@ case class Neo4jTransactionMetadata(retries: Int, failOnTransactionCodes: Set[St
 
 case class Neo4jNodeMetadata(labels: Seq[String], nodeKeys: Map[String, String])
 case class Neo4jRelationshipMetadata(source: Neo4jNodeMetadata, target: Neo4jNodeMetadata, relationshipType: String, nodeMap: Boolean)
+case class Neo4jQueryMetadata(query: String, queryCount: String)
 
 case class Neo4jQueryOptions(queryType: QueryType.Value, value: String)
 
@@ -249,6 +258,9 @@ object Neo4jOptions {
   val SCHEMA_STRATEGY = "schema.strategy"
   val SCHEMA_FLATTEN_LIMIT = "schema.flatten.limit"
 
+  // partitions
+  val PARTITIONS = "partitions"
+
   // Node Metadata
   val NODE_KEYS = "node.keys"
   val BATCH_SIZE = "batch.size"
@@ -260,6 +272,9 @@ object Neo4jOptions {
   val RELATIONSHIP_TARGET_LABELS = s"${QueryType.RELATIONSHIP.toString.toLowerCase}.target.${QueryType.LABELS.toString.toLowerCase}"
   val RELATIONSHIP_TARGET_NODE_KEYS = s"${QueryType.RELATIONSHIP.toString.toLowerCase}.target.$NODE_KEYS"
   val RELATIONSHIP_NODES_MAP = s"${QueryType.RELATIONSHIP.toString.toLowerCase}.nodes.map"
+
+  // Query metadata
+  val QUERY_COUNT = "query.count"
 
   // Transaction Metadata
   val TRANSACTION_RETRIES = "transaction.retries"
@@ -278,6 +293,7 @@ object Neo4jOptions {
   val DEFAULT_RELATIONSHIP_NODES_MAP = true
   val DEFAULT_SCHEMA_STRATEGY = SchemaStrategy.SAMPLE
   val DEFAULT_PUSHDOWN_FILTERS_ENABLED = true
+  val DEFAULT_PARTITIONS = 1
 }
 
 object QueryType extends Enumeration {

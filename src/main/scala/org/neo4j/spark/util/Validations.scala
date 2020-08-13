@@ -10,8 +10,8 @@ object Validations {
   val writer: (Neo4jOptions, String, SaveMode) => Unit = { (neo4jOptions, jobId, saveMode) =>
     ValidationUtil.isFalse(neo4jOptions.session.accessMode == AccessMode.READ,
       s"Mode READ not supported for Data Source writer")
-    val schemaService = new SchemaService(neo4jOptions, jobId)
     val cache = new DriverCache(neo4jOptions.connection, jobId)
+    val schemaService = new SchemaService(neo4jOptions, cache)
     try {
       neo4jOptions.query.queryType match {
         case QueryType.QUERY => {
@@ -35,8 +35,8 @@ object Validations {
   }
 
   val read: (Neo4jOptions, String) => Unit = { (neo4jOptions, jobId) =>
-    val schemaService = new SchemaService(neo4jOptions, jobId)
     val cache = new DriverCache(neo4jOptions.connection, jobId)
+    val schemaService = new SchemaService(neo4jOptions, cache)
     try {
       neo4jOptions.query.queryType match {
         case QueryType.LABELS => {
@@ -56,6 +56,12 @@ object Validations {
         case QueryType.QUERY => {
           ValidationUtil.isTrue(schemaService.isReadQuery(neo4jOptions.query.value),
             "Please provide a valid READ query")
+          if (neo4jOptions.queryMetadata.queryCount.nonEmpty) {
+            if (!Neo4jUtil.isLong(neo4jOptions.queryMetadata.queryCount)) {
+              ValidationUtil.isTrue(schemaService.isValidQueryCount(neo4jOptions.queryMetadata.queryCount),
+                "Please provide a valid READ query count")
+            }
+          }
         }
       }
     } finally {

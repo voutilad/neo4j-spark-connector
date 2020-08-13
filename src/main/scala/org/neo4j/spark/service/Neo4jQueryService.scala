@@ -2,7 +2,7 @@ package org.neo4j.spark.service
 
 import org.apache.spark.sql.SaveMode
 import org.apache.spark.sql.sources.{And, EqualTo, Filter, IsNull, Not, Or}
-import org.neo4j.cypherdsl.core.{Condition, Conditions, Cypher, Functions, PropertyContainer, StatementBuilder}
+import org.neo4j.cypherdsl.core.{Condition, Conditions, Cypher, Functions, Node, PropertyContainer, Relationship, StatementBuilder}
 import org.neo4j.cypherdsl.core.renderer.Renderer
 import org.neo4j.spark.{Neo4jOptions, QueryType}
 import org.neo4j.spark.util.Neo4jImplicits._
@@ -50,6 +50,12 @@ class Neo4jQueryReadStrategy(filters: Array[Filter] = Array.empty[Filter]) exten
     val relationship = sourceNode.relationshipTo(targetNode, options.relationshipMetadata.relationshipType)
       .named(Neo4jUtil.RELATIONSHIP_ALIAS)
 
+    val matchQuery: StatementBuilder.OngoingReadingWithoutWhere = filterRelationship(sourceNode, targetNode, relationship)
+
+    renderer.render(matchQuery.returning(sourceNode, relationship, targetNode).build())
+  }
+
+  private def filterRelationship(sourceNode: Node, targetNode: Node, relationship: Relationship) = {
     val matchQuery = Cypher.`match`(sourceNode).`match`(targetNode).`match`(relationship)
 
     def getContainer(filter: Filter): PropertyContainer = {
@@ -75,16 +81,21 @@ class Neo4jQueryReadStrategy(filters: Array[Filter] = Array.empty[Filter]) exten
           case filter: Filter => Neo4jUtil.mapSparkFiltersToCypher(filter, getContainer(filter), filter.getAttributeWithoutEntityName)
         }
       }
+
       val cypherFilters = filters.map(mapFilter)
 
       assembleConditionQuery(matchQuery, cypherFilters)
     }
-
-    renderer.render(matchQuery.returning(sourceNode, relationship, targetNode).build())
+    matchQuery
   }
 
   override def createStatementForNodes(options: Neo4jOptions): String = {
     val node = createNode(Neo4jUtil.NODE_ALIAS, options.nodeMetadata.labels)
+    val matchQuery = filterNode(node)
+    renderer.render(matchQuery.returning(node).build())
+  }
+
+  private def filterNode(node: Node) = {
     val matchQuery = Cypher.`match`(node)
 
     if (filters.nonEmpty) {
@@ -99,9 +110,27 @@ class Neo4jQueryReadStrategy(filters: Array[Filter] = Array.empty[Filter]) exten
       val cypherFilters = filters.map(mapFilter)
       assembleConditionQuery(matchQuery, cypherFilters)
     }
-
-    renderer.render(matchQuery.returning(node).build())
+    matchQuery
   }
+
+  def createStatementForNodeCount(options: Neo4jOptions): String = {
+    val node = createNode(Neo4jUtil.NODE_ALIAS, options.nodeMetadata.labels)
+    val matchQuery = filterNode(node)
+    renderer.render(matchQuery.returning(Functions.count(node)).build())
+  }
+
+  def createStatementForRelationshipCount(options: Neo4jOptions): String = {
+    val sourceNode = createNode(Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS, options.relationshipMetadata.source.labels)
+    val targetNode = createNode(Neo4jUtil.RELATIONSHIP_TARGET_ALIAS, options.relationshipMetadata.target.labels)
+
+    val relationship = sourceNode.relationshipTo(targetNode, options.relationshipMetadata.relationshipType)
+      .named(Neo4jUtil.RELATIONSHIP_ALIAS)
+
+    val matchQuery: StatementBuilder.OngoingReadingWithoutWhere = filterRelationship(sourceNode, targetNode, relationship)
+
+    renderer.render(matchQuery.returning(Functions.count(sourceNode)).build())
+  }
+
 
   private def assembleConditionQuery(matchQuery: StatementBuilder.OngoingReadingWithoutWhere, filters: Array[Condition]): StatementBuilder.OngoingReadingWithWhere = {
     matchQuery.where(
@@ -112,7 +141,11 @@ class Neo4jQueryReadStrategy(filters: Array[Filter] = Array.empty[Filter]) exten
   private def createNode(name: String, labels: Seq[String]) = {
     val primaryLabel = labels.head
     val otherLabels = labels.tail
-    Cypher.node(primaryLabel, otherLabels.asJava).named(name)
+    if (labels.isEmpty) {
+      Cypher.anyNode(name)
+    } else {
+      Cypher.node(primaryLabel, otherLabels.asJava).named(name)
+    }
   }
 }
 

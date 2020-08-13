@@ -1,14 +1,17 @@
 package org.neo4j.spark.service
 
+import java.util
 import java.util.Collections
 
+import org.apache.spark.internal.Logging
+import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.types.{DataType, DataTypes, StructField, StructType}
-import org.neo4j.cypherdsl.core.renderer.Renderer
+import org.neo4j.cypherdsl.core.Cypher
 import org.neo4j.driver.exceptions.ClientException
 import org.neo4j.driver.types.Entity
 import org.neo4j.driver.{Record, Session}
 import org.neo4j.spark.service.SchemaService.{cypherToSparkType, normalizedClassName, normalizedClassNameFromGraphEntity}
-import org.neo4j.spark.util.Neo4jImplicits.EntityImplicits
+import org.neo4j.spark.util.Neo4jImplicits.{CypherImplicits, EntityImplicits}
 import org.neo4j.spark.util.{Neo4jUtil, ValidationUtil}
 import org.neo4j.spark.{DriverCache, Neo4jOptions, QueryType, SchemaStrategy}
 
@@ -16,11 +19,10 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
-class SchemaService(private val options: Neo4jOptions, private val jobId: String) extends AutoCloseable {
+class SchemaService(private val options: Neo4jOptions, private val driverCache: DriverCache, private val filters: Array[Filter] = Array.empty)
+  extends AutoCloseable with Logging {
 
-  private val cypherRenderer = Renderer.getDefaultRenderer
-
-  private val driverCache: DriverCache = new DriverCache(options.connection, jobId)
+  private val queryReadStrategy = new Neo4jQueryReadStrategy(filters)
 
   private val session: Session = driverCache.getOrCreate().session(options.session.toNeo4jSession)
 
@@ -35,7 +37,7 @@ class SchemaService(private val options: Neo4jOptions, private val jobId: String
           e.code match {
             case "Neo.ClientError.Procedure.ProcedureNotFound" => {
               // TODO get back to Cypher DSL when rand function will be available
-              val query = s"""MATCH (${Neo4jUtil.NODE_ALIAS}:${labels.mkString(":")})
+              val query = s"""MATCH (${Neo4jUtil.NODE_ALIAS}:${labels.map(_.quote()).mkString(":")})
                 |RETURN ${Neo4jUtil.NODE_ALIAS}
                 |ORDER BY rand()
                 |LIMIT ${options.schemaMetadata.flattenLimit}
@@ -93,7 +95,7 @@ class SchemaService(private val options: Neo4jOptions, private val jobId: String
 
   def structForRelationship(): StructType = {
     var structFields: mutable.Buffer[StructField] = ArrayBuffer(
-      StructField(Neo4jUtil.INTERNAL_ID_FIELD.replace("id", "rel.id"), DataTypes.LongType, false),
+      StructField(Neo4jUtil.INTERNAL_REL_ID_FIELD, DataTypes.LongType, false),
       StructField(Neo4jUtil.INTERNAL_REL_TYPE_FIELD, DataTypes.StringType, false))
 
     if (options.relationshipMetadata.nodeMap) {
@@ -109,8 +111,16 @@ class SchemaService(private val options: Neo4jOptions, private val jobId: String
     }
 
     structFields ++= (try {
-        val query = "CALL apoc.meta.relTypeProperties({ includeRels: $rels })"
-        val params = Map[String, AnyRef]("rels" -> Seq(options.relationshipMetadata.relationshipType).asJava)
+        val query =
+          """CALL apoc.meta.relTypeProperties({ includeRels: $rels }) YIELD sourceNodeLabels, targetNodeLabels,
+            | propertyName, propertyTypes
+            |WITH *
+            |WHERE sourceNodeLabels = $sourceLabels AND targetNodeLabels = $targetLabels
+            |RETURN *
+            |""".stripMargin
+        val params = Map[String, AnyRef]("rels" -> Seq(options.relationshipMetadata.relationshipType).asJava,
+            "sourceLabels" -> options.relationshipMetadata.source.labels.asJava,
+            "targetLabels" -> options.relationshipMetadata.target.labels.asJava)
           .asJava
         retrieveSchemaFromApoc(query, params)
       } catch {
@@ -118,8 +128,8 @@ class SchemaService(private val options: Neo4jOptions, private val jobId: String
           e.code match {
             case "Neo.ClientError.Procedure.ProcedureNotFound" => {
               // TODO get back to Cypher DSL when rand function will be available
-              val query = s"""MATCH (${Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS}:${options.relationshipMetadata.source.labels.mkString(":")})
-                |MATCH (${Neo4jUtil.RELATIONSHIP_TARGET_ALIAS}:${options.relationshipMetadata.target.labels.mkString(":")})
+              val query = s"""MATCH (${Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS}:${options.relationshipMetadata.source.labels.map(_.quote()).mkString(":")})
+                |MATCH (${Neo4jUtil.RELATIONSHIP_TARGET_ALIAS}:${options.relationshipMetadata.target.labels.map(_.quote()).mkString(":")})
                 |MATCH (${Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS})-[${Neo4jUtil.RELATIONSHIP_ALIAS}:${options.relationshipMetadata.relationshipType}]->(${Neo4jUtil.RELATIONSHIP_TARGET_ALIAS})
                 |RETURN ${Neo4jUtil.RELATIONSHIP_ALIAS}
                 |ORDER BY rand()
@@ -158,9 +168,176 @@ class SchemaService(private val options: Neo4jOptions, private val jobId: String
     struct
   }
 
+  def countForNodeWithQuery(filters: Array[Filter]): Long = {
+    val query = if (filters.isEmpty) {
+      options.nodeMetadata.labels
+        .map(_.quote())
+        .map(label => s"""
+             |MATCH (:$label)
+             |RETURN count(*) AS count""".stripMargin)
+        .mkString(" UNION ALL ")
+    } else {
+      queryReadStrategy.createStatementForNodeCount(options)
+    }
+    log.info(s"Executing the following counting query on Neo4j: $query")
+    session.run(query)
+      .list()
+      .asScala
+      .map(_.get("count"))
+      .map(count => if (count.isNull) 0L else count.asLong())
+      .min
+  }
+
+  def countForRelationshipWithQuery(filters: Array[Filter]): Long = {
+    val query = if (filters.isEmpty) {
+      val sourceQueries = options.relationshipMetadata.source.labels
+        .map(_.quote())
+        .map(label => s"""MATCH (:$label)-[${Neo4jUtil.RELATIONSHIP_ALIAS}:${options.relationshipMetadata.relationshipType}]->()
+                         |RETURN count(${Neo4jUtil.RELATIONSHIP_ALIAS}) AS count
+                         |""".stripMargin)
+      val targetQueries = options.relationshipMetadata.target.labels
+        .map(_.quote())
+        .map(label => s"""MATCH ()-[${Neo4jUtil.RELATIONSHIP_ALIAS}:${options.relationshipMetadata.relationshipType}]->(:$label)
+                         |RETURN count(${Neo4jUtil.RELATIONSHIP_ALIAS}) AS count
+                         |""".stripMargin)
+      (sourceQueries ++ targetQueries)
+        .mkString(" UNION ALL ")
+    } else {
+      queryReadStrategy.createStatementForRelationshipCount(options)
+    }
+    log.info(s"Executing the following counting query on Neo4j: $query")
+    session.run(query)
+      .list()
+      .asScala
+      .map(_.get("count"))
+      .map(count => if (count.isNull) 0L else count.asLong())
+      .min
+  }
+
+  def countForNode(filters: Array[Filter]): Long = try {
+    /*
+     * we try to leverage the count store in order to have the faster response possible
+     * https://neo4j.com/developer/kb/fast-counts-using-the-count-store/
+     * so in this scenario we have some limitations given the fact that we get the min
+     * for the sequence of counts returned
+     */
+    if (filters.isEmpty) {
+      val query = "CALL apoc.meta.stats() yield labels RETURN labels"
+      val map = session.run(query).single()
+        .asMap()
+        .asScala
+        .get("labels")
+        .getOrElse(Collections.emptyMap())
+        .asInstanceOf[util.Map[String, Long]].asScala
+      map.filterKeys(k => options.nodeMetadata.labels.contains(k))
+        .values.min
+    } else {
+      countForNodeWithQuery(filters)
+    }
+  } catch {
+    case e: ClientException =>
+      e.code match {
+        case "Neo.ClientError.Procedure.ProcedureNotFound" => {
+          countForNodeWithQuery(filters)
+        }
+        case _ => logExceptionForCount(e)
+      }
+    case e: Throwable => logExceptionForCount(e)
+  }
+
+  def countForRelationship(filters: Array[Filter]): Long = try {
+    if (filters.isEmpty) {
+      val query = "CALL apoc.meta.stats() yield relTypes RETURN relTypes"
+      val map = session.run(query).single()
+        .asMap()
+        .asScala
+        .get("relTypes")
+        .getOrElse(Collections.emptyMap())
+        .asInstanceOf[util.Map[String, Long]]
+        .asScala
+      val minFromSource = options.relationshipMetadata.source.labels
+        .map(_.quote())
+        .map(label => map.get(s"(:$label)-[:${options.relationshipMetadata.relationshipType}]->()").getOrElse(Long.MaxValue))
+        .min
+      val minFromTarget = options.relationshipMetadata.target.labels
+        .map(_.quote())
+        .map(label => map.get(s"()-[:${options.relationshipMetadata.relationshipType}]->(:$label)").getOrElse(Long.MaxValue))
+        .min
+      Math.min(minFromSource, minFromTarget)
+    } else {
+      countForRelationshipWithQuery(filters)
+    }
+  } catch {
+    case e: ClientException =>
+      e.code match {
+        case "Neo.ClientError.Procedure.ProcedureNotFound" => {
+          countForRelationshipWithQuery(filters)
+        }
+        case _ => logExceptionForCount(e)
+      }
+    case e: Throwable => logExceptionForCount(e)
+  }
+
+  private def logExceptionForCount(e: Throwable): Long = {
+    log.error("Cannot compute the count because the following exception:", e)
+    -1
+  }
+
+  def countForQuery(): Long = {
+    val queryCount: String = options.queryMetadata.queryCount
+    if (Neo4jUtil.isLong(queryCount)) {
+      queryCount.toLong
+    } else {
+      val query = if (queryCount.nonEmpty) {
+        options.queryMetadata.queryCount
+      } else {
+        s"""CALL { ${options.query.value} }
+           |RETURN count(*) AS count
+           |""".stripMargin
+      }
+      session.run(query).single().get("count").asLong()
+    }
+  }
+
+  def count(filters: Array[Filter] = Array.empty[Filter]): Long = options.query.queryType match {
+    case QueryType.LABELS => countForNode(filters)
+    case QueryType.RELATIONSHIP => countForRelationship(filters)
+    case QueryType.QUERY => countForQuery()
+  }
+
+  def skipLimitFromPartition(): Seq[(Long, Long)] = if (options.partitions == 1) {
+    Seq.empty
+  } else {
+    val count: Long = this.count()
+    if (count <= 0) {
+      Seq.empty
+    } else {
+      val partitionSize = Math.ceil(count / options.partitions).toLong
+      val partitions = options.query.queryType match {
+        case QueryType.QUERY => if (options.queryMetadata.queryCount.nonEmpty) {
+          options.partitions // for custom query count we overfetch
+        } else {
+          options.partitions - 1
+        }
+        case _ => options.partitions - 1
+      }
+      (0 to partitions)
+        .map(index => (index * partitionSize, partitionSize))
+    }
+  }
+
   def isReadQuery(query: String): Boolean = {
     val queryType = session.run(s"EXPLAIN $query").consume().queryType()
     queryType == org.neo4j.driver.summary.QueryType.READ_ONLY || queryType == org.neo4j.driver.summary.QueryType.SCHEMA_WRITE
+  }
+
+  def isValidQueryCount(query: String): Boolean = {
+    val resultSummary = session.run(s"EXPLAIN $query").consume()
+    val queryType = resultSummary.queryType()
+    val plan = resultSummary.plan()
+    val isReadOnly = queryType == org.neo4j.driver.summary.QueryType.READ_ONLY || queryType == org.neo4j.driver.summary.QueryType.SCHEMA_WRITE
+    val hasCountIdentifier = plan.identifiers().asScala.toSet == Set("count")
+    isReadOnly && hasCountIdentifier
   }
 
   override def close(): Unit = {

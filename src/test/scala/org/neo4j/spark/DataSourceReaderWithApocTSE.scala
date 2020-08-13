@@ -763,6 +763,65 @@ class DataSourceReaderWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
     assertEquals(total, countTargetMap)
   }
 
+  @Test
+  def testReadNodesCustomPartitions(): Unit = {
+    val fixtureQuery: String =
+      """UNWIND range(1,100) as id
+        |CREATE (p:Person:Customer {id: id, name: 'Person ' + id})
+        |RETURN *
+    """.stripMargin
+    val fixture2Query: String =
+      """UNWIND range(1,100) as id
+        |CREATE (p:Employee:Customer {id: id, name: 'Person ' + id})
+        |RETURN *
+    """.stripMargin
+    SparkConnectorScalaSuiteWithApocIT.driver.session()
+      .writeTransaction(
+        new TransactionWork[ResultSummary] {
+          override def execute(tx: Transaction): ResultSummary = tx.run(fixtureQuery).consume()
+        })
+    SparkConnectorScalaSuiteWithApocIT.driver.session()
+      .writeTransaction(
+        new TransactionWork[ResultSummary] {
+          override def execute(tx: Transaction): ResultSummary = tx.run(fixture2Query).consume()
+        })
+
+    val partitionedDf = ss.read.format(classOf[DataSource].getName)
+      .option("url", SparkConnectorScalaSuiteWithApocIT.server.getBoltUrl)
+      .option("labels", ":Person:Customer")
+      .option("partitions", "5")
+      .load()
+
+    assertEquals(5, partitionedDf.rdd.getNumPartitions)
+    assertEquals(100, partitionedDf.collect().map(_.getAs[Long]("id")).toSet.size)
+  }
+
+  @Test
+  def testReadRelsCustomPartitions(): Unit = {
+    val fixtureQuery: String =
+      """UNWIND range(1,100) as id
+        |CREATE (p:Person {id: id, name: 'Person ' + id})-[:BOUGHT{quantity: ceil(rand() * 100)}]->(:Product{id: id, name: 'Product ' + id})
+        |RETURN *
+    """.stripMargin
+    SparkConnectorScalaSuiteWithApocIT.driver.session()
+      .writeTransaction(
+        new TransactionWork[ResultSummary] {
+          override def execute(tx: Transaction): ResultSummary = tx.run(fixtureQuery).consume()
+        })
+
+    val partitionedDf = ss.read.format(classOf[DataSource].getName)
+      .option("url", SparkConnectorScalaSuiteWithApocIT.server.getBoltUrl)
+      .option("relationship", "BOUGHT")
+      .option("relationship.source.labels", ":Person")
+      .option("relationship.target.labels", ":Product")
+      .option("partitions", "5")
+      .load()
+
+    assertEquals(5, partitionedDf.rdd.getNumPartitions)
+    partitionedDf.show()
+    assertEquals(100, partitionedDf.collect().map(_.getAs[Long]("<rel.id>")).toSet.size)
+  }
+
   private def initTest(query: String): DataFrame = {
     SparkConnectorScalaSuiteWithApocIT.session()
       .writeTransaction(

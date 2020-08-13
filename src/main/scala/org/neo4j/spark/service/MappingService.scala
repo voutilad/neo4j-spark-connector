@@ -100,7 +100,7 @@ class Neo4jReadMappingStrategy(private val options: Neo4jOptions) extends Neo4jM
       .asScala
       .map(t => (s"rel.${t._1}", t._2))
       .asJava
-    relMap.put(Neo4jUtil.INTERNAL_ID_FIELD, rel.id())
+    relMap.put(Neo4jUtil.INTERNAL_REL_ID_FIELD, rel.id())
     relMap.put(Neo4jUtil.INTERNAL_REL_TYPE_FIELD, rel.`type`())
 
     val source = record.get(Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS).asNode()

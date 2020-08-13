@@ -3,8 +3,8 @@ package org.neo4j.spark
 import java.sql.Timestamp
 import java.time.{LocalDateTime, OffsetDateTime, ZoneOffset}
 
-import org.apache.spark.sql.{DataFrame, Row}
 import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema
+import org.apache.spark.sql.{DataFrame, Row}
 import org.junit.Assert._
 import org.junit.Test
 import org.neo4j.driver.summary.ResultSummary
@@ -711,6 +711,135 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
     assertEquals(10, repartitionedDf.rdd.getNumPartitions)
     val numNode = repartitionedDf.collect().length
     assertEquals(100, numNode)
+  }
+
+  @Test
+  def testReadNodesCustomPartitions(): Unit = {
+    val fixtureQuery: String =
+      """UNWIND range(1,100) as id
+        |CREATE (p:Person:Customer {id: id, name: 'Person ' + id})
+        |RETURN *
+    """.stripMargin
+    val fixture2Query: String =
+      """UNWIND range(1,100) as id
+        |CREATE (p:Employee:Customer {id: id, name: 'Person ' + id})
+        |RETURN *
+    """.stripMargin
+    SparkConnectorScalaSuiteIT.driver.session()
+      .writeTransaction(
+        new TransactionWork[ResultSummary] {
+          override def execute(tx: Transaction): ResultSummary = tx.run(fixtureQuery).consume()
+        })
+    SparkConnectorScalaSuiteIT.driver.session()
+      .writeTransaction(
+        new TransactionWork[ResultSummary] {
+          override def execute(tx: Transaction): ResultSummary = tx.run(fixture2Query).consume()
+        })
+
+    val partitionedDf = ss.read.format(classOf[DataSource].getName)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("labels", ":Person:Customer")
+      .option("partitions", "5")
+      .load()
+
+    assertEquals(5, partitionedDf.rdd.getNumPartitions)
+    assertEquals(100, partitionedDf.collect().map(_.getAs[Long]("id")).toSet.size)
+  }
+
+  @Test
+  def testReadRelsCustomPartitions(): Unit = {
+    val fixtureQuery: String =
+      """UNWIND range(1,100) as id
+        |CREATE (p:Person {id: id, name: 'Person ' + id})-[:BOUGHT{quantity: ceil(rand() * 100)}]->(:Product{id: id, name: 'Product ' + id})
+        |RETURN *
+    """.stripMargin
+    SparkConnectorScalaSuiteIT.driver.session()
+      .writeTransaction(
+        new TransactionWork[ResultSummary] {
+          override def execute(tx: Transaction): ResultSummary = tx.run(fixtureQuery).consume()
+        })
+
+    val partitionedDf = ss.read.format(classOf[DataSource].getName)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("relationship", "BOUGHT")
+      .option("relationship.source.labels", ":Person")
+      .option("relationship.target.labels", ":Product")
+      .option("partitions", "5")
+      .load()
+
+    assertEquals(5, partitionedDf.rdd.getNumPartitions)
+    partitionedDf.show()
+    assertEquals(100, partitionedDf.collect().map(_.getAs[Long]("<rel.id>")).toSet.size)
+  }
+
+  @Test
+  def testReadQueryCustomPartitions(): Unit = {
+    val fixtureProduct1Query: String =
+      """CREATE (pr:Product{id: 1, name: 'Product 1'})
+        |WITH pr
+        |UNWIND range(1,100) as id
+        |CREATE (p:Person {id: id, name: 'Person ' + id})-[:BOUGHT{quantity: ceil(rand() * 100)}]->(pr)
+        |RETURN *
+    """.stripMargin
+    SparkConnectorScalaSuiteIT.driver.session()
+      .writeTransaction(
+        new TransactionWork[ResultSummary] {
+          override def execute(tx: Transaction): ResultSummary = tx.run(fixtureProduct1Query).consume()
+        })
+    val fixtureProduct2Query: String =
+      """CREATE (pr:Product{id: 2, name: 'Product 2'})
+        |WITH pr
+        |UNWIND range(1,50) as id
+        |MATCH (p:Person {id: id})
+        |CREATE (p)-[:BOUGHT{quantity: ceil(rand() * 100)}]->(pr)
+        |RETURN *
+    """.stripMargin
+    SparkConnectorScalaSuiteIT.driver.session()
+      .writeTransaction(
+        new TransactionWork[ResultSummary] {
+          override def execute(tx: Transaction): ResultSummary = tx.run(fixtureProduct2Query).consume()
+        })
+
+    val partitionedDf = ss.read.format(classOf[DataSource].getName)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("query",
+        """
+          |MATCH (p:Person)-[r:BOUGHT]->(pr:Product)
+          |RETURN p.name AS person, pr.name AS product, r.quantity AS quantity""".stripMargin)
+      .option("partitions", "5")
+      .load()
+
+    assertEquals(5, partitionedDf.rdd.getNumPartitions)
+    assertEquals(150, partitionedDf.collect()
+      .map(row => s"${row.getAs[String]("person")}-${row.getAs[String]("product")}").toSet.size)
+
+    val partitionedQueryCountDf = ss.read.format(classOf[DataSource].getName)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("query",
+        """
+          |MATCH (p:Person)-[r:BOUGHT]->(pr:Product{name: 'Product 2'})
+          |RETURN p.name AS person, pr.name AS product, r.quantity AS quantity""".stripMargin)
+      .option("partitions", "5")
+      .option("query.count", """
+          |MATCH (p:Person)-[r:BOUGHT]->(pr:Product{name: 'Product 2'})
+          |RETURN count(p) AS count""".stripMargin)
+      .load()
+
+    assertEquals(6, partitionedQueryCountDf.rdd.getNumPartitions)
+    assertEquals(50, partitionedQueryCountDf.collect().map(_.getAs[String]("person")).toSet.size)
+
+    val partitionedQueryCountLiteralDf = ss.read.format(classOf[DataSource].getName)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("query",
+        """
+          |MATCH (p:Person)-[r:BOUGHT]->(pr:Product{name: 'Product 2'})
+          |RETURN p.name AS person, pr.name AS product, r.quantity AS quantity""".stripMargin)
+      .option("partitions", "5")
+      .option("query.count", "50")
+      .load()
+
+    assertEquals(6, partitionedQueryCountLiteralDf.rdd.getNumPartitions)
+    assertEquals(50, partitionedQueryCountLiteralDf.collect().map(_.getAs[String]("person")).toSet.size)
   }
 
   @Test
