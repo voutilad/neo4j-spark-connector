@@ -31,6 +31,7 @@ class Neo4jOptions(private val parameters: java.util.Map[String, String]) extend
     parameters.get(parameter).trim()
   }
 
+  val pushdownFiltersEnabled: Boolean = getParameter(PUSHDOWN_FILTERS_ENABLED, DEFAULT_PUSHDOWN_FILTERS_ENABLED.toString).toBoolean
 
   val schemaMetadata = Neo4jSchemaMetadata(getParameter(SCHEMA_FLATTEN_LIMIT, DEFAULT_SCHEMA_FLATTEN_LIMIT.toString).toInt,
     SchemaStrategy.withName(getParameter(SCHEMA_STRATEGY, DEFAULT_SCHEMA_STRATEGY.toString).toUpperCase))
@@ -242,6 +243,8 @@ object Neo4jOptions {
   val DATABASE = "database"
   val ACCESS_MODE = "access.mode"
 
+  val PUSHDOWN_FILTERS_ENABLED = "pushdown.filters.enabled"
+
   // schema options
   val SCHEMA_STRATEGY = "schema.strategy"
   val SCHEMA_FLATTEN_LIMIT = "schema.flatten.limit"
@@ -274,6 +277,7 @@ object Neo4jOptions {
   val DEFAULT_TRANSACTION_RETRIES = 3
   val DEFAULT_RELATIONSHIP_NODES_MAP = true
   val DEFAULT_SCHEMA_STRATEGY = SchemaStrategy.SAMPLE
+  val DEFAULT_PUSHDOWN_FILTERS_ENABLED = true
 }
 
 object QueryType extends Enumeration {

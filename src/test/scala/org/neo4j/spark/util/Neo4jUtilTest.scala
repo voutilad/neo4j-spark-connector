@@ -8,5 +8,4 @@ class Neo4jUtilTest {
   def testSafetyCloseShouldNotFailWithNull(): Unit = {
     Neo4jUtil.closeSafety(null)
   }
-
 }

@@ -133,5 +133,7 @@ class Neo4jOptionsTest {
     assertEquals(-1, neo4jOptions.connection.acquisitionTimeout)
     assertEquals(-1, neo4jOptions.connection.connectionTimeout)
     assertEquals(-1, neo4jOptions.connection.livenessCheckTimeout)
+
+    assertTrue(neo4jOptions.pushdownFiltersEnabled)
   }
 }

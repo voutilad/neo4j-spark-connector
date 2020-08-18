@@ -177,6 +177,11 @@ every single node property as column prefixed by `source` or `target`
 |`sample`
 |No
 
+|`pushdown.filters.enabled`
+|Enable or disable the Push Down Filters support
+|`true`
+|No
+
 |===
 
 ^*^ Just one of the options can be specified.
@@ -195,9 +200,24 @@ Spark works with data in a tabular fixed schema. To accomplish this Neo4j Connec
 
 TK list of supported data types
 
+=== Consideration on the filters
+
+The Neo4j Spark Connector implements the SupportPushDownFilters interface, that allows you to push the Spark filters down to the Neo4j layer. In this way the data that Spark will receive will be already filtered by Neo4j.
+
+You can manually disable the Push Down Filters support using the `pushdown.filters.enabled` option and set it to `false` (default is `true`).
+
+If you use use the filter function more than once, like in this example:
+```scala
+df.where("name = 'John Doe'").where("age = 32")
+```
+The conditions will be automatically joined with an `AND` operator.
+
+[NOTE]
+When using `relationship.node.map = true` or `query` the PushDownFilters support is not active, thus the filters will be applied by Spark and not by Neo4j.
+
 ==== How we extract the schema
 
-As Neo4j has ha schema-less approach and Spark needs a Schema in order to create a Dataset,
+As Neo4j has a schema-less approach and Spark needs a Schema in order to create a Dataset,
 we use several approaches in order to sample the dataset into Neo4j and compute the schema for Spark's Dataset.
 
 ===== Extract schema for Nodes
@@ -307,7 +327,8 @@ When reading data with this method, the Dataframe will contain all the fields co
 
 ==== Schema
 
-If APOC are installed, schema will be created with `apoc.meta.nodeTypeProperties`. Otherwise the first 10 (or any number specified by the `schema.flatten.limit` option) results will be flattened and the schema will be create from those properties.
+If APOC are available, the schema will be created with `apoc.meta.nodeTypeProperties`.
+Otherwise the first 10 (or any number specified by the `schema.flatten.limit` option) results will be flattened and the schema will be create from those properties.
 
 ===== Example
 
@@ -371,9 +392,39 @@ otherwise if `false`:
 * `<targetId>` the internal Neo4j id of target node
 * `<targetLabels>` a list of labels for target node
 
+==== Filter
+
+You can use Spark to filter properties of the relationship, the source node, or the target node. Just use the correct prefix:
+
+If `relationship.node.map` is set to **false**
+
+* ``\`source.[property]` `` for the source node properties
+* ``\`rel.[property]` `` for the relation property
+* ``\`target.[property]` `` for the target node property
+
+If `relationship.node.map` is set to **true**
+
+* ``\`<source>`.\`[property]` `` for the source node map properties
+* ``\`<rel>`.\`[property]` `` for the relation map property
+* ``\`<target>`.\`[property]` `` for the target node map property
+
+in this case, all the map values will be strings, so the filter value must be a string too.
+
+```scala
+val df = spark.read.format("org.neo4j.spark.DataSource")
+      .option("relationship.node.map", false)
+      .option("relationship", "BOUGHT")
+      .option("relationship.source.labels", "Person")
+      .option("relationship.target.labels", "Product")
+      .load()
+
+df.where("source.name = 'John Doe' AND target.price >= 33")
+```
+
 ==== Schema
 
-If APOC are installed, schema will be created with `apoc.meta.relTypeProperties`. Otherwise the first 10 (or any number specified by the `schema.flatten.limit` option) results will be flattened and the schema will be create from those properties.
+If APOC are available, the schema will be created with `apoc.meta.relTypeProperties`. 
+Otherwise the first 10 (or any number specified by the `schema.flatten.limit` option) results will be flattened and the schema will be create from those properties.
 
 === Read data by custom Cypher Query
 

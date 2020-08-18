@@ -327,6 +327,293 @@ class DataSourceReaderWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
   }
 
   @Test
+  def testReadNodeWithEqualToFilter(): Unit = {
+    val df: DataFrame = initTest(s"""
+     CREATE (p1:Person {name: 'John Doe'}),
+      (p2:Person {name: 'Jane Doe'})
+     """)
+
+    val result = df.select("name").where("name = 'John Doe'").collectAsList()
+
+    assertEquals(1, result.size())
+    assertEquals("John Doe", result.get(0).getString(0))
+  }
+
+  @Test
+  def testReadNodeWithNotEqualToFilter(): Unit = {
+    val df: DataFrame = initTest(s"""
+     CREATE (p1:Person {name: 'John Doe'}),
+      (p2:Person {name: 'Jane Doe'})
+     """)
+
+    val result = df.select("name").where("NOT name = 'John Doe'").collectAsList()
+
+    assertEquals(1, result.size())
+    assertEquals("Jane Doe", result.get(0).getString(0))
+  }
+
+  @Test
+  def testReadNodeWithDifferentOperatorFilter(): Unit = {
+    val df: DataFrame = initTest(s"""
+     CREATE (p1:Person {name: 'John Doe'}),
+      (p2:Person {name: 'Jane Doe'})
+     """)
+
+    val result = df.select("name").where("name != 'John Doe'").collectAsList()
+
+    assertEquals(1, result.size())
+    assertEquals("Jane Doe", result.get(0).getString(0))
+  }
+
+  @Test
+  def testReadNodeWithGtFilter(): Unit = {
+    val df: DataFrame = initTest(s"""
+     CREATE (p1:Person {age: 19}),
+      (p2:Person {age: 20}),
+      (p3:Person {age: 21})
+     """)
+
+    val result = df.select("age").where("age > 20").collectAsList()
+
+    assertEquals(1, result.size())
+    assertEquals(21, result.get(0).getLong(0))
+  }
+
+  @Test
+  def testReadNodeWithGteFilter(): Unit = {
+    val df: DataFrame = initTest(s"""
+     CREATE (p1:Person {age: 19}),
+      (p2:Person {age: 20}),
+      (p3:Person {age: 21})
+     """)
+
+    val result = df.select("age").orderBy("age").where("age >= 20").collectAsList()
+
+    assertEquals(2, result.size())
+    assertEquals(20, result.get(0).getLong(0))
+    assertEquals(21, result.get(1).getLong(0))
+  }
+
+  @Test
+  def testReadNodeWithGteFilterWithProp(): Unit = {
+    val df: DataFrame = initTest(s"""
+     CREATE (p1:Person {score: 19, limit: 20}),
+      (p2:Person {score: 20,  limit: 18}),
+      (p3:Person {score: 21,  limit: 12})
+     """)
+
+    val result = df.select("score").orderBy("score").where("score >= limit").collectAsList()
+
+    assertEquals(2, result.size())
+    assertEquals(20, result.get(0).getLong(0))
+    assertEquals(21, result.get(1).getLong(0))
+  }
+
+  @Test
+  def testReadNodeWithLtFilter(): Unit = {
+    val df: DataFrame = initTest(s"""
+     CREATE (p1:Person {age: 39}),
+      (p2:Person {age: 41}),
+      (p3:Person {age: 43})
+     """)
+
+    val result = df.select("age").orderBy("age").where("age < 40").collectAsList()
+
+    assertEquals(1, result.size())
+    assertEquals(39, result.get(0).getLong(0))
+  }
+
+  @Test
+  def testReadNodeWithLteFilter(): Unit = {
+    val df: DataFrame = initTest(s"""
+     CREATE (p1:Person {age: 39}),
+      (p2:Person {age: 41}),
+      (p3:Person {age: 43})
+     """)
+
+    val result = df.select("age").orderBy("age").where("age <= 41").collectAsList()
+
+    assertEquals(2, result.size())
+    assertEquals(39, result.get(0).getLong(0))
+    assertEquals(41, result.get(1).getLong(0))
+  }
+
+  @Test
+  def testReadNodeWithInFilter(): Unit = {
+    val df: DataFrame = initTest(s"""
+     CREATE (p1:Person {age: 39}),
+      (p2:Person {age: 41}),
+      (p3:Person {age: 43})
+     """)
+
+    val result = df.select("age").orderBy("age").where("age IN(41,43)").collectAsList()
+
+    assertEquals(2, result.size())
+    assertEquals(41, result.get(0).getLong(0))
+    assertEquals(43, result.get(1).getLong(0))
+  }
+
+  @Test
+  def testReadNodeWithIsNullFilter(): Unit = {
+    val df: DataFrame = initTest(s"""
+     CREATE (p1:Person {age: 39}),
+      (p2:Person {age: null}),
+      (p3:Person {age: 43})
+     """)
+
+    val result = df.select("age").where("age IS NULL").collectAsList()
+
+    assertEquals(1, result.size())
+    assertNull(result.get(0).get(0))
+  }
+
+  @Test
+  def testReadNodeWithIsNotNullFilter(): Unit = {
+    val df: DataFrame = initTest(s"""
+     CREATE (p1:Person {age: 39}),
+      (p2:Person {age: null}),
+      (p3:Person {age: 43})
+     """)
+
+    val result = df.select("age").orderBy("age").where("age IS NOT NULL").collectAsList()
+
+    assertEquals(2, result.size())
+    assertEquals(39, result.get(0).getLong(0))
+    assertEquals(43, result.get(1).getLong(0))
+  }
+
+  @Test
+  def testReadNodeWithOrCondition(): Unit = {
+    val df: DataFrame = initTest(s"""
+     CREATE (p1:Person {age: 39}),
+      (p2:Person {age: null}),
+      (p3:Person {age: 43})
+     """)
+
+    val result = df.select("age").orderBy("age").where("age = 43 OR age = 39 OR age = 32").collectAsList()
+
+    assertEquals(2, result.size())
+    assertEquals(39, result.get(0).getLong(0))
+    assertEquals(43, result.get(1).getLong(0))
+  }
+
+  @Test
+  def testReadNodeWithAndCondition(): Unit = {
+    val df: DataFrame = initTest(s"""
+     CREATE (p1:Person {age: 39}),
+      (p2:Person {age: null}),
+      (p3:Person {age: 43})
+     """)
+
+    val result = df.select("age").orderBy("age").where("age >= 39 AND age <= 43").collectAsList()
+
+    assertEquals(2, result.size())
+    assertEquals(39, result.get(0).getLong(0))
+    assertEquals(43, result.get(1).getLong(0))
+  }
+
+  @Test
+  def testReadNodeWithStartsWith(): Unit = {
+    val df: DataFrame = initTest(s"""
+     CREATE (p1:Person {name: 'John Mayer'}),
+      (p2:Person {name: 'John Scofield'}),
+      (p3:Person {name: 'John Butler'})
+     """)
+
+    val result = df.select("name").orderBy("name").where("name LIKE 'John%'").collectAsList()
+
+    assertEquals(3, result.size())
+    assertEquals("John Butler", result.get(0).getString(0))
+    assertEquals("John Mayer", result.get(1).getString(0))
+    assertEquals("John Scofield", result.get(2).getString(0))
+  }
+
+  @Test
+  def testReadNodeWithEndsWith(): Unit = {
+    val df: DataFrame = initTest(s"""
+     CREATE (p1:Person {name: 'John Mayer'}),
+      (p2:Person {name: 'John Scofield'}),
+      (p3:Person {name: 'John Butler'})
+     """)
+
+    val result = df.select("name").where("name LIKE '%Scofield'").collectAsList()
+
+    assertEquals(1, result.size())
+    assertEquals("John Scofield", result.get(0).getString(0))
+  }
+
+  @Test
+  def testReadNodeWithContains(): Unit = {
+    val df: DataFrame = initTest(s"""
+     CREATE (p1:Person {name: 'John Mayer'}),
+      (p2:Person {name: 'John Scofield'}),
+      (p3:Person {name: 'John Butler'})
+     """)
+
+    val result = df.select("name").where("name LIKE '%ay%'").collectAsList()
+
+    assertEquals(1, result.size())
+    assertEquals("John Mayer", result.get(0).getString(0))
+  }
+
+  @Test
+  def testRelFiltersWithMap(): Unit = {
+    val fixtureQuery: String =
+      """UNWIND range(1,100) as id
+        |CREATE (p:Person {id:id,ids:[id,id]}) WITH collect(p) as people
+        |UNWIND people as p1
+        |UNWIND range(1,10) as friend
+        |WITH p1, people[(p1.id + friend) % size(people)] as p2
+        |CREATE (p1)-[:KNOWS]->(p2)
+        |RETURN *
+    """.stripMargin
+
+    SparkConnectorScalaSuiteWithApocIT.session()
+      .writeTransaction(
+        new TransactionWork[ResultSummary] {
+          override def execute(tx: Transaction): ResultSummary = tx.run(fixtureQuery).consume()
+        })
+
+    val df = ss.read.format(classOf[DataSource].getName)
+      .option("url", SparkConnectorScalaSuiteWithApocIT.server.getBoltUrl)
+      .option("relationship", "KNOWS")
+      .option("relationship.source.labels", "Person")
+      .option("relationship.target.labels", "Person")
+      .load()
+
+    assertEquals(1, df.filter("`<source>`.`id` = '14' AND `<target>`.`id` = '16'").collectAsList().size())
+  }
+
+  @Test
+  def testRelFiltersWithoutMap(): Unit = {
+    val fixtureQuery: String =
+      """UNWIND range(1,100) as id
+        |CREATE (p:Person {id:id,ids:[id,id]}) WITH collect(p) as people
+        |UNWIND people as p1
+        |UNWIND range(1,10) as friend
+        |WITH p1, people[(p1.id + friend) % size(people)] as p2
+        |CREATE (p1)-[:KNOWS]->(p2)
+        |RETURN *
+    """.stripMargin
+
+    SparkConnectorScalaSuiteWithApocIT.session()
+      .writeTransaction(
+        new TransactionWork[ResultSummary] {
+          override def execute(tx: Transaction): ResultSummary = tx.run(fixtureQuery).consume()
+        })
+
+    val df = ss.read.format(classOf[DataSource].getName)
+      .option("url", SparkConnectorScalaSuiteWithApocIT.server.getBoltUrl)
+      .option("relationship", "KNOWS")
+      .option("relationship.nodes.map", "false")
+      .option("relationship.source.labels", "Person")
+      .option("relationship.target.labels", "Person")
+      .load()
+
+    assertEquals(1, df.filter("`source.id` = 14 AND `target.id` = 16").collectAsList().size())
+  }
+
+  @Test
   def testReadNodeRepartition(): Unit = {
     val fixtureQuery: String =
       """UNWIND range(1,100) as id
@@ -340,8 +627,6 @@ class DataSourceReaderWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
 
     val df: DataFrame = initTest(fixtureQuery)
     val repartitionedDf = df.repartition(10)
-
-    df.printSchema()
 
     assertEquals(10, repartitionedDf.rdd.getNumPartitions)
     val numNode = repartitionedDf.collect().length
@@ -395,10 +680,10 @@ class DataSourceReaderWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
     val total = 100
     val fixtureQuery: String =
       s"""UNWIND range(1, $total) as id
-        |CREATE (pr:Product {id: id * rand(), name: 'Product ' + id})
-        |CREATE (pe:Person {id: id, fullName: 'Person ' + id})
-        |CREATE (pe)-[:BOUGHT{when: rand(), quantity: rand() * 1000}]->(pr)
-        |RETURN *
+         |CREATE (pr:Product {id: id * rand(), name: 'Product ' + id})
+         |CREATE (pe:Person {id: id, fullName: 'Person ' + id})
+         |CREATE (pe)-[:BOUGHT{when: rand(), quantity: rand() * 1000}]->(pr)
+         |RETURN *
     """.stripMargin
 
     SparkConnectorScalaSuiteWithApocIT.session()
@@ -417,7 +702,7 @@ class DataSourceReaderWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
 
     val count = df.collectAsList()
       .asScala
-      .filter(row =>row.getAs[Long]("<rel.id>") != null
+      .filter(row => row.getAs[Long]("<rel.id>") != null
         && row.getAs[String]("<rel.type>") != null
         && row.getAs[Long]("rel.when") != null
         && row.getAs[Long]("rel.quantity") != null
@@ -459,7 +744,7 @@ class DataSourceReaderWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
 
     val rows = df.collectAsList().asScala
     val count = rows
-      .filter(row =>row.getAs[Long]("<rel.id>") != null
+      .filter(row => row.getAs[Long]("<rel.id>") != null
         && row.getAs[String]("<rel.type>") != null
         && row.getAs[Long]("rel.when") != null
         && row.getAs[Long]("rel.quantity") != null

@@ -58,7 +58,7 @@ class SparkConnectorScalaBaseWithApocTSE {
             val afterConnections = SparkConnectorScalaSuiteWithApocIT.getActiveConnections
             SparkConnectorScalaSuiteWithApocIT.connections == afterConnections
           }
-        }, Matchers.equalTo(true), 30, TimeUnit.SECONDS)
+        }, Matchers.equalTo(true), 45, TimeUnit.SECONDS)
       } finally {
         val afterConnections = SparkConnectorScalaSuiteWithApocIT.getActiveConnections
         if (SparkConnectorScalaSuiteWithApocIT.connections != afterConnections) { // just for debug purposes
