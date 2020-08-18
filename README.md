@@ -14,7 +14,7 @@ This neo4j-spark-connector is Apache 2 Licensed
 ## Building
 
 
-Build `target/neo4j-spark-connector_2.11-full-2.4.5-M1.jar` for Scala 2.11
+Build `target/neo4j-spark-connector_2.11-full-2.4.5-M2.jar` for Scala 2.11
 
     mvn clean package
 
@@ -22,21 +22,21 @@ Build `target/neo4j-spark-connector_2.11-full-2.4.5-M1.jar` for Scala 2.11
 
 **spark-shell, pyspark, or spark-submit**
 
-`$SPARK_HOME/bin/spark-shell --jars neo4j-spark-connector_2.11-full-2.4.5-M1.jar`
+`$SPARK_HOME/bin/spark-shell --jars neo4j-spark-connector_2.11-full-2.4.5-M2.jar`
 
-`$SPARK_HOME/bin/spark-shell --packages neo4j-contrib:neo4j-spark-connector:2.4.5-M1`
+`$SPARK_HOME/bin/spark-shell --packages neo4j-contrib:neo4j-spark-connector:2.4.5-M2`
 
 **sbt**
 
 If you use the [sbt-spark-package plugin](https://github.com/databricks/sbt-spark-package), in your sbt build file, add:
 
-```scala spDependencies += "neo4j-contrib/neo4j-spark-connector:2.4.5-M1"```
+```scala spDependencies += "neo4j-contrib/neo4j-spark-connector:2.4.5-M2"```
 
 Otherwise,
 
 ```scala
 resolvers += "Spark Packages Repo" at "http://dl.bintray.com/spark-packages/maven"
-libraryDependencies += "neo4j-contrib" % "neo4j-spark-connector" % "2.4.5-M1"
+libraryDependencies += "neo4j-contrib" % "neo4j-spark-connector" % "2.4.5-M2"
 ```  
 
 **maven**  
@@ -48,7 +48,7 @@ In your pom.xml, add:
   <dependency>
     <groupId>neo4j-contrib</groupId>
     <artifactId>neo4j-spark-connector</artifactId>
-    <version>2.4.5-M1</version>
+    <version>2.4.5-M2</version>
   </dependency>
 </dependencies>
 <repositories>
@@ -75,7 +75,7 @@ Otherwise, you can either ignore `spark.neo4j.encryption` or  set  `spark.neo4j.
 
 ## Builder API
 
-Starting with version 2.4.5-M1 you can use a fluent builder API to declare the queries or patterns you want to use, but also **partitions, total-rows and batch-sizes** and then select which Apache Spark Type to load.
+Starting with version 2.4.5-M2 you can use a fluent builder API to declare the queries or patterns you want to use, but also **partitions, total-rows and batch-sizes** and then select which Apache Spark Type to load.
 
 This library supports:
 
@@ -124,7 +124,7 @@ CREATE (p1)-[:KNOWS {years: abs(p2.id - p2.id)}]->(p2)
 
 Start the Spark-Shell with
 
-`$SPARK_HOME/bin/spark-shell --packages neo4j-contrib:neo4j-spark-connector:2.4.5-M1`
+`$SPARK_HOME/bin/spark-shell --packages neo4j-contrib:neo4j-spark-connector:2.4.5-M2`
 
 ### Loading RDDs
 
@@ -326,12 +326,12 @@ You can also provide the dependencies to spark-shell or spark-submit via `--pack
 
     $SPARK_HOME/bin/spark-shell \
           --conf spark.neo4j.password=<neo4j-password> \
-          --packages neo4j-contrib:neo4j-spark-connector:2.4.5-M1
+          --packages neo4j-contrib:neo4j-spark-connector:2.4.5-M2
 
 ### Neo4j(Row|Tuple)RDD
 
     $SPARK_HOME/bin/spark-shell --conf spark.neo4j.password=<neo4j-password> \
-    --packages neo4j-contrib:neo4j-spark-connector:2.4.5-M1
+    --packages neo4j-contrib:neo4j-spark-connector:2.4.5-M2
 
 ```scala
 <!-- tag::example_rdd[] -->
@@ -350,7 +350,7 @@ You can also provide the dependencies to spark-shell or spark-submit via `--pack
 ### Neo4jDataFrame
 
     $SPARK_HOME/bin/spark-shell --conf spark.neo4j.password=<neo4j-password> \
-    --packages neo4j-contrib:neo4j-spark-connector:2.4.5-M1
+    --packages neo4j-contrib:neo4j-spark-connector:2.4.5-M2
 
 ```scala
     import org.neo4j.spark._
@@ -392,7 +392,7 @@ You can also provide the dependencies to spark-shell or spark-submit via `--pack
 ### Neo4jGraph Operations
 
     $SPARK_HOME/bin/spark-shell --conf spark.neo4j.password=<neo4j-password> \
-    --packages neo4j-contrib:neo4j-spark-connector:2.4.5-M1
+    --packages neo4j-contrib:neo4j-spark-connector:2.4.5-M2
 
 ```scala
     import org.neo4j.spark._
@@ -440,7 +440,7 @@ Resources:
 
 
     $SPARK_HOME/bin/spark-shell --conf spark.neo4j.password=<neo4j-password> \
-    --packages neo4j-contrib:neo4j-spark-connector:2.4.5-M1
+    --packages neo4j-contrib:neo4j-spark-connector:2.4.5-M2
 
 ```scala  
 <!-- tag::example_graphframes[] -->
