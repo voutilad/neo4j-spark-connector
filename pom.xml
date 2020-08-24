@@ -37,8 +37,8 @@
     </licenses>
 
     <properties>
-        <project.scala.version>2.11.12</project.scala.version>
-        <project.scala.binary.version>2.11</project.scala.binary.version>
+        <scala.version>2.11.12</scala.version>
+        <scala.binary.version>2.11</scala.binary.version>
         <neo4j.version>4.0.4</neo4j.version>
         <driver.version>4.1.0</driver.version>
         <spark.version>2.4.5</spark.version>
@@ -49,6 +49,26 @@
         <node.version>v12.16.0</node.version>
         <npm.version>6.13.7</npm.version>
     </properties>
+
+    <profiles>
+        <profile>
+            <id>scala-2.11</id>
+            <properties>
+                <scala.version>2.11.12</scala.version>
+                <scala.binary.version>2.11</scala.binary.version>
+            </properties>
+            <activation>
+                <activeByDefault>true</activeByDefault>
+            </activation>
+        </profile>
+        <profile>
+            <id>scala-2.12</id>
+            <properties>
+                <scala.version>2.12.12</scala.version>
+                <scala.binary.version>2.12</scala.binary.version>
+            </properties>
+        </profile>
+    </profiles>
 
     <build>
         <resources>
@@ -101,8 +121,8 @@
                     </execution>
                 </executions>
                 <configuration>
-                    <scalaVersion>${project.scala.version}</scalaVersion>
-                    <scalaCompatVersion>${project.scala.binary.version}</scalaCompatVersion>
+                    <scalaVersion>${scala.version}</scalaVersion>
+                    <scalaCompatVersion>${scala.binary.version}</scalaCompatVersion>
                     <args>
                         <arg>-Xmax-classfile-name</arg>
                         <arg>100</arg>
@@ -130,7 +150,7 @@
                     <descriptorRefs>
                         <descriptorRef>jar-with-dependencies</descriptorRef>
                     </descriptorRefs>
-                    <finalName>${project.artifactId}-full-${project.version}</finalName>
+                    <finalName>${project.artifactId}-${scala.version.binary}-${project.version}</finalName>
                     <appendAssemblyId>false</appendAssemblyId>
                 </configuration>
             </plugin>
@@ -210,14 +230,14 @@
         <dependency>
             <groupId>org.scala-lang</groupId>
             <artifactId>scala-library</artifactId>
-            <version>${project.scala.version}</version>
+            <version>${scala.version}</version>
             <scope>provided</scope>
         </dependency>
 
         <dependency>
             <groupId>org.scala-lang</groupId>
             <artifactId>scala-reflect</artifactId>
-            <version>${project.scala.version}</version>
+            <version>${scala.version}</version>
             <scope>provided</scope>
         </dependency>
 
@@ -236,7 +256,7 @@
 
         <dependency>
             <groupId>org.apache.spark</groupId>
-            <artifactId>spark-core_${project.scala.binary.version}</artifactId>
+            <artifactId>spark-core_${scala.binary.version}</artifactId>
             <version>${spark.version}</version>
             <scope>provided</scope>
             <exclusions>
@@ -249,7 +269,7 @@
 
         <dependency>
             <groupId>org.apache.spark</groupId>
-            <artifactId>spark-sql_${project.scala.binary.version}</artifactId>
+            <artifactId>spark-sql_${scala.binary.version}</artifactId>
             <version>${spark.version}</version>
             <scope>provided</scope>
         </dependency>
