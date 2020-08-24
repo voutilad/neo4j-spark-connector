@@ -60,7 +60,7 @@ class Neo4jQueryWriteStrategy(private val saveMode: NodeSaveMode.Value) extends 
           s"${key._2}:event.source.${key._1}"
         }).mkString(",")
         val targetKeys = options.relationshipMetadata.target.nodeKeys.map(key => {
-          s"${key._2}:event.source.${key._1}"
+          s"${key._2}:event.target.${key._1}"
         }).mkString(",")
 
         s"""UNWIND ${"$"}events AS event

@@ -203,7 +203,7 @@ every single node property as column prefixed by `source` or `target`
 |`5000`
 |No
 
-|`relationship.access.mode`
+|`relationship.write.strategy`
 |<<node-keys,Docs here>>
 |``
 |Yes for <<keys-strategy,KEYS>> strategy

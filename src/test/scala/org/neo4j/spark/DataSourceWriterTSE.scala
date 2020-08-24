@@ -567,7 +567,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
   }
 
   @Test
-  def `should read relations and write relation`(): Unit = {
+  def `should read and write relations`(): Unit = {
     val total = 100
     val fixtureQuery: String =
       s"""UNWIND range(1, $total) as id
@@ -605,6 +605,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
       .option("database", "db2")
       .option("relationship", "SOLD")
+      .option("relationship.write.strategy", "NATIVE")
       .option("relationship.source.labels", ":Person")
       .option("relationship.source.access.mode", "ErrorIfExists")
       .option("relationship.target.labels", ":Product")
@@ -663,7 +664,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
   }
 
   @Test
-  def `should read relations and write relation with overwrite mode`(): Unit = {
+  def `should read and write relations with overwrite mode`(): Unit = {
     val fixtureQuery: String =
       s"""CREATE (m:Musician {name: "John Bonham"})
          |CREATE (i:Instrument {name: "Drums"})
@@ -688,8 +689,8 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
       .option("relationship.nodes.map", "false")
-      .option("relationship.source.access.mode", "errorifexists")
-      .option("relationship.target.access.mode", "errorifexists")
+      .option("relationship.source.access.mode", "overwrite")
+      .option("relationship.target.access.mode", "overwrite")
       .option("relationship", "PLAYS")
       .option("relationship.write.strategy", "keys")
       .option("relationship.source.labels", ":Musician")
@@ -715,7 +716,8 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
   @Test
   def `should read relations and write relation with match mode`(): Unit = {
     val fixtureQuery: String =
-      s"""CREATE (m:Musician {name: "John Bonham, age: 32"})
+      s"""CREATE (m:Musician {name: "John Bonham", age: 32})
+         |CREATE (i:Instrument {name: "Drums"})
          |RETURN *
     """.stripMargin
 
@@ -732,10 +734,11 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
     musicDf.write
       .format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("database", "db1")
       .option("relationship.nodes.map", "false")
       .option("relationship", "PLAYS")
-      .option("relationship.source.access.mode", "errorifexists")
-      .option("relationship.target.access.mode", "errorifexists")
+      .option("relationship.source.access.mode", "match")
+      .option("relationship.target.access.mode", "match")
       .option("relationship.write.strategy", "keys")
       .option("relationship.source.labels", ":Musician")
       .option("relationship.source.node.keys", "name:name,age:age")
@@ -745,6 +748,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
 
     val df2 = ss.read.format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("database", "db1")
       .option("relationship.nodes.map", "false")
       .option("relationship", "PLAYS")
       .option("relationship.source.labels", ":Musician")
