@@ -127,36 +127,9 @@ class Neo4jOptions(private val parameters: java.util.Map[String, String]) extend
 
     val nodeMap = getParameter(RELATIONSHIP_NODES_MAP, DEFAULT_RELATIONSHIP_NODES_MAP.toString).toBoolean
 
-    val writeStrategy = RelationshipWriteStrategy
-      .values
-      .find(_.toString == getParameter(RELATIONSHIP_WRITE_STRATEGY, DEFAULT_RELATIONSHIP_WRITE_STRATEGY.toString).toUpperCase)
-
-    if(writeStrategy.isEmpty) {
-      throw new IllegalArgumentException(s"The relationship write strategy `${getParameter(RELATIONSHIP_WRITE_STRATEGY)}` is not valid, use one of ${
-        RelationshipWriteStrategy.values.toSeq.sortBy(_.toString).map(value => s"'${value.toString.toLowerCase()}'")
-          .sorted.mkString(", ")
-      }")
-    }
-
-    val sourceSaveMode = NodeWriteMode
-      .values
-      .find(_.toString.toUpperCase == getParameter(RELATIONSHIP_SOURCE_WRITE_MODE, DEFAULT_RELATIONSHIP_SOURCE_WRITE_MODE.toString).toUpperCase)
-    if(sourceSaveMode.isEmpty) {
-      throw new IllegalArgumentException(s"The source node save mode `${getParameter(RELATIONSHIP_SOURCE_WRITE_MODE)}` is not valid, use one of ${
-        NodeWriteMode.values.toSeq.map(value => s"'${value.toString.toLowerCase()}'")
-          .sorted.mkString(", ")
-      }")
-    }
-
-    val targetSaveMode = NodeWriteMode
-      .values
-      .find(_.toString.toUpperCase == getParameter(RELATIONSHIP_TARGET_WRITE_MODE, DEFAULT_RELATIONSHIP_TARGET_WRITE_MODE.toString).toUpperCase)
-    if(targetSaveMode.isEmpty) {
-      throw new IllegalArgumentException(s"The target node save mode `${getParameter(RELATIONSHIP_TARGET_WRITE_MODE)}` is not valid, use one of ${
-        NodeWriteMode.values.toSeq.map(value => s"'${value.toString.toLowerCase()}'")
-          .sorted.mkString(", ")
-      }")
-    }
+    val writeStrategy = RelationshipWriteStrategy.withName(getParameter(RELATIONSHIP_WRITE_STRATEGY, DEFAULT_RELATIONSHIP_WRITE_STRATEGY.toString).toUpperCase)
+    val sourceSaveMode = NodeWriteMode.withName(getParameter(RELATIONSHIP_SOURCE_WRITE_MODE, DEFAULT_RELATIONSHIP_SOURCE_WRITE_MODE.toString).toUpperCase)
+    val targetSaveMode = NodeWriteMode.withName(getParameter(RELATIONSHIP_TARGET_WRITE_MODE, DEFAULT_RELATIONSHIP_TARGET_WRITE_MODE.toString).toUpperCase)
 
     Neo4jRelationshipMetadata(source, target, sourceSaveMode.get, targetSaveMode.get, query.value, nodeMap, writeStrategy.get)
   }

@@ -651,8 +651,8 @@ musicDf.write
 ```
 
 [[node-keys]]
-Here you must speficy which keys of your Dataframe will be writtent in the source node and in the target node.
-All the remaining properties will be written in the relationship.
+Here you must speficy which keys of your Dataframe will be written in the source node and in the target node.
+All the remaining properties will be written as the relationship properties.
 You can do this with a comma-separated list of `key:value` paris, where the key is the node property name to be written, and the value is the dataframe column name.
 
 [[node-save-modes]]
@@ -662,4 +662,4 @@ You can specify 3 different modes to use for saving the nodes:
 
 * `Overwrite`: will perform a `MERGE` on that node
 * `ErrorIfExists`: will perform a `CREATE`
-* `Match`: will perform a `Match`
+* `Match`: will perform a `MATCH`
