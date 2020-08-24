@@ -128,10 +128,10 @@ class Neo4jOptions(private val parameters: java.util.Map[String, String]) extend
     val nodeMap = getParameter(RELATIONSHIP_NODES_MAP, DEFAULT_RELATIONSHIP_NODES_MAP.toString).toBoolean
 
     val writeStrategy = RelationshipWriteStrategy.withName(getParameter(RELATIONSHIP_WRITE_STRATEGY, DEFAULT_RELATIONSHIP_WRITE_STRATEGY.toString).toUpperCase)
-    val sourceSaveMode = NodeWriteMode.withName(getParameter(RELATIONSHIP_SOURCE_WRITE_MODE, DEFAULT_RELATIONSHIP_SOURCE_WRITE_MODE.toString).toUpperCase)
-    val targetSaveMode = NodeWriteMode.withName(getParameter(RELATIONSHIP_TARGET_WRITE_MODE, DEFAULT_RELATIONSHIP_TARGET_WRITE_MODE.toString).toUpperCase)
+    val sourceSaveMode = NodeWriteMode.withName(getParameter(RELATIONSHIP_SOURCE_WRITE_MODE, DEFAULT_RELATIONSHIP_SOURCE_WRITE_MODE.toString))
+    val targetSaveMode = NodeWriteMode.withName(getParameter(RELATIONSHIP_TARGET_WRITE_MODE, DEFAULT_RELATIONSHIP_TARGET_WRITE_MODE.toString))
 
-    Neo4jRelationshipMetadata(source, target, sourceSaveMode.get, targetSaveMode.get, query.value, nodeMap, writeStrategy.get)
+    Neo4jRelationshipMetadata(source, target, sourceSaveMode, targetSaveMode, query.value, nodeMap, writeStrategy)
   }
 
   def initNeo4jQueryMetadata(): Neo4jQueryMetadata = Neo4jQueryMetadata(

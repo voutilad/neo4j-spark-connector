@@ -72,8 +72,8 @@ class Neo4jOptionsTest {
     options.put(QueryType.LABELS.toString.toLowerCase, "PERSON")
     options.put("relationship.write.strategy", "nope")
 
-    _expectedException.expect(classOf[IllegalArgumentException])
-    _expectedException.expectMessage("The relationship write strategy `nope` is not valid, use one of 'keys', 'native'")
+    _expectedException.expect(classOf[NoSuchElementException])
+    _expectedException.expectMessage("No value found for 'NOPE'")
 
     new Neo4jOptions(options)
   }

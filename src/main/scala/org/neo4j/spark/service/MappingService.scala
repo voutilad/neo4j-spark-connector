@@ -55,11 +55,6 @@ class Neo4jWriteMappingStrategy(private val options: Neo4jOptions)
           else if (key.startsWith(Neo4jUtil.RELATIONSHIP_TARGET_ALIAS.concat("."))) {
             targetMap.put(key.split('.').drop(1).mkString("."), value)
           }
-          else {
-            throw new IllegalArgumentException(s"Unable to map key $key. Prefix must be one of ${Neo4jUtil.RELATIONSHIP_ALIAS}, " +
-              s"${Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS}, " +
-              s"${Neo4jUtil.RELATIONSHIP_TARGET_ALIAS}")
-          }
         }
       })
 
