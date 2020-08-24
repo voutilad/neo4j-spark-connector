@@ -138,22 +138,22 @@ class Neo4jOptions(private val parameters: java.util.Map[String, String]) extend
       }")
     }
 
-    val sourceSaveMode = NodeSaveMode
+    val sourceSaveMode = NodeWriteMode
       .values
-      .find(_.toString.toUpperCase == getParameter(RELATIONSHIP_SOURCE_SAVE_MODE, DEFAULT_RELATIONSHIP_SOURCE_SAVE_MODE.toString).toUpperCase)
+      .find(_.toString.toUpperCase == getParameter(RELATIONSHIP_SOURCE_WRITE_MODE, DEFAULT_RELATIONSHIP_SOURCE_WRITE_MODE.toString).toUpperCase)
     if(sourceSaveMode.isEmpty) {
-      throw new IllegalArgumentException(s"The source node save mode `${getParameter(RELATIONSHIP_SOURCE_SAVE_MODE)}` is not valid, use one of ${
-        NodeSaveMode.values.toSeq.map(value => s"'${value.toString.toLowerCase()}'")
+      throw new IllegalArgumentException(s"The source node save mode `${getParameter(RELATIONSHIP_SOURCE_WRITE_MODE)}` is not valid, use one of ${
+        NodeWriteMode.values.toSeq.map(value => s"'${value.toString.toLowerCase()}'")
           .sorted.mkString(", ")
       }")
     }
 
-    val targetSaveMode = NodeSaveMode
+    val targetSaveMode = NodeWriteMode
       .values
-      .find(_.toString.toUpperCase == getParameter(RELATIONSHIP_TARGET_SAVE_MODE, DEFAULT_RELATIONSHIP_TARGET_SAVE_MODE.toString).toUpperCase)
+      .find(_.toString.toUpperCase == getParameter(RELATIONSHIP_TARGET_WRITE_MODE, DEFAULT_RELATIONSHIP_TARGET_WRITE_MODE.toString).toUpperCase)
     if(targetSaveMode.isEmpty) {
-      throw new IllegalArgumentException(s"The target node save mode `${getParameter(RELATIONSHIP_TARGET_SAVE_MODE)}` is not valid, use one of ${
-        NodeSaveMode.values.toSeq.map(value => s"'${value.toString.toLowerCase()}'")
+      throw new IllegalArgumentException(s"The target node save mode `${getParameter(RELATIONSHIP_TARGET_WRITE_MODE)}` is not valid, use one of ${
+        NodeWriteMode.values.toSeq.map(value => s"'${value.toString.toLowerCase()}'")
           .sorted.mkString(", ")
       }")
     }
@@ -182,8 +182,8 @@ case class Neo4jNodeMetadata(labels: Seq[String], nodeKeys: Map[String, String])
 case class Neo4jRelationshipMetadata(
                                       source: Neo4jNodeMetadata,
                                       target: Neo4jNodeMetadata,
-                                      sourceSaveMode: NodeSaveMode.Value,
-                                      targetSaveMode: NodeSaveMode.Value,
+                                      sourceWriteMode: NodeWriteMode.Value,
+                                      targetWriteMode: NodeWriteMode.Value,
                                       relationshipType: String,
                                       nodeMap: Boolean,
                                       writeStrategy: RelationshipWriteStrategy.Value
@@ -292,6 +292,7 @@ object Neo4jOptions {
   // session options
   val DATABASE = "database"
   val ACCESS_MODE = "access.mode"
+  val WRITE_MODE = "write.mode"
 
   val PUSHDOWN_FILTERS_ENABLED = "pushdown.filters.enabled"
 
@@ -310,10 +311,10 @@ object Neo4jOptions {
   // Relationship Metadata
   val RELATIONSHIP_SOURCE_LABELS = s"${QueryType.RELATIONSHIP.toString.toLowerCase}.source.${QueryType.LABELS.toString.toLowerCase}"
   val RELATIONSHIP_SOURCE_NODE_KEYS = s"${QueryType.RELATIONSHIP.toString.toLowerCase}.source.$NODE_KEYS"
-  val RELATIONSHIP_SOURCE_SAVE_MODE = s"${QueryType.RELATIONSHIP.toString.toLowerCase}.source.$ACCESS_MODE"
+  val RELATIONSHIP_SOURCE_WRITE_MODE = s"${QueryType.RELATIONSHIP.toString.toLowerCase}.source.$WRITE_MODE"
   val RELATIONSHIP_TARGET_LABELS = s"${QueryType.RELATIONSHIP.toString.toLowerCase}.target.${QueryType.LABELS.toString.toLowerCase}"
   val RELATIONSHIP_TARGET_NODE_KEYS = s"${QueryType.RELATIONSHIP.toString.toLowerCase}.target.$NODE_KEYS"
-  val RELATIONSHIP_TARGET_SAVE_MODE = s"${QueryType.RELATIONSHIP.toString.toLowerCase}.target.$ACCESS_MODE"
+  val RELATIONSHIP_TARGET_WRITE_MODE = s"${QueryType.RELATIONSHIP.toString.toLowerCase}.target.$WRITE_MODE"
   val RELATIONSHIP_NODES_MAP = s"${QueryType.RELATIONSHIP.toString.toLowerCase}.nodes.map"
   val RELATIONSHIP_WRITE_STRATEGY = s"${QueryType.RELATIONSHIP.toString.toLowerCase}.write.strategy"
 
@@ -337,8 +338,8 @@ object Neo4jOptions {
   val DEFAULT_RELATIONSHIP_NODES_MAP = true
   val DEFAULT_SCHEMA_STRATEGY = SchemaStrategy.SAMPLE
   val DEFAULT_RELATIONSHIP_WRITE_STRATEGY: RelationshipWriteStrategy.Value = RelationshipWriteStrategy.NATIVE
-  val DEFAULT_RELATIONSHIP_SOURCE_SAVE_MODE: NodeSaveMode.Value = NodeSaveMode.Match
-  val DEFAULT_RELATIONSHIP_TARGET_SAVE_MODE: NodeSaveMode.Value = NodeSaveMode.Match
+  val DEFAULT_RELATIONSHIP_SOURCE_WRITE_MODE: NodeWriteMode.Value = NodeWriteMode.Match
+  val DEFAULT_RELATIONSHIP_TARGET_WRITE_MODE: NodeWriteMode.Value = NodeWriteMode.Match
   val DEFAULT_PUSHDOWN_FILTERS_ENABLED = true
   val DEFAULT_PARTITIONS = 1
 }
@@ -351,7 +352,7 @@ object RelationshipWriteStrategy extends Enumeration {
   val NATIVE, KEYS = Value
 }
 
-object NodeSaveMode extends Enumeration {
+object NodeWriteMode extends Enumeration {
   val Overwrite, ErrorIfExists, Match = Value
 
   def fromSaveMode(saveMode: SaveMode): Value = {

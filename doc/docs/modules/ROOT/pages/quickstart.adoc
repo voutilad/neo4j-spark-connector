@@ -218,8 +218,8 @@ every single node property as column prefixed by `source` or `target`
 |``
 |Yes for <<keys-strategy,KEYS>> strategy
 
-|`relationship.source.access.mode`
-|<<node-access-modes,Node Access Mode>>
+|`relationship.source.save.mode`
+|<<node-save-modes,Node Save Mode>>
 |`Match`
 |No
 
@@ -228,8 +228,8 @@ every single node property as column prefixed by `source` or `target`
 |``
 |Yes^*^
 
-|`relationship.target.access.mode`
-|<<node-access-modes,Node Access Mode>>
+|`relationship.target.save.mode`
+|<<node-save-modes,Node Save Mode>>
 |`Match`
 |No
 
@@ -616,7 +616,7 @@ df.write
 You just need to specify the source node labels, the target node labels, and the relationship you want between them.
 
 [NOTE]
-The default write mode for source and target nodes is `match`. This means that the relationship will be created only if the nodes are already in your DB. Look at <<node-access-modes,here>> for more info about node write modes.
+The default save mode for source and target nodes is `match`. This means that the relationship will be created only if the nodes are already in your DB. Look at <<node-save-modes,here>> for more info about node save modes.
 
 [[keys-strategy]]
 ==== Keys Strategy
@@ -655,10 +655,10 @@ Here you must speficy which keys of your Dataframe will be writtent in the sourc
 All the remaining properties will be written in the relationship.
 You can do this with a comma-separated list of `key:value` paris, where the key is the node property name to be written, and the value is the dataframe column name.
 
-[[node-access-modes]]
-===== Node Access Modes
+[[node-save-modes]]
+===== Node Save Modes
 
-You can specify 3 different modes to use for writing the nodes:
+You can specify 3 different modes to use for saving the nodes:
 
 * `Overwrite`: will perform a `MERGE` on that node
 * `ErrorIfExists`: will perform a `CREATE`
