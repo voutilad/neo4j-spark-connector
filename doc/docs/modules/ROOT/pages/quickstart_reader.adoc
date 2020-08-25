@@ -1,6 +1,11 @@
 
 = Quick Start
 
+[abstract]
+--
+Get started fast for common scenarios, using Neo4j Streams plugin or Kafka Connect plugin
+--
+
 == Neo4j Spark Connector Plugin
 
 === Overview
@@ -16,17 +21,6 @@ val df = spark.read.format("org.neo4j.spark.DataSource")
         .option("url", "bolt://localhost:7687")
         .option("labels", "Person")
         .load()
-        .show()
-```
-
-The above code will produce something similar to this:
-
-```
-+----+--------+----+---+
-|<id>|<labels>|name|age|
-+----+--------+----+---+
-|   0|[Person]|John| 32|
-+----+--------+----+---+
 ```
 
 === Neo4j Options
@@ -43,7 +37,7 @@ val df = spark.read.format("org.neo4j.spark.DataSource")
         .load()
 ```
 
-.List of available options
+.Most Common Needed Configuration Settings
 |===
 |Setting Name |Description |Default Value |Required 
 
@@ -61,32 +55,32 @@ val df = spark.read.format("org.neo4j.spark.DataSource")
 
 |`authentication.basic.username`
 |Username to use for basic authentication type
-|_(none)_
+|``
 |No
 
 |`authentication.basic.password`
 |Username to use for basic authentication type
-|_(none)_
+|``
 |No
 
 |`authentication.kerberos.ticket`
 |Kerberos Auth Ticket
-|_(none)_
+|``
 |No
 
 |`authentication.custom.principal`
 |This used to identify who this token represents
-|_(none)_
+|``
 |No
 
 |`authentication.custom.credentials`
 |This are the credentials authenticating the principal
-|_(none)_
+|``
 |No
 
 |`authentication.custom.realm`
-|This is the "realm:" string, specifying the authentication provider
-|_(none)_
+|This is the "realm:"", specifying the authentication provider
+|``
 |No
 
 |`encryption.enabled`
@@ -95,33 +89,33 @@ val df = spark.read.format("org.neo4j.spark.DataSource")
 |No
 
 |`encryption.trust.strategy`
-|Set certificate trust strategy, is ignored in case the connection URI uses `+s` or `+ssc` as suffix.
+|Set cerificate trust strategy, is ignored in case the connection URI uses `+s` or `+ssc` as suffix.
 |`TRUST_SYSTEM_CA_SIGNED_CERTIFICATES`
 |No
 
 |`encryption.ca.certificate.path`
 |Set certificate path for `TRUST_CUSTOM_CA_SIGNED_CERTIFICATES` trust strategy
-|_(Neo4j Driver default)_
+|``
 |No
 
 |`connection.max.lifetime.msecs`
 |Connection lifetime in milliseconds
-|_(Neo4j Driver default)_
+|(Neo4j Driver default)
 |No
 
 |`connection.liveness.timeout.msec`
 |Liveness check timeout
-|_(Neo4j Driver default)_
+|(Neo4j Driver default)
 |No
 
 |`connection.acquisition.timeout.msecs`
 |Connection acquisition timeout in milliseconds
-|_(Neo4j Driver default)_
+|(Neo4j Driver default)
 |No
 
 |`connection.timeout.msecs`
 |Connection timeout in milliseconds
-|_(Neo4j Driver default)_
+|(Neo4j Driver default)
 |No
 
 4+|*Session Options*
@@ -133,9 +127,7 @@ in case you set this option will have the priority compared to the one defined i
 |No
 
 |`access.mode`
-|Possible values are: `read`, `write`.
-Used only while you're pulling data from Neo4j.
-In case of `read` the connector, in a cluster environment,
+|Used only while you're pulling data from Neo4j. In case is `read` the connector, in a cluster environment
 will route the requests to the followers, otherwise to the leader.
 |`read`
 |No
@@ -144,32 +136,17 @@ will route the requests to the followers, otherwise to the leader.
 
 |`query`
 |Specify a query to read the data
-|_(none)_
-|Yes^*^
-
-|`query.count`
-|Query count, used only in combination with `query` option, it's a query that returns a `count`
-field like the following.
-``
-MATCH (p:Person)-[r:BOUGHT]->(pr:Product)
-WHERE pr.name = 'An Awesome Product'
-RETURN count(p) AS count
-``
-
-or *a simple number* that represents the count.
-Consider that the number passed by this value represent the volume of the data pulled of Neo4j, so please
-use it carefully.
 |``
-|No
+|Yes^*^
 
 |`labels`
 |List of labels separated by `:`. First label is the primary label
-|_(none)_
+|``
 |Yes^*^
 
 |`relationship`
-|Name of a relationship
-|_(none)_
+|List of labels separated by `:` (first label is the primary label)
+|``
 |Yes^*^
 
 |`relationship.nodes.map`
@@ -204,17 +181,17 @@ every single node property as column prefixed by `source` or `target`
 |`true`
 |No
 
-4+|*Data Write Options*
+4+|Data Write Options
 
 |`batch.size`
 |Number of records to be passed to the transaction
 |`5000`
 |No
 
-|`relationship.save.strategy`
-|<<quickstart_writer.adoc#node-keys,Docs here>>
+|`relationship.write.strategy`
+|<<node-keys,Docs here>>
 |``
-|Yes for <<quickstart_writer.adoc#keys-strategy,KEYS>> strategy
+|Yes for <<keys-strategy,KEYS>> strategy
 
 |`relationship.source.labels`
 |List of source node Labels separated by `:`
@@ -222,18 +199,18 @@ every single node property as column prefixed by `source` or `target`
 |Yes^*^
 
 |`relationship.source.node.keys`
-|<<quickstart_writer.adoc#node-keys,Docs here>>
+|<<node-keys,Docs here>>
+|``
+|No
+
+|`relationship.source.node.props`
+|<<node-keys,Docs here>>
 |``
 |No
 
 |`relationship.source.save.mode`
-|<<quickstart_writer.adoc#node-save-modes,Node Save Mode>>
+|<<node-save-modes,Node Save Mode>>
 |`Match`
-|No
-
-|`relationship.source.node.props`
-|<<quickstart_writer.adoc#node-keys,Docs here>>
-|``
 |No
 
 |`relationship.target.labels`
@@ -241,26 +218,19 @@ every single node property as column prefixed by `source` or `target`
 |``
 |Yes^*^
 
-|`relationship.target.node.keys`
-|<<quickstart_writer.adoc#node-keys,Docs here>>
-|``
-|No
-
 |`relationship.target.save.mode`
-|<<quickstart_writer.adoc#node-save-modes,Node Save Mode>>
+|<<node-save-modes,Node Save Mode>>
 |`Match`
 |No
 
-|`relationship.target.node.props`
-|<<quickstart_writer.adoc#node-keys,Docs here>>
+|`relationship.target.node.keys`
+|<<node-keys,Docs here>>
 |``
 |No
 
-|`partitions`
-|This defines the parallelization level while pulling data from Neo4j.
-N.b. As More parallelization does not mean more performances so please tune wisely in according to
-your Neo4j installation.
-|`1`
+|`relationship.target.node.props`
+|<<node-keys,Docs here>>
+|``
 |No
 
 |===
@@ -275,61 +245,6 @@ Reading data from a Neo4j Database can be done in 3 ways:
  * with a set of node Labels 
  * by specifying a relationship
 
-=== Considerations about partitioning
-
-While we're trying to pull off the data we offer the possibility to partition the extraction in order
-parallelizing it.
-
-Please consider the following job:
-```scala
-val df = spark.read.format("org.neo4j.spark.DataSource")
-        .option("url", "bolt://localhost:7687")
-        .option("labels", "Person")
-        .option("partitions", "5")
-        .load()
-```
-
-This means that if the total count of the nodes with label `Person` into Neo4j is 100 we are creating 5
-partitions and each one will manage 20 records via the `skip/limit` query.
-
-Partitioning the dataset makes sense only if you're dealing with a big dataset (>= 10M of records).
-
-==== How we parallelize the query execution
-
-Considering that we have three options
-
-1. Node extraction
-2. Relationship extraction
-3. Query extraction
-
-We adopt generally provide a general count on what you're trying to pull of and add build
-a query with the skip/limit approach over each partition.
-
-So for a dataset of 100 nodes (Person) with a partition size of 5 we'll generate these queries (one for partition):
-
-```
-MATCH (p:Person) RETURN p SKIP 0 LIMIT 20
-MATCH (p:Person) RETURN p SKIP 20 LIMIT 20
-MATCH (p:Person) RETURN p SKIP 40 LIMIT 20
-MATCH (p:Person) RETURN p SKIP 60 LIMIT 20
-MATCH (p:Person) RETURN p SKIP 80 LIMIT 20
-```
-
-While for (1) and (2) we leverage the Neo4j count store in order to retrieve the total count
-about the nodes/relationships we're trying pulling off, for the (3) we have two possible approaches:
-
-* Compute a count over the query that we're using
-* Compute a count over a second *optimized* query that leverages indexes, in this case you can pass
-it via the `.option("query.count", "<your cypher query>")` the query must always return only
-one field named `count` which is the result of the count. ie.:
-
-```cypher
-MATCH (p:Person)-[r:BOUGHT]->(pr:Product)
-WHERE pr.name = 'An Awesome Product'
-RETURN count(p) AS count
-```
-
-
 === Considerations on the schema
 
 Spark works with data in a tabular fixed schema. To accomplish this Neo4j Connector has a schema infer system that creates the schema based on the data requested for the read. Each read data method has is own strategy to create it, that will be explained it each section.
@@ -338,7 +253,7 @@ TK list of supported data types
 
 === Consideration on the filters
 
-The Neo4j Spark Connector implements the `SupportPushDownFilters` interface, that allows you to push the Spark filters down to the Neo4j layer. In this way the data that Spark will receive will be already filtered by Neo4j.
+The Neo4j Spark Connector implements the SupportPushDownFilters interface, that allows you to push the Spark filters down to the Neo4j layer. In this way the data that Spark will receive will be already filtered by Neo4j.
 
 You can manually disable the Push Down Filters support using the `pushdown.filters.enabled` option and set it to `false` (default is `true`).
 
@@ -373,7 +288,7 @@ value provided via `.option("schema.flatten.limit", "100")`
 
 ===== Extract schema for Relationships
 
-In case you're extracting a relationship from Neo4j we try as first step to invoke the `apoc.meta.relTypeProperties` procedure,
+In case you're extracting nodes from Neo4j we try as first step to invoke the `apoc.meta.relTypeProperties` procedure,
 in case the procedure is not installed we'll execute the following Cypher query:
 
 ```cypher
@@ -522,16 +437,16 @@ and depending on the value of `relationship.node.map` option, if `true`:
 * `source` the Map<String, String> of source node
 * `target` the Map<String, String> of target node
 
-otherwise, if `false`:
+otherwise if `false`:
 
 [[bookmark-rel-read-schema]]
 * `<sourceId>` the internal Neo4j id of source node
 * `<sourceLabels>` a list of labels for source node
 * `<targetId>` the internal Neo4j id of target node
 * `<targetLabels>` a list of labels for target node
-* `source.[property name]` source node property
-* `target.[property name]` target node property
-* `rel.[property name]` relationship property
+* `source.[property name]` a list of properties of the source node
+* `target.[property name]` a list of properties of the target node
+* `rel.[property name]` a list of properties of the relationship
 
 ==== Filter
 
@@ -580,7 +495,7 @@ df.show()
 
 [NOTE]
 We recommend that individual property fields be returned, rather than returning  graph entity (node, relationship, and path) types.
-This best maps to Spark's type system and yields best results.
+This best maps to spark's type system and yields best results.
 So instead writing this `MATCH (p:Person) RETURN p` please write this: `MATCH (p:Person) RETURN id(p) as id, p.name as name`.
 If your query returns a graph entity please use the `labels` or `relationship`.
 
@@ -608,4 +523,4 @@ and sometimes be a `string`.
 
 ==== Schema
 
-The first 10 (or any number specified by the `schema.flatten.limit` option) results will be flattened and the schema will be created from those properties.
+If APOC are installed, schema will be created with `apoc.meta.relTypeProperties`. Otherwise the first 10 (or any number specified by the `schema.flatten.limit` option) results will be flattened and the schema will be create from those properties.

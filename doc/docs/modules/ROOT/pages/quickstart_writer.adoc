@@ -166,7 +166,7 @@ try to flatten it, so if you have the follwing Dataset:
 |Andrea Santurbano
 |{address: 'Times Square, 1', city: 'NY', state: 'NY'}
 
-|2
+|1
 |Davide Fantuzzi
 |{address: 'Statue of Liberty, 10', city: 'NY', state: 'NY'}
 
@@ -224,7 +224,7 @@ There are two strategies you can use to write relationships: *NATIVE* and *KEYS*
 
 ==== Native Strategy
 
-This strategy is useful when you have a schema that conforms with the <<quickstart_reader.adoc#bookmark-rel-read-schema,Relationship Read Schema>>
+This strategy is useful when you have a schema that conforms with the <<bookmark-rel-read-schema,Relationship Read Schema>>
 
 ```scala
 df.write
@@ -232,9 +232,9 @@ df.write
     .option("url", "bolt://localhost:7687")
     .option("relationship", "SOLD")
     .option("relationship.source.labels", ":Person")
-    .option("relationship.source.save.mode", "Overwrite")
+    .option("relationship.source.write.mode", "Overwrite")
     .option("relationship.target.labels", ":Product")
-    .option("relationship.target.save.mode", "Overwrite")
+    .option("relationship.target.write.mode", "Overwrite")
     .save()
 ```
 
@@ -251,10 +251,10 @@ df.write
     .option("url", "bolt://localhost:7687")
     .option("relationship", "SOLD")
     .option("relationship.source.labels", ":Person")
-    .option("relationship.source.save.mode", "Overwrite")
+    .option("relationship.source.write.mode", "Overwrite")
     .option("relationship.source.node.keys", "id:personId")
     .option("relationship.target.labels", ":Product")
-    .option("relationship.target.save.mode", "ErrorIfExists")
+    .option("relationship.target.write.mode", "ErrorIfExists")
     .save()
 ```
 
@@ -269,7 +269,7 @@ Same thing applies for additional properties to be written to the node:
 ```scala
 df.write
     ...
-    .option("relationship.source.save.mode", "Overwrite")
+    .option("relationship.source.write.mode", "Overwrite")
     .option("relationship.source.node.properties", "name:firstname,age:age")
     ...
     .save()
@@ -297,13 +297,13 @@ musicDf.write
     .format("org.neo4j.spark.DataSource")
     .option("url", "bolt://localhost:7687")
     .option("relationship", "PLAYS")
-    .option("relationship.save.strategy", "keys")
+    .option("relationship.write.strategy", "keys")
     .option("relationship.source.labels", ":Musician")
-    .option("relationship.source.save.mode", "overwrite")
+    .option("relationship.source.write.mode", "overwrite")
     .option("relationship.source.node.keys", "name:name")
     .option("relationship.target.labels", ":Instrument")
     .option("relationship.target.node.keys", "instrument:name")
-    .option("relationship.target.save.mode", "overwrite")
+    .option("relationship.target.write.mode", "overwrite")
     .save()
 ```
 
