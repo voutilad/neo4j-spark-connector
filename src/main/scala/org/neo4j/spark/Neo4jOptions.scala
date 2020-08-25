@@ -285,7 +285,7 @@ object Neo4jOptions {
 
   // Node Metadata
   val NODE_KEYS = "node.keys"
-  val NODE_PROPS = "node.props"
+  val NODE_PROPS = "node.properties"
   val BATCH_SIZE = "batch.size"
   val SUPPORTED_SAVE_MODES = Seq(SaveMode.Overwrite, SaveMode.ErrorIfExists)
 

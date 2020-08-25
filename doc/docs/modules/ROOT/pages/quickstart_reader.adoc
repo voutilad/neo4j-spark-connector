@@ -216,7 +216,12 @@ every single node property as column prefixed by `source` or `target`
 |`relationship.source.node.keys`
 |<<node-keys,Docs here>>
 |``
-|Yes for <<keys-strategy,KEYS>> strategy
+|No
+
+|`relationship.source.node.props`
+|<<node-keys,Docs here>>
+|``
+|No
 
 |`relationship.source.save.mode`
 |<<node-save-modes,Node Save Mode>>
@@ -236,7 +241,12 @@ every single node property as column prefixed by `source` or `target`
 |`relationship.target.node.keys`
 |<<node-keys,Docs here>>
 |``
-|Yes for <<keys-strategy,KEYS>> strategy
+|No
+
+|`relationship.target.node.props`
+|<<node-keys,Docs here>>
+|``
+|No
 
 |`partitions`
 |This defines the parallelization level while pulling data from Neo4j.
@@ -591,75 +601,3 @@ and sometimes be a `string`.
 ==== Schema
 
 If APOC are installed, schema will be created with `apoc.meta.relTypeProperties`. Otherwise the first 10 (or any number specified by the `schema.flatten.limit` option) results will be flattened and the schema will be create from those properties.
-
-=== Write data by Relationship Type
-
-You can write a dataframe to Neo4j by specifying source, target and relation.
-There are two strategies you can use to write relationships: *NATIVE* and *KEYS*
-
-==== Native Strategy
-
-This strategy is useful when you have a schema that conforms with the <<bookmark-rel-read-schema,Relationship Read Schema>>
-
-```scala
-df.write
-    .format("org.neo4j.spark.DataSource")
-    .option("url", "bolt://localhost:7687")
-    .option("relationship", "SOLD")
-    .option("relationship.source.labels", ":Person")
-    .option("relationship.source.write.mode", "overwrite")
-    .option("relationship.target.labels", ":Product")
-    .option("relationship.target.write.mode", "overwrite")
-    .save()
-```
-
-You just need to specify the source node labels, the target node labels, and the relationship you want between them.
-
-[NOTE]
-The default save mode for source and target nodes is `match`. This means that the relationship will be created only if the nodes are already in your DB. Look at <<node-save-modes,here>> for more info about node save modes.
-
-[[keys-strategy]]
-==== Keys Strategy
-
-For all the other cases you can usee the *KEYS* strategy.
-Say you have a Dataframe like this:
-
-```scala
-val musicDf = Seq(
-        (12, "John Bonham", "Drums"),
-        (19, "John Mayer", "Guitar"),
-        (32, "John Scofield", "Guitar"),
-        (15, "John Butler", "Guitar")
-    ).toDF("experience", "name", "instrument")
-```
-
-To write it to Neo4j is enough to speficy a list of attributes and
-
-```scala
-musicDf.write
-    .format("org.neo4j.spark.DataSource")
-    .option("url", "bolt://localhost:7687")
-    .option("relationship", "PLAYS")
-    .option("relationship.write.strategy", "keys")
-    .option("relationship.source.labels", ":Musician")
-    .option("relationship.source.write.mode", "overwrite")
-    .option("relationship.source.node.keys", "name:name")
-    .option("relationship.target.labels", ":Instrument")
-    .option("relationship.target.node.keys", "instrument:name")
-    .option("relationship.target.write.mode", "overwrite")
-    .save()
-```
-
-[[node-keys]]
-Here you must speficy which keys of your Dataframe will be written in the source node and in the target node.
-All the remaining properties will be written as the relationship properties.
-You can do this with a comma-separated list of `key:value` paris, where the key is the node property name to be written, and the value is the dataframe column name.
-
-[[node-save-modes]]
-===== Node Save Modes
-
-You can specify 3 different modes to use for saving the nodes:
-
-* `Overwrite`: will perform a `MERGE` on that node
-* `ErrorIfExists`: will perform a `CREATE`
-* `Match`: will perform a `MATCH`
