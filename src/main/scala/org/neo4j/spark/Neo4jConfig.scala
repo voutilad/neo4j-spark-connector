@@ -42,7 +42,6 @@ object Neo4jConfig {
     val password: Option[String] = sparkConf.getOption(s"$prefix.password")
       .orElse(sparkConf.getOption(s"$oldPrefix.password"))
     val database: Option[String] = sparkConf.getOption(s"$prefix.database")
-      .orElse(sparkConf.getOption(s"$oldPrefix.password"))
     val encryption: Boolean = sparkConf.getOption(s"$prefix.encryption")
         .map(bool => bool.toBoolean)
         .getOrElse(sparkConf.getBoolean(s"$oldPrefix.encryption", defaultValue = false))

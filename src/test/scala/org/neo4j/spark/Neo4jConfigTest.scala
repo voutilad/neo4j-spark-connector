@@ -12,11 +12,13 @@ class Neo4jConfigTest {
     val user = "neo4j"
     val pass = "pass"
     val url = "neo4j://localhost"
+    val db = "db"
     val sparkConf = new SparkConf()
       .set("spark.neo4j.encryption", encryption)
       .set("spark.neo4j.user", user)
       .set("spark.neo4j.password", pass)
       .set("spark.neo4j.url", url)
+      .set("spark.neo4j.database", db)
 
     // when
     val neo4jConf = Neo4jConfig(sparkConf)
@@ -26,6 +28,7 @@ class Neo4jConfigTest {
     Assert.assertEquals(user, neo4jConf.user)
     Assert.assertEquals(pass, neo4jConf.password.get)
     Assert.assertEquals(url, neo4jConf.url)
+    Assert.assertEquals(db, neo4jConf.database.get)
   }
 
   @Test
@@ -49,6 +52,7 @@ class Neo4jConfigTest {
     Assert.assertEquals(user, neo4jConf.user)
     Assert.assertEquals(pass, neo4jConf.password.get)
     Assert.assertEquals(url, neo4jConf.url)
+    Assert.assertTrue(neo4jConf.database.isEmpty)
   }
 
 }
