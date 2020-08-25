@@ -82,9 +82,9 @@ class Neo4jOptions(private val parameters: java.util.Map[String, String]) extend
   val nodeMetadata = initNeo4jNodeMetadata()
 
   private def initNeo4jNodeMetadata(nodeKeysString: String = getParameter(NODE_KEYS, ""),
-                                    labelsString: String = query.value): Neo4jNodeMetadata = {
-    val nodeKeys = nodeKeysString
-      .split(",")
+                                    labelsString: String = query.value,
+                                    nodePropsString: String = ""): Neo4jNodeMetadata = {
+    def mapPropsString(str: String) = str.split(",")
       .map(_.trim)
       .filter(!_.isEmpty)
       .map(s => {
@@ -96,11 +96,16 @@ class Neo4jOptions(private val parameters: java.util.Map[String, String]) extend
         }
       })
       .toMap
+
+    val nodeKeys = mapPropsString(nodeKeysString)
+
+    val nodeProps = mapPropsString(nodePropsString)
+
     val labels = labelsString
       .split(":")
       .map(_.trim)
       .filter(!_.isEmpty)
-    Neo4jNodeMetadata(labels, nodeKeys)
+    Neo4jNodeMetadata(labels, nodeKeys, nodeProps)
   }
 
   val transactionMetadata = initNeo4jTransactionMetadata()
@@ -120,10 +125,12 @@ class Neo4jOptions(private val parameters: java.util.Map[String, String]) extend
 
   def initNeo4jRelationshipMetadata(): Neo4jRelationshipMetadata = {
     val source = initNeo4jNodeMetadata(getParameter(RELATIONSHIP_SOURCE_NODE_KEYS, ""),
-      getParameter(RELATIONSHIP_SOURCE_LABELS, ""))
+      getParameter(RELATIONSHIP_SOURCE_LABELS, ""),
+      getParameter(RELATIONSHIP_SOURCE_NODE_PROPS, ""))
 
     val target = initNeo4jNodeMetadata(getParameter(RELATIONSHIP_TARGET_NODE_KEYS, ""),
-      getParameter(RELATIONSHIP_TARGET_LABELS, ""))
+      getParameter(RELATIONSHIP_TARGET_LABELS, ""),
+      getParameter(RELATIONSHIP_SOURCE_NODE_PROPS, ""))
 
     val nodeMap = getParameter(RELATIONSHIP_NODES_MAP, DEFAULT_RELATIONSHIP_NODES_MAP.toString).toBoolean
 
@@ -151,7 +158,7 @@ class Neo4jOptions(private val parameters: java.util.Map[String, String]) extend
 case class Neo4jSchemaMetadata(flattenLimit: Int, strategy: SchemaStrategy.Value)
 case class Neo4jTransactionMetadata(retries: Int, failOnTransactionCodes: Set[String], batchSize: Int)
 
-case class Neo4jNodeMetadata(labels: Seq[String], nodeKeys: Map[String, String])
+case class Neo4jNodeMetadata(labels: Seq[String], nodeKeys: Map[String, String], nodeProps: Map[String, String])
 case class Neo4jRelationshipMetadata(
                                       source: Neo4jNodeMetadata,
                                       target: Neo4jNodeMetadata,
@@ -278,15 +285,18 @@ object Neo4jOptions {
 
   // Node Metadata
   val NODE_KEYS = "node.keys"
+  val NODE_PROPS = "node.props"
   val BATCH_SIZE = "batch.size"
   val SUPPORTED_SAVE_MODES = Seq(SaveMode.Overwrite, SaveMode.ErrorIfExists)
 
   // Relationship Metadata
   val RELATIONSHIP_SOURCE_LABELS = s"${QueryType.RELATIONSHIP.toString.toLowerCase}.source.${QueryType.LABELS.toString.toLowerCase}"
   val RELATIONSHIP_SOURCE_NODE_KEYS = s"${QueryType.RELATIONSHIP.toString.toLowerCase}.source.$NODE_KEYS"
+  val RELATIONSHIP_SOURCE_NODE_PROPS = s"${QueryType.RELATIONSHIP.toString.toLowerCase}.source.$NODE_PROPS"
   val RELATIONSHIP_SOURCE_WRITE_MODE = s"${QueryType.RELATIONSHIP.toString.toLowerCase}.source.$WRITE_MODE"
   val RELATIONSHIP_TARGET_LABELS = s"${QueryType.RELATIONSHIP.toString.toLowerCase}.target.${QueryType.LABELS.toString.toLowerCase}"
   val RELATIONSHIP_TARGET_NODE_KEYS = s"${QueryType.RELATIONSHIP.toString.toLowerCase}.target.$NODE_KEYS"
+  val RELATIONSHIP_TARGET_NODE_PROPS = s"${QueryType.RELATIONSHIP.toString.toLowerCase}.target.$NODE_PROPS"
   val RELATIONSHIP_TARGET_WRITE_MODE = s"${QueryType.RELATIONSHIP.toString.toLowerCase}.target.$WRITE_MODE"
   val RELATIONSHIP_NODES_MAP = s"${QueryType.RELATIONSHIP.toString.toLowerCase}.nodes.map"
   val RELATIONSHIP_WRITE_STRATEGY = s"${QueryType.RELATIONSHIP.toString.toLowerCase}.write.strategy"

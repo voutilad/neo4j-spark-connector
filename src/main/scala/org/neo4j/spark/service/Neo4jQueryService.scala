@@ -1,15 +1,15 @@
 package org.neo4j.spark.service
 
 import org.apache.spark.sql.SaveMode
-import org.apache.spark.sql.sources.{And, EqualTo, Filter, IsNull, Not, Or}
+import org.apache.spark.sql.sources.{And, Filter, Or, EqualTo, Filter, IsNull, Not, Or}
 import org.neo4j.cypherdsl.core.StatementBuilder.{BuildableStatement, TerminalExposesLimit}
-import org.neo4j.cypherdsl.core.{Condition, Conditions, Cypher, Functions, Node, PropertyContainer, Relationship, Statement, StatementBuilder}
 import org.neo4j.cypherdsl.core.renderer.Renderer
-import org.neo4j.spark.{Neo4jOptions, NodeWriteMode, QueryType, RelationshipWriteStrategy}
+import org.neo4j.cypherdsl.core._
 import org.neo4j.spark.util.Neo4jImplicits._
 import org.neo4j.spark.util.Neo4jUtil
+import org.neo4j.spark.{Neo4jOptions, NodeWriteMode, QueryType}
 
-import collection.JavaConverters._
+import scala.collection.JavaConverters._
 
 class Neo4jQueryWriteStrategy(private val saveMode: NodeWriteMode.Value) extends Neo4jQueryStrategy {
   override def createStatementForQuery(options: Neo4jOptions): String =
@@ -40,37 +40,25 @@ class Neo4jQueryWriteStrategy(private val saveMode: NodeWriteMode.Value) extends
 
     val relationship = options.relationshipMetadata.relationshipType.quote()
     val sourceLabels = options.relationshipMetadata.source.labels
-      .map(_.quote)
+      .map(_.quote())
       .mkString(":")
     val targetLabels = options.relationshipMetadata.target.labels
-      .map(_.quote)
+      .map(_.quote())
       .mkString(":")
 
-    options.relationshipMetadata.writeStrategy match {
-      case RelationshipWriteStrategy.NATIVE => s"""UNWIND ${"$"}events AS event
-                                                  |$sourceKeyword (${Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS}${if (sourceLabels.isEmpty) "" else s":$sourceLabels"} )
-                                                  |SET ${Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS} = event.${Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS}
-                                                  |$targetKeyword (${Neo4jUtil.RELATIONSHIP_TARGET_ALIAS}${if (targetLabels.isEmpty) "" else s":$targetLabels"})
-                                                  |SET ${Neo4jUtil.RELATIONSHIP_TARGET_ALIAS} = event.${Neo4jUtil.RELATIONSHIP_TARGET_ALIAS}
-                                                  |$relationshipKeyword (${Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS})-[${Neo4jUtil.RELATIONSHIP_ALIAS}:${relationship}]->(${Neo4jUtil.RELATIONSHIP_TARGET_ALIAS})
-                                                  |SET ${Neo4jUtil.RELATIONSHIP_ALIAS} = event.${Neo4jUtil.RELATIONSHIP_ALIAS}
-                                                  |""".stripMargin
-      case RelationshipWriteStrategy.KEYS => {
-        val sourceKeys = options.relationshipMetadata.source.nodeKeys.map(key => {
-          s"${key._2}:event.source.${key._1}"
-        }).mkString(",")
-        val targetKeys = options.relationshipMetadata.target.nodeKeys.map(key => {
-          s"${key._2}:event.target.${key._1}"
-        }).mkString(",")
+    val sourceKeys = options.relationshipMetadata.source.nodeKeys.map(key => {
+      s"${key._2.removeAlias().quote()}:event.source.keys.${key._1.quote()}"
+    }).mkString(", ")
+    val targetKeys = options.relationshipMetadata.target.nodeKeys.map(key => {
+      s"${key._2.removeAlias().quote()}:event.target.keys.${key._1.quote()}"
+    }).mkString(", ")
 
-        s"""UNWIND ${"$"}events AS event
-           |$sourceKeyword (${Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS}${if (sourceLabels.isEmpty) "" else s":$sourceLabels"} ${if (sourceKeys.isEmpty) "" else s"{$sourceKeys}"})
-           |$targetKeyword (${Neo4jUtil.RELATIONSHIP_TARGET_ALIAS}${if (targetLabels.isEmpty) "" else s":$targetLabels"} ${if (targetKeys.isEmpty) "" else s"{$targetKeys}"})
-           |$relationshipKeyword (${Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS})-[${Neo4jUtil.RELATIONSHIP_ALIAS}:${relationship}]->(${Neo4jUtil.RELATIONSHIP_TARGET_ALIAS})
-           |SET ${Neo4jUtil.RELATIONSHIP_ALIAS} = event.${Neo4jUtil.RELATIONSHIP_ALIAS}
-           |""".stripMargin
-      }
-    }
+    s"""UNWIND ${"$"}events AS event
+       |${createQueryPart(sourceKeyword, sourceLabels, sourceKeys, Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS)}
+       |${createQueryPart(targetKeyword, targetLabels, targetKeys, Neo4jUtil.RELATIONSHIP_TARGET_ALIAS, Seq(Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS))}
+       |$relationshipKeyword (${Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS})-[${Neo4jUtil.RELATIONSHIP_ALIAS}:${relationship}]->(${Neo4jUtil.RELATIONSHIP_TARGET_ALIAS})
+       |SET ${Neo4jUtil.RELATIONSHIP_ALIAS} = event.${Neo4jUtil.RELATIONSHIP_ALIAS}.props
+       |""".stripMargin
   }
 
   override def createStatementForNodes(options: Neo4jOptions): String = {
@@ -219,6 +207,13 @@ abstract class Neo4jQueryStrategy {
   def createStatementForRelationships(options: Neo4jOptions): String
 
   def createStatementForNodes(options: Neo4jOptions): String
+
+  protected def createQueryPart(keyword: String, labels: String, keys: String, alias: String, additionalAliases: Seq[String] = Seq[String]()): String = {
+    val withAliases = additionalAliases ++ Seq("event", alias)
+    s"""$keyword ($alias${if (labels.isEmpty) "" else s":$labels"} ${if (keys.isEmpty) "" else s"{$keys}"})
+    |SET ${alias} += event.${alias}.props
+    |WITH ${withAliases.mkString(", ")}"""
+  }
 }
 
 class Neo4jQueryService(private val options: Neo4jOptions,
