@@ -584,6 +584,12 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
     SparkConnectorScalaSuiteIT.driver.session(SessionConfig.forDatabase("db1"))
       .writeTransaction(
         new TransactionWork[ResultSummary] {
+          override def execute(tx: Transaction): ResultSummary = tx.run("MATCH (n) DETACH DELETE n").consume()
+        })
+
+    SparkConnectorScalaSuiteIT.driver.session(SessionConfig.forDatabase("db1"))
+      .writeTransaction(
+        new TransactionWork[ResultSummary] {
           override def execute(tx: Transaction): ResultSummary = tx.run(fixtureQuery).consume()
         })
 
@@ -710,11 +716,17 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
     val total = 100
     val fixtureQuery: String =
       s"""UNWIND range(1, $total) as id
-         |CREATE (pr:Product {id: id * rand(), name: 'Product ' + id})
+         |CREATE (pr:Product {id: id * $total, name: 'Product ' + id})
          |CREATE (pe:Person {id: id, fullName: 'Person ' + id})
          |CREATE (pe)-[:BOUGHT{when: rand(), quantity: rand() * 1000}]->(pr)
          |RETURN *
     """.stripMargin
+
+    SparkConnectorScalaSuiteIT.driver.session(SessionConfig.forDatabase("db1"))
+      .writeTransaction(
+        new TransactionWork[ResultSummary] {
+          override def execute(tx: Transaction): ResultSummary = tx.run("MATCH (n) DETACH DELETE n").consume()
+        })
 
     SparkConnectorScalaSuiteIT.driver.session(SessionConfig.forDatabase("db1"))
       .writeTransaction(

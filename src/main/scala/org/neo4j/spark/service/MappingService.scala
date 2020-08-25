@@ -9,6 +9,7 @@ import org.apache.spark.sql.types.StructType
 import org.neo4j.driver.internal.value.MapValue
 import org.neo4j.driver.types.Node
 import org.neo4j.driver.{Record, Value, Values}
+import org.neo4j.spark.service.Neo4jWriteMappingStrategy.{KEYS, PROPERTIES}
 import org.neo4j.spark.util.Neo4jUtil
 import org.neo4j.spark.{Neo4jOptions, QueryType, RelationshipWriteStrategy}
 
@@ -22,8 +23,8 @@ class Neo4jWriteMappingStrategy(private val options: Neo4jOptions)
     val rowMap: java.util.Map[String, Object] = new java.util.HashMap[String, Object]
     val keys: java.util.Map[String, Object] = new java.util.HashMap[String, Object]
     val properties: java.util.Map[String, Object] = new java.util.HashMap[String, Object]
-    rowMap.put("keys", keys)
-    rowMap.put("properties", properties)
+    rowMap.put(KEYS, keys)
+    rowMap.put(PROPERTIES, properties)
 
     query(row, schema)
       .forEach(new BiConsumer[String, AnyRef] {
@@ -40,45 +41,40 @@ class Neo4jWriteMappingStrategy(private val options: Neo4jOptions)
   private def relationshipNativeMap(row: InternalRow, schema: StructType): java.util.Map[String, AnyRef] = {
     val rowMap: java.util.Map[String, AnyRef] = new java.util.HashMap[String, AnyRef]
 
-    val relMapKeys = new util.HashMap[String, AnyRef]()
-    val sourceMapKeys = new util.HashMap[String, AnyRef]()
-    val sourceMapProps = new util.HashMap[String, AnyRef]()
-    val targetMapKeys = new util.HashMap[String, AnyRef]()
-    val targetMapProps = new util.HashMap[String, AnyRef]()
     val relMap = new util.HashMap[String, util.Map[String, AnyRef]]()
     val sourceMap = new util.HashMap[String, util.Map[String, AnyRef]]()
     val targetMap = new util.HashMap[String, util.Map[String, AnyRef]]()
+
+    relMap.put(PROPERTIES, new util.HashMap[String, AnyRef]())
+    sourceMap.put(PROPERTIES, new util.HashMap[String, AnyRef]())
+    sourceMap.put(KEYS, new util.HashMap[String, AnyRef]())
+    targetMap.put(PROPERTIES, new util.HashMap[String, AnyRef]())
+    targetMap.put(KEYS, new util.HashMap[String, AnyRef]())
 
     query(row, schema)
       .forEach(new BiConsumer[String, AnyRef] {
         override def accept(key: String, value: AnyRef): Unit = {
           if (key.startsWith(Neo4jUtil.RELATIONSHIP_ALIAS.concat("."))) {
-            relMapKeys.put(key.removeAlias(), value)
+            relMap.get(PROPERTIES).put(key.removeAlias(), value)
           }
           else if (key.startsWith(Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS.concat("."))) {
             if(options.relationshipMetadata.source.nodeKeys.contains(key.removeAlias())) {
-              sourceMapKeys.put(key.removeAlias(), value)
+              sourceMap.get(KEYS).put(key.removeAlias(), value)
             }
             else {
-              sourceMapProps.put(key.removeAlias(), value)
+              sourceMap.get(PROPERTIES).put(key.removeAlias(), value)
             }
           }
           else if (key.startsWith(Neo4jUtil.RELATIONSHIP_TARGET_ALIAS.concat("."))) {
             if(options.relationshipMetadata.target.nodeKeys.contains(key.removeAlias())) {
-              targetMapKeys.put(key.removeAlias(), value)
+              targetMap.get(KEYS).put(key.removeAlias(), value)
             }
             else {
-              targetMapProps.put(key.removeAlias(), value)
+              targetMap.get(PROPERTIES).put(key.removeAlias(), value)
             }
           }
         }
       })
-
-    relMap.put("props", relMapKeys)
-    sourceMap.put("props", sourceMapProps)
-    sourceMap.put("keys", sourceMapKeys)
-    targetMap.put("props", targetMapProps)
-    targetMap.put("keys", targetMapKeys)
 
     rowMap.put(Neo4jUtil.RELATIONSHIP_ALIAS, relMap)
     rowMap.put(Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS, sourceMap)
@@ -90,40 +86,35 @@ class Neo4jWriteMappingStrategy(private val options: Neo4jOptions)
   private def relationshipKeysMap(row: InternalRow, schema: StructType): java.util.Map[String, AnyRef] = {
     val rowMap: java.util.Map[String, AnyRef] = new java.util.HashMap[String, AnyRef]
 
-    val relMapKeys = new util.HashMap[String, AnyRef]()
-    val sourceMapKeys = new util.HashMap[String, AnyRef]()
-    val sourceMapProps = new util.HashMap[String, AnyRef]()
-    val targetMapKeys = new util.HashMap[String, AnyRef]()
-    val targetMapProps = new util.HashMap[String, AnyRef]()
     val relMap = new util.HashMap[String, util.Map[String, AnyRef]]()
     val sourceMap = new util.HashMap[String, util.Map[String, AnyRef]]()
     val targetMap = new util.HashMap[String, util.Map[String, AnyRef]]()
+
+    relMap.put(PROPERTIES, new util.HashMap[String, AnyRef]())
+    sourceMap.put(PROPERTIES, new util.HashMap[String, AnyRef]())
+    sourceMap.put(KEYS, new util.HashMap[String, AnyRef]())
+    targetMap.put(PROPERTIES, new util.HashMap[String, AnyRef]())
+    targetMap.put(KEYS, new util.HashMap[String, AnyRef]())
 
     query(row, schema)
       .forEach(new BiConsumer[String, AnyRef] {
         override def accept(key: String, value: AnyRef): Unit =
           if (options.relationshipMetadata.source.nodeKeys.contains(key)) {
-            sourceMapKeys.put(key, value)
+            sourceMap.get(KEYS).put(key, value)
           }
           else if(options.relationshipMetadata.source.nodeProps.contains(key)) {
-            sourceMapProps.put(key, value)
+            sourceMap.get(PROPERTIES).put(key, value)
           }
           else if (options.relationshipMetadata.target.nodeKeys.contains(key)) {
-            targetMapKeys.put(key, value)
+            targetMap.get(KEYS).put(key, value)
           }
           else if (options.relationshipMetadata.target.nodeProps.contains(key)) {
-            targetMapProps.put(key, value)
+            targetMap.get(PROPERTIES).put(key, value)
           }
           else {
-            relMapKeys.put(key, value)
+            relMap.get(PROPERTIES).put(key, value)
           }
       })
-
-    relMap.put("props", relMapKeys)
-    sourceMap.put("props", sourceMapProps)
-    sourceMap.put("keys", sourceMapKeys)
-    targetMap.put("props", targetMapProps)
-    targetMap.put("keys", targetMapKeys)
 
     rowMap.put(Neo4jUtil.RELATIONSHIP_ALIAS, relMap)
     rowMap.put(Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS, sourceMap)
@@ -246,4 +237,9 @@ class MappingService[IN, OUT](private val strategy: Neo4jMappingStrategy[IN, OUT
     case QueryType.QUERY => strategy.query(record, schema)
   }
 
+}
+
+object Neo4jWriteMappingStrategy {
+  val KEYS = "keys"
+  val PROPERTIES = "properies"
 }
