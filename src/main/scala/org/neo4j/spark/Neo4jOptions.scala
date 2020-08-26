@@ -162,8 +162,8 @@ case class Neo4jNodeMetadata(labels: Seq[String], nodeKeys: Map[String, String],
 case class Neo4jRelationshipMetadata(
                                       source: Neo4jNodeMetadata,
                                       target: Neo4jNodeMetadata,
-                                      sourceWriteMode: NodeSaveMode.Value,
-                                      targetWriteMode: NodeSaveMode.Value,
+                                      sourceSaveMode: NodeSaveMode.Value,
+                                      targetSaveMode: NodeSaveMode.Value,
                                       relationshipType: String,
                                       nodeMap: Boolean,
                                       writeStrategy: RelationshipSaveStrategy.Value

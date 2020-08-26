@@ -17,6 +17,15 @@ class Neo4jQueryWriteStrategy(private val saveMode: SaveMode) extends Neo4jQuery
        |${options.query.value}
        |""".stripMargin
 
+  private def keywordFromSaveMode(saveMode: NodeSaveMode.Value): String = {
+    saveMode match {
+      case NodeSaveMode.Overwrite => "MERGE"
+      case NodeSaveMode.ErrorIfExists => "CREATE"
+      case NodeSaveMode.Match => "MATCH"
+      case _ => throw new UnsupportedOperationException(s"Source SaveMode $saveMode not supported")
+    }
+  }
+
   override def createStatementForRelationships(options: Neo4jOptions): String = {
     val relationshipKeyword = saveMode match {
       case SaveMode.Overwrite => "MERGE"
@@ -24,19 +33,8 @@ class Neo4jQueryWriteStrategy(private val saveMode: SaveMode) extends Neo4jQuery
       case _ => throw new UnsupportedOperationException(s"SaveMode $saveMode not supported")
     }
 
-    val sourceKeyword = options.relationshipMetadata.sourceWriteMode match {
-      case NodeSaveMode.Overwrite => "MERGE"
-      case NodeSaveMode.ErrorIfExists => "CREATE"
-      case NodeSaveMode.Match => "MATCH"
-      case _ => throw new UnsupportedOperationException(s"Source SaveMode $saveMode not supported")
-    }
-
-    val targetKeyword = options.relationshipMetadata.targetWriteMode match {
-      case NodeSaveMode.Overwrite => "MERGE"
-      case NodeSaveMode.ErrorIfExists => "CREATE"
-      case NodeSaveMode.Match => "MATCH"
-      case _ => throw new UnsupportedOperationException(s"Target SaveMode $saveMode not supported")
-    }
+    val sourceKeyword = keywordFromSaveMode(options.relationshipMetadata.sourceSaveMode)
+    val targetKeyword = keywordFromSaveMode(options.relationshipMetadata.targetSaveMode)
 
     val relationship = options.relationshipMetadata.relationshipType.quote()
 
@@ -62,7 +60,7 @@ class Neo4jQueryWriteStrategy(private val saveMode: SaveMode) extends Neo4jQuery
        |$sourceQueryPart
        |$targetQueryPart
        |$relationshipKeyword (${Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS})-[${Neo4jUtil.RELATIONSHIP_ALIAS}:${relationship}]->(${Neo4jUtil.RELATIONSHIP_TARGET_ALIAS})
-       |SET ${Neo4jUtil.RELATIONSHIP_ALIAS} = $BATCH_VARIABLE.${Neo4jUtil.RELATIONSHIP_ALIAS}.${Neo4jWriteMappingStrategy.PROPERTIES}
+       |SET ${Neo4jUtil.RELATIONSHIP_ALIAS} += $BATCH_VARIABLE.${Neo4jUtil.RELATIONSHIP_ALIAS}.${Neo4jWriteMappingStrategy.PROPERTIES}
        |""".stripMargin
   }
 

@@ -438,7 +438,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .mode(SaveMode.Overwrite)
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
       .option("labels", "Person")
-        .option("node.keys", "surname")
+      .option("node.keys", "surname")
       .save()
 
     val nodeList = SparkConnectorScalaSuiteIT.session()
@@ -628,15 +628,19 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .option("relationship.target.labels", ":Product")
       .load()
 
-    assertEquals(dfOriginal.count(), dfCopy.count())
-    assertEquals(
-      dfOriginal.select("`source.id`").collectAsList().get(0).getLong(0),
-      dfCopy.select("`source.id`").collectAsList().get(0).getLong(0)
-    )
-    assertEquals(
-      dfOriginal.select("`target.id`").collectAsList().get(0).getLong(0),
-      dfCopy.select("`target.id`").collectAsList().get(0).getLong(0)
-    )
+    val dfOriginalCount = dfOriginal.count()
+    assertEquals(dfOriginalCount, dfCopy.count())
+
+    for (i <- 0 until 1) {
+      assertEquals(
+        dfOriginal.select("`source.id`").collectAsList().get(i).getLong(0),
+        dfCopy.select("`source.id`").collectAsList().get(i).getLong(0)
+      )
+      assertEquals(
+        dfOriginal.select("`target.id`").collectAsList().get(i).getLong(0),
+        dfCopy.select("`target.id`").collectAsList().get(i).getLong(0)
+      )
+    }
   }
 
   @Test
@@ -703,15 +707,16 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .option("relationship.target.labels", ":Product")
       .load()
 
-    assertEquals(dfOriginal.count(), dfCopy.count())
-    assertEquals(
-      dfOriginal.select("`source.id`").collectAsList().get(0).getLong(0),
-      dfCopy.select("`source.id`").collectAsList().get(0).getLong(0)
-    )
-    assertEquals(
-      dfOriginal.select("`target.id`").collectAsList().get(0).getLong(0),
-      dfCopy.select("`target.id`").collectAsList().get(0).getLong(0)
-    )
+    for (i <- 0 until 1) {
+      assertEquals(
+        dfOriginal.select("`source.id`").collectAsList().get(i).getLong(0),
+        dfCopy.select("`source.id`").collectAsList().get(i).getLong(0)
+      )
+      assertEquals(
+        dfOriginal.select("`target.id`").collectAsList().get(i).getLong(0),
+        dfCopy.select("`target.id`").collectAsList().get(i).getLong(0)
+      )
+    }
   }
 
   @Test
@@ -774,15 +779,16 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .option("relationship.target.labels", ":Product")
       .load()
 
-    assertEquals(dfOriginal.count(), dfCopy.count())
-    assertEquals(
-      dfOriginal.select("`source.id`").collectAsList().get(0).getLong(0),
-      dfCopy.select("`source.id`").collectAsList().get(0).getLong(0)
-    )
-    assertEquals(
-      dfOriginal.select("`target.id`").collectAsList().get(0).getLong(0),
-      dfCopy.select("`target.id`").collectAsList().get(0).getLong(0)
-    )
+    for (i <- 0 until 1) {
+      assertEquals(
+        dfOriginal.select("`source.id`").collectAsList().get(i).getLong(0),
+        dfCopy.select("`source.id`").collectAsList().get(i).getLong(0)
+      )
+      assertEquals(
+        dfOriginal.select("`target.id`").collectAsList().get(i).getLong(0),
+        dfCopy.select("`target.id`").collectAsList().get(i).getLong(0)
+      )
+    }
   }
 
   @Test
