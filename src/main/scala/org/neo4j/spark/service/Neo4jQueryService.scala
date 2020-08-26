@@ -17,22 +17,17 @@ class Neo4jQueryWriteStrategy(private val saveMode: SaveMode) extends Neo4jQuery
        |${options.query.value}
        |""".stripMargin
 
-  private def keywordFromSaveMode(saveMode: NodeSaveMode.Value): String = {
+  private def keywordFromSaveMode(saveMode: Any): String = {
     saveMode match {
-      case NodeSaveMode.Overwrite => "MERGE"
-      case NodeSaveMode.ErrorIfExists => "CREATE"
+      case NodeSaveMode.Overwrite | SaveMode.Overwrite => "MERGE"
+      case NodeSaveMode.ErrorIfExists | SaveMode.ErrorIfExists => "CREATE"
       case NodeSaveMode.Match => "MATCH"
       case _ => throw new UnsupportedOperationException(s"Source SaveMode $saveMode not supported")
     }
   }
 
   override def createStatementForRelationships(options: Neo4jOptions): String = {
-    val relationshipKeyword = saveMode match {
-      case SaveMode.Overwrite => "MERGE"
-      case SaveMode.ErrorIfExists => "CREATE"
-      case _ => throw new UnsupportedOperationException(s"SaveMode $saveMode not supported")
-    }
-
+    val relationshipKeyword = keywordFromSaveMode(saveMode)
     val sourceKeyword = keywordFromSaveMode(options.relationshipMetadata.sourceSaveMode)
     val targetKeyword = keywordFromSaveMode(options.relationshipMetadata.targetSaveMode)
 
@@ -65,11 +60,8 @@ class Neo4jQueryWriteStrategy(private val saveMode: SaveMode) extends Neo4jQuery
   }
 
   override def createStatementForNodes(options: Neo4jOptions): String = {
-    val keyword = saveMode match {
-      case SaveMode.Overwrite => "MERGE"
-      case SaveMode.ErrorIfExists => "CREATE"
-      case _ => throw new UnsupportedOperationException(s"SaveMode $saveMode not supported")
-    }
+    val keyword = keywordFromSaveMode(saveMode)
+
     val labels = options.nodeMetadata.labels
       .map(_.quote)
       .mkString(":")
