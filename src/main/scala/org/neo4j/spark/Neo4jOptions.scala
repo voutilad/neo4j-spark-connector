@@ -34,7 +34,12 @@ class Neo4jOptions(private val parameters: java.util.Map[String, String]) extend
   val pushdownFiltersEnabled: Boolean = getParameter(PUSHDOWN_FILTERS_ENABLED, DEFAULT_PUSHDOWN_FILTERS_ENABLED.toString).toBoolean
 
   val schemaMetadata = Neo4jSchemaMetadata(getParameter(SCHEMA_FLATTEN_LIMIT, DEFAULT_SCHEMA_FLATTEN_LIMIT.toString).toInt,
-    SchemaStrategy.withCaseInsensitiveName(getParameter(SCHEMA_STRATEGY, DEFAULT_SCHEMA_STRATEGY.toString).toUpperCase))
+    SchemaStrategy.withCaseInsensitiveName(getParameter(SCHEMA_STRATEGY, DEFAULT_SCHEMA_STRATEGY.toString).toUpperCase),
+    OptimizationType.withName(getParameter(SCHEMA_OPTIMIZATION_TYPE, DEFAULT_OPTIMIZATION_TYPE.toString).toUpperCase),
+    getParameter(SCHEMA_OPTIMIZATION_QUERY)
+      .split(";")
+      .map(_.trim)
+      .filterNot(_.isEmpty))
 
   val query: Neo4jQueryOptions = (
     getParameter(QUERY.toString.toLowerCase),
@@ -157,7 +162,7 @@ class Neo4jOptions(private val parameters: java.util.Map[String, String]) extend
   }
 }
 
-case class Neo4jSchemaMetadata(flattenLimit: Int, strategy: SchemaStrategy.Value)
+case class Neo4jSchemaMetadata(flattenLimit: Int, strategy: SchemaStrategy.Value, optimizationType: OptimizationType.Value, optimizationQuery: Seq[String])
 case class Neo4jTransactionMetadata(retries: Int, failOnTransactionCodes: Set[String], batchSize: Int)
 
 case class Neo4jNodeMetadata(labels: Seq[String], nodeKeys: Map[String, String], nodeProps: Map[String, String])
@@ -282,6 +287,8 @@ object Neo4jOptions {
   // schema options
   val SCHEMA_STRATEGY = "schema.strategy"
   val SCHEMA_FLATTEN_LIMIT = "schema.flatten.limit"
+  val SCHEMA_OPTIMIZATION_TYPE = "schema.optimization.type"
+  val SCHEMA_OPTIMIZATION_QUERY = "schema.optimization.query"
 
   // partitions
   val PARTITIONS = "partitions"
@@ -289,6 +296,7 @@ object Neo4jOptions {
   // Node Metadata
   val NODE_KEYS = "node.keys"
   val NODE_PROPS = "node.properties"
+
   val BATCH_SIZE = "batch.size"
   val SUPPORTED_SAVE_MODES = Seq(SaveMode.Overwrite, SaveMode.ErrorIfExists, SaveMode.Append)
 
@@ -329,6 +337,7 @@ object Neo4jOptions {
   val DEFAULT_RELATIONSHIP_TARGET_SAVE_MODE: NodeSaveMode.Value = NodeSaveMode.Match
   val DEFAULT_PUSHDOWN_FILTERS_ENABLED = true
   val DEFAULT_PARTITIONS = 1
+  val DEFAULT_OPTIMIZATION_TYPE = OptimizationType.NONE
 }
 
 class CaseInsensitiveEnumeration extends Enumeration {
@@ -360,4 +369,8 @@ object NodeSaveMode extends CaseInsensitiveEnumeration {
 
 object SchemaStrategy extends CaseInsensitiveEnumeration {
   val STRING, SAMPLE = Value
+}
+
+object OptimizationType extends Enumeration {
+  val INDEX, CONSTRAINT, QUERY, NONE = Value
 }

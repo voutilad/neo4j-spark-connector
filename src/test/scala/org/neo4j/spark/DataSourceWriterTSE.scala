@@ -406,7 +406,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
         assertTrue(clientException.getMessage.endsWith("already exists with label `Person` and property `surname` = 'Santurbano'"))
         throw sparkException
       }
-      case _ => fail(s"should be thrown a ${classOf[SparkException].getName}")
+      case e: Throwable => fail(s"should be thrown a ${classOf[SparkException].getName} but is ${e.getClass.getSimpleName}")
     } finally {
       SparkConnectorScalaSuiteIT.session()
         .writeTransaction(new TransactionWork[Result] {
@@ -490,7 +490,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       case illegalArgumentException: IllegalArgumentException => {
         assertTrue(illegalArgumentException.getMessage.equals(s"${Neo4jOptions.NODE_KEYS} is required when Save Mode is Overwrite"))
       }
-      case _ => fail(s"should be thrown a ${classOf[IllegalArgumentException].getName}")
+      case e: Throwable => fail(s"should be thrown a ${classOf[IllegalArgumentException].getName} but is ${e.getClass.getSimpleName}")
     }
   }
 
@@ -1332,4 +1332,236 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       case generic => fail(s"should be thrown a ${classOf[SparkException].getName}, got ${generic.getClass} instead")
     }
   }
+
+  @Test
+  def `should insert index while insert nodes`(): Unit = {
+    val total = 10
+    val ds = (1 to total)
+      .map(i => i.toString)
+      .toDF("surname")
+
+    ds.write
+      .format(classOf[DataSource].getName)
+      .mode(SaveMode.Overwrite)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("labels", ":Person:Customer")
+      .option("node.keys", "surname")
+      .option("schema.optimization.type", "INDEX")
+      .save()
+
+    val records = SparkConnectorScalaSuiteIT.session().run(
+      """MATCH (p:Person:Customer)
+        |RETURN p.surname AS surname
+        |""".stripMargin).list().asScala
+      .map(r => r.asMap().asScala)
+      .toSet
+    val expected = ds.collect().map(row => Map("surname" -> row.getAs[String]("surname")))
+      .toSet
+    assertEquals(expected, records)
+
+    val indexCount = SparkConnectorScalaSuiteIT.session().run(
+      """CALL db.indexes() YIELD labelsOrTypes, properties, uniqueness
+        |WHERE labelsOrTypes = ['Person'] AND properties = ['surname'] AND uniqueness = 'NONUNIQUE'
+        |RETURN count(*) AS count
+        |""".stripMargin)
+      .single()
+      .get("count")
+      .asLong()
+    assertEquals(1, indexCount)
+
+    SparkConnectorScalaSuiteIT.session().run("DROP INDEX ON :Person(surname)")
+  }
+
+  @Test
+  def `should insert constraint while insert nodes`(): Unit = {
+    val total = 10
+    val ds = (1 to total)
+      .map(i => i.toString)
+      .toDF("surname")
+
+    ds.write
+      .format(classOf[DataSource].getName)
+      .mode(SaveMode.Overwrite)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("labels", ":Person:Customer")
+      .option("node.keys", "surname")
+      .option("schema.optimization.type", "CONSTRAINT")
+      .save()
+
+    val records = SparkConnectorScalaSuiteIT.session().run(
+      """MATCH (p:Person:Customer)
+        |RETURN p.surname AS surname
+        |""".stripMargin).list().asScala
+      .map(r => r.asMap().asScala)
+      .toSet
+    val expected = ds.collect().map(row => Map("surname" -> row.getAs[String]("surname")))
+      .toSet
+    assertEquals(expected, records)
+
+    val constraintCount = SparkConnectorScalaSuiteIT.session().run(
+      """CALL db.indexes() YIELD labelsOrTypes, properties, uniqueness
+        |WHERE labelsOrTypes = ['Person'] AND properties = ['surname'] AND uniqueness = 'UNIQUE'
+        |RETURN count(*) AS count
+        |""".stripMargin)
+      .single()
+      .get("count")
+      .asLong()
+    assertEquals(1, constraintCount)
+    SparkConnectorScalaSuiteIT.session().run("DROP CONSTRAINT ON (p:Person) ASSERT (p.surname) IS UNIQUE")
+  }
+
+  @Test
+  def `should execute query optimization while insert nodes`(): Unit = {
+    val total = 10
+    val ds = (1 to total)
+      .map(i => i.toString)
+      .toDF("surname")
+
+    ds.write
+      .format(classOf[DataSource].getName)
+      .mode(SaveMode.Overwrite)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("labels", ":Person:Customer")
+      .option("node.keys", "surname")
+      .option("schema.optimization.type", "QUERY")
+      .option("schema.optimization.query", "CREATE INDEX ON :Person(surname); CREATE CONSTRAINT ON (p:Product) ASSERT (p.name, p.sku) IS NODE KEY")
+      .save()
+
+    val records = SparkConnectorScalaSuiteIT.session().run(
+      """MATCH (p:Person:Customer)
+        |RETURN p.surname AS surname
+        |""".stripMargin).list().asScala
+      .map(r => r.asMap().asScala)
+      .toSet
+    val expected = ds.collect().map(row => Map("surname" -> row.getAs[String]("surname")))
+      .toSet
+    assertEquals(expected, records)
+
+    val constraintCount = SparkConnectorScalaSuiteIT.session().run(
+      """CALL db.indexes() YIELD labelsOrTypes, properties, uniqueness
+        |WHERE (labelsOrTypes = ['Person'] AND properties = ['surname'] AND uniqueness = 'NONUNIQUE')
+        |OR (labelsOrTypes = ['Product'] AND properties = ['name', 'sku'] AND uniqueness = 'UNIQUE')
+        |RETURN count(*) AS count
+        |""".stripMargin)
+      .single()
+      .get("count")
+      .asLong()
+    assertEquals(2, constraintCount)
+    SparkConnectorScalaSuiteIT.session().run("DROP INDEX ON :Person(surname)")
+    SparkConnectorScalaSuiteIT.session().run("DROP CONSTRAINT ON (p:Product) ASSERT (p.name, p.sku) IS NODE KEY")
+  }
+
+  @Test
+  def `should insert indexes while insert with query`(): Unit = {
+    val total = 10
+    val ds = (1 to total)
+      .map(i => i.toString)
+      .toDF("surname")
+
+    ds.write
+      .format(classOf[DataSource].getName)
+      .mode(SaveMode.Overwrite)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("labels", ":Person:Customer")
+      .option("node.keys", "surname")
+      .option("schema.optimization.type", "INDEX")
+      .save()
+
+    ds.write
+      .format(classOf[DataSource].getName)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("query", "CREATE (n:MyNode{fullName: event.name + event.surname, age: event.age - 10})")
+      .option("batch.size", "11")
+      .save()
+
+    val records = SparkConnectorScalaSuiteIT.session().run(
+      """MATCH (p:Person:Customer)
+        |RETURN p.surname AS surname
+        |""".stripMargin).list().asScala
+      .map(r => r.asMap().asScala)
+      .toSet
+    val expected = ds.collect().map(row => Map("surname" -> row.getAs[String]("surname")))
+      .toSet
+    assertEquals(expected, records)
+
+    val indexCount = SparkConnectorScalaSuiteIT.session().run(
+      """CALL db.indexes() YIELD labelsOrTypes, properties, uniqueness
+        |WHERE labelsOrTypes = ['Person'] AND properties = ['surname'] AND uniqueness = 'NONUNIQUE'
+        |RETURN count(*) AS count
+        |""".stripMargin)
+      .single()
+      .get("count")
+      .asLong()
+    assertEquals(1, indexCount)
+
+    SparkConnectorScalaSuiteIT.session().run("DROP INDEX ON :Person(surname)")
+  }
+
+  @Test
+  def `should manage scripts with new lines`(): Unit = {
+    val ds = Seq(SimplePerson("Andrea", "Santurbano")).toDS()
+
+    ds.write
+      .format(classOf[DataSource].getName)
+      .mode(SaveMode.ErrorIfExists)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("labels", "Person")
+      .option("schema.optimization.type", "QUERY")
+      .option("schema.optimization.query",
+        """CREATE INDEX ON :Person(surname);
+          |CREATE CONSTRAINT ON (p:Product)
+          | ASSERT (p.name, p.sku)
+          | IS NODE KEY
+          |""".stripMargin)
+      .save()
+
+    val records = SparkConnectorScalaSuiteIT.session().run(
+      """MATCH (p:Person)
+        |RETURN count(p) AS count
+        |""".stripMargin)
+      .single()
+      .get("count")
+      .asLong()
+    val expected = ds.count
+    assertEquals(expected, records)
+
+    val constraintCount = SparkConnectorScalaSuiteIT.session().run(
+      """CALL db.indexes() YIELD labelsOrTypes, properties, uniqueness
+        |WHERE (labelsOrTypes = ['Person'] AND properties = ['surname'] AND uniqueness = 'NONUNIQUE')
+        |OR (labelsOrTypes = ['Product'] AND properties = ['name', 'sku'] AND uniqueness = 'UNIQUE')
+        |RETURN count(*) AS count
+        |""".stripMargin)
+      .single()
+      .get("count")
+      .asLong()
+    assertEquals(2, constraintCount)
+    SparkConnectorScalaSuiteIT.session().run("DROP INDEX ON :Person(surname)")
+    SparkConnectorScalaSuiteIT.session().run("DROP CONSTRAINT ON (p:Product) ASSERT (p.name, p.sku) IS NODE KEY")
+  }
+
+
+
+  @Test(expected = classOf[IllegalArgumentException])
+  def `should throw an error with non schema write query optimization`(): Unit = {
+    val ds = Seq(SimplePerson("Andrea", "Santurbano")).toDS()
+
+    try {
+      ds.write
+        .format(classOf[DataSource].getName)
+        .mode(SaveMode.ErrorIfExists)
+        .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+        .option("labels", "Person")
+        .option("schema.optimization.type", "QUERY")
+        .option("schema.optimization.query", "CREATE (p:Person{name: 'Foo'})")
+        .save()
+    } catch {
+      case illegalArgumentException: IllegalArgumentException => {
+        assertTrue(illegalArgumentException.getMessage.equals("Please provide a valid SCHEMA WRITE query"))
+        throw illegalArgumentException
+      }
+      case _: Throwable => fail(s"should be thrown a ${classOf[IllegalArgumentException].getName}")
+    }
+  }
+
+>>>>>>> allow index creation
 }

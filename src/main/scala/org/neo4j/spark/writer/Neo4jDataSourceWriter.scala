@@ -6,6 +6,7 @@ import org.apache.spark.sql.sources.v2.DataSourceOptions
 import org.apache.spark.sql.sources.v2.writer.{DataSourceWriter, DataWriterFactory, WriterCommitMessage}
 import org.apache.spark.sql.types.StructType
 import org.neo4j.driver.AccessMode
+import org.neo4j.spark.service.SchemaService
 import org.neo4j.spark.util.Validations
 import org.neo4j.spark.{DriverCache, Neo4jOptions, NodeSaveMode}
 
@@ -22,7 +23,12 @@ class Neo4jDataSourceWriter(jobId: String,
 
   private val driverCache = new DriverCache(neo4jOptions.connection, jobId)
 
-  override def createWriterFactory(): DataWriterFactory[InternalRow] = new Neo4jDataWriterFactory(jobId, structType, saveMode, neo4jOptions)
+  override def createWriterFactory(): DataWriterFactory[InternalRow] = {
+    val schemaService = new SchemaService(neo4jOptions, driverCache)
+    schemaService.createOptimizations()
+    schemaService.close()
+    new Neo4jDataWriterFactory(jobId, structType, saveMode, neo4jOptions)
+  }
 
   override def commit(messages: Array[WriterCommitMessage]): Unit = {
     driverCache.close()

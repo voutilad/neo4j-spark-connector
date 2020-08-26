@@ -13,7 +13,7 @@ import org.neo4j.driver.{Record, Session}
 import org.neo4j.spark.service.SchemaService.{cypherToSparkType, normalizedClassName, normalizedClassNameFromGraphEntity}
 import org.neo4j.spark.util.Neo4jImplicits.{CypherImplicits, EntityImplicits}
 import org.neo4j.spark.util.{Neo4jUtil, ValidationUtil}
-import org.neo4j.spark.{DriverCache, Neo4jOptions, QueryType, SchemaStrategy}
+import org.neo4j.spark.{DriverCache, Neo4jOptions, OptimizationType, QueryType, SchemaStrategy}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -331,18 +331,102 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
     }
   }
 
-  def isReadQuery(query: String): Boolean = {
+  def isQueryType(query: String, expectedQueryTypes: org.neo4j.driver.summary.QueryType*): Boolean = try {
     val queryType = session.run(s"EXPLAIN $query").consume().queryType()
-    queryType == org.neo4j.driver.summary.QueryType.READ_ONLY || queryType == org.neo4j.driver.summary.QueryType.SCHEMA_WRITE
+    expectedQueryTypes.contains(queryType)
+  } catch {
+    case e: Throwable => {
+      log.error("Query not compiled because of the following exception:", e)
+      false
+    }
   }
 
   def isValidQueryCount(query: String): Boolean = {
-    val resultSummary = session.run(s"EXPLAIN $query").consume()
-    val queryType = resultSummary.queryType()
-    val plan = resultSummary.plan()
-    val isReadOnly = queryType == org.neo4j.driver.summary.QueryType.READ_ONLY || queryType == org.neo4j.driver.summary.QueryType.SCHEMA_WRITE
-    val hasCountIdentifier = plan.identifiers().asScala.toSet == Set("count")
-    isReadOnly && hasCountIdentifier
+    try {
+      val resultSummary = session.run(s"EXPLAIN $query").consume()
+      val queryType = resultSummary.queryType()
+      val plan = resultSummary.plan()
+      val isReadOnly = queryType == org.neo4j.driver.summary.QueryType.READ_ONLY || queryType == org.neo4j.driver.summary.QueryType.SCHEMA_WRITE
+      val hasCountIdentifier = plan.identifiers().asScala.toSet == Set("count")
+      isReadOnly && hasCountIdentifier
+    } catch {
+      case e: Throwable => {
+        log.error("Query not compiled because of the following exception:", e)
+        false
+      }
+    }
+  }
+
+  private def createIndexOrConstraint(action: OptimizationType.Value, label: String, props: Seq[String]) = {
+    if (action == OptimizationType.NONE) {
+      log.info("No optimization type provided")
+      Unit
+    } else {
+      val quotedLabel = label.quote()
+      val quotedProps = props.map(prop => s"${Neo4jUtil.NODE_ALIAS}.${prop.quote()}").mkString(", ")
+      val actionName = s"spark_${action}_$label".quote()
+      val queryPrefix = s"CREATE ${action.toString} $actionName"
+      val querySuffix = action match {
+        case OptimizationType.INDEX => s"FOR (${Neo4jUtil.NODE_ALIAS}:$quotedLabel) ON ($quotedProps)"
+        case OptimizationType.CONSTRAINT => {
+          val assertType = if (props.size > 1) "NODE KEY" else "UNIQUE"
+          s"ON (${Neo4jUtil.NODE_ALIAS}:$quotedLabel) ASSERT ($quotedProps) IS $assertType"
+        }
+      }
+      val status = try {
+        session.run(s"$queryPrefix $querySuffix")
+        "CREATED"
+      } catch {
+        case _: Throwable => "KEPT"
+      }
+      log.info(s"Status for $action named $actionName with label $quotedLabel and props $quotedProps is: $status")
+    }
+  }
+
+  def createOptimizationsForNode(): Unit = options.schemaMetadata.optimizationType match {
+    case OptimizationType.QUERY => createOptimizationsForQuery()
+    case OptimizationType.INDEX | OptimizationType.CONSTRAINT => {
+      createIndexOrConstraint(options.schemaMetadata.optimizationType,
+        options.nodeMetadata.labels.head,
+        options.nodeMetadata.nodeKeys.values.toSeq)
+    }
+  }
+
+  def createOptimizationsForRelationship(): Unit = {
+    options.schemaMetadata.optimizationType match {
+      case OptimizationType.QUERY => createOptimizationsForQuery()
+      case _ => {
+        createIndexOrConstraint(options.schemaMetadata.optimizationType,
+          options.relationshipMetadata.source.labels.head,
+          options.relationshipMetadata.source.nodeKeys.values.toSeq)
+        createIndexOrConstraint(options.schemaMetadata.optimizationType,
+          options.relationshipMetadata.target.labels.head,
+          options.relationshipMetadata.target.nodeKeys.values.toSeq)
+      }
+    }
+  }
+
+  def createOptimizationsForQuery(): Unit = options.schemaMetadata.optimizationQuery
+    .foreach(query => {
+      try {
+        log.info(s"Executing the following optimization query on Neo4j: $query")
+        session.run(query).consume()
+      } catch {
+        case e: Throwable => {
+          log.error("Cannot perform the optimization query because of the following exception:", e)
+        }
+      }
+    })
+
+  def createOptimizations(): Unit = {
+    if (options.schemaMetadata.optimizationType == OptimizationType.NONE) {
+      return Unit
+    }
+    options.query.queryType match {
+      case QueryType.LABELS => createOptimizationsForNode()
+      case QueryType.RELATIONSHIP => createOptimizationsForRelationship()
+      case QueryType.QUERY => createOptimizationsForQuery()
+    }
   }
 
   override def close(): Unit = {

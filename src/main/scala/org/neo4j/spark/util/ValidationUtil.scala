@@ -25,4 +25,6 @@ object ValidationUtil {
   def isFalse(boolean: Boolean, message: String) = if (boolean) {
     throw new IllegalArgumentException(message)
   }
+
+  def isNotValid(message: String) = throw new IllegalArgumentException(message)
 }

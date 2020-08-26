@@ -4,10 +4,8 @@ import org.apache.spark.sql.SaveMode
 import org.apache.spark.sql.types.StructType
 import org.neo4j.driver.AccessMode
 import org.neo4j.spark.service.SchemaService
-import org.neo4j.spark.{DriverCache, Neo4jOptions, QueryType}
 import org.neo4j.spark.util.Neo4jImplicits.StructTypeImplicit
-
-import scala.collection.mutable
+import org.neo4j.spark.{DriverCache, Neo4jOptions, OptimizationType, QueryType}
 
 object Validations {
 
@@ -19,8 +17,17 @@ object Validations {
     try {
       neo4jOptions.query.queryType match {
         case QueryType.QUERY => {
-          ValidationUtil.isFalse(schemaService.isReadQuery(s"WITH {} AS event ${neo4jOptions.query.value}"),
+          ValidationUtil.isTrue(schemaService.isQueryType(s"WITH {} AS event ${neo4jOptions.query.value}",
+            org.neo4j.driver.summary.QueryType.WRITE_ONLY, org.neo4j.driver.summary.QueryType.READ_WRITE),
             "Please provide a valid WRITE query")
+          neo4jOptions.schemaMetadata.optimizationType match {
+            case OptimizationType.QUERY | OptimizationType.NONE => // are valid
+            case _ => ValidationUtil.isNotValid(
+              s"""With Query Type ${neo4jOptions.query.queryType} you can
+                 |only use `${Neo4jOptions.SCHEMA_OPTIMIZATION_TYPE}`
+                 |`${OptimizationType.QUERY}` or `${OptimizationType.NONE}`
+                 |""".stripMargin)
+          }
         }
         case QueryType.LABELS => {
           saveMode match {
@@ -36,6 +43,16 @@ object Validations {
             s"${Neo4jOptions.RELATIONSHIP_SOURCE_LABELS} is required when Save Mode is Overwrite")
           ValidationUtil.isNotEmpty(neo4jOptions.relationshipMetadata.target.labels,
             s"${Neo4jOptions.RELATIONSHIP_TARGET_LABELS} is required when Save Mode is Overwrite")
+        }
+      }
+      neo4jOptions.schemaMetadata.optimizationType match {
+        case OptimizationType.QUERY => neo4jOptions.schemaMetadata.optimizationQuery.foreach(query =>
+          ValidationUtil.isTrue(schemaService.isQueryType(query, org.neo4j.driver.summary.QueryType.SCHEMA_WRITE),
+            "Please provide a valid SCHEMA WRITE query"))
+        case OptimizationType.NONE => // skip it
+        case _ => neo4jOptions.query.queryType match {
+          case QueryType.LABELS => ValidationUtil.isTrue(saveMode == SaveMode.Overwrite, "This works only with `mode` `SaveMode.Overwrite`")
+          case QueryType.RELATIONSHIP => // TODO implement it
         }
       }
     } finally {
@@ -86,7 +103,7 @@ object Validations {
             s"You need to set the ${Neo4jOptions.RELATIONSHIP_TARGET_LABELS} option")
         }
         case QueryType.QUERY => {
-          ValidationUtil.isTrue(schemaService.isReadQuery(neo4jOptions.query.value),
+          ValidationUtil.isTrue(schemaService.isQueryType(neo4jOptions.query.value, org.neo4j.driver.summary.QueryType.READ_ONLY),
             "Please provide a valid READ query")
           if (neo4jOptions.queryMetadata.queryCount.nonEmpty) {
             if (!Neo4jUtil.isLong(neo4jOptions.queryMetadata.queryCount)) {
