@@ -55,9 +55,12 @@ class Neo4jQueryWriteStrategy(private val saveMode: SaveMode) extends Neo4jQuery
       s"${key._2.quote()}:$BATCH_VARIABLE.target.${Neo4jWriteMappingStrategy.KEYS}.${key._1.removeAlias().quote()}"
     }).mkString(", ")
 
+    val sourceQueryPart = createQueryPart(sourceKeyword, sourceLabels, sourceKeys, Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS)
+    val targetQueryPart = createQueryPart(targetKeyword, targetLabels, targetKeys, Neo4jUtil.RELATIONSHIP_TARGET_ALIAS, Seq(Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS))
+
     s"""UNWIND ${"$"}events AS $BATCH_VARIABLE
-       |${createQueryPart(sourceKeyword, sourceLabels, sourceKeys, Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS)}
-       |${createQueryPart(targetKeyword, targetLabels, targetKeys, Neo4jUtil.RELATIONSHIP_TARGET_ALIAS, Seq(Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS))}
+       |$sourceQueryPart
+       |$targetQueryPart
        |$relationshipKeyword (${Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS})-[${Neo4jUtil.RELATIONSHIP_ALIAS}:${relationship}]->(${Neo4jUtil.RELATIONSHIP_TARGET_ALIAS})
        |SET ${Neo4jUtil.RELATIONSHIP_ALIAS} = $BATCH_VARIABLE.${Neo4jUtil.RELATIONSHIP_ALIAS}.${Neo4jWriteMappingStrategy.PROPERTIES}
        |""".stripMargin

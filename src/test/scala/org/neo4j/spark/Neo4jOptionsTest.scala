@@ -146,7 +146,7 @@ class Neo4jOptionsTest {
     assertEquals(-1, neo4jOptions.connection.acquisitionTimeout)
     assertEquals(-1, neo4jOptions.connection.connectionTimeout)
     assertEquals(-1, neo4jOptions.connection.livenessCheckTimeout)
-    assertEquals(RelationshipSavStrategy.NATIVE, neo4jOptions.relationshipMetadata.writeStrategy)
+    assertEquals(RelationshipSaveStrategy.NATIVE, neo4jOptions.relationshipMetadata.writeStrategy)
 
     assertTrue(neo4jOptions.pushdownFiltersEnabled)
   }

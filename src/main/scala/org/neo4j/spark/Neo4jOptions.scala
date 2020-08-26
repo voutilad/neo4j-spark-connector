@@ -134,7 +134,7 @@ class Neo4jOptions(private val parameters: java.util.Map[String, String]) extend
 
     val nodeMap = getParameter(RELATIONSHIP_NODES_MAP, DEFAULT_RELATIONSHIP_NODES_MAP.toString).toBoolean
 
-    val writeStrategy = RelationshipSavStrategy.withName(getParameter(RELATIONSHIP_SAVE_STRATEGY, DEFAULT_RELATIONSHIP_SAVE_STRATEGY.toString).toUpperCase)
+    val writeStrategy = RelationshipSaveStrategy.withName(getParameter(RELATIONSHIP_SAVE_STRATEGY, DEFAULT_RELATIONSHIP_SAVE_STRATEGY.toString).toUpperCase)
     val sourceSaveMode = NodeSaveMode.withName(getParameter(RELATIONSHIP_SOURCE_SAVE_MODE, DEFAULT_RELATIONSHIP_SOURCE_SAVE_MODE.toString))
     val targetSaveMode = NodeSaveMode.withName(getParameter(RELATIONSHIP_TARGET_SAVE_MODE, DEFAULT_RELATIONSHIP_TARGET_SAVE_MODE.toString))
 
@@ -166,7 +166,7 @@ case class Neo4jRelationshipMetadata(
                                       targetWriteMode: NodeSaveMode.Value,
                                       relationshipType: String,
                                       nodeMap: Boolean,
-                                      writeStrategy: RelationshipSavStrategy.Value
+                                      writeStrategy: RelationshipSaveStrategy.Value
                                     )
 case class Neo4jQueryMetadata(query: String, queryCount: String)
 
@@ -320,7 +320,7 @@ object Neo4jOptions {
   val DEFAULT_TRANSACTION_RETRIES = 3
   val DEFAULT_RELATIONSHIP_NODES_MAP = true
   val DEFAULT_SCHEMA_STRATEGY = SchemaStrategy.SAMPLE
-  val DEFAULT_RELATIONSHIP_SAVE_STRATEGY: RelationshipSavStrategy.Value = RelationshipSavStrategy.NATIVE
+  val DEFAULT_RELATIONSHIP_SAVE_STRATEGY: RelationshipSaveStrategy.Value = RelationshipSaveStrategy.NATIVE
   val DEFAULT_RELATIONSHIP_SOURCE_SAVE_MODE: NodeSaveMode.Value = NodeSaveMode.Match
   val DEFAULT_RELATIONSHIP_TARGET_SAVE_MODE: NodeSaveMode.Value = NodeSaveMode.Match
   val DEFAULT_PUSHDOWN_FILTERS_ENABLED = true
@@ -331,7 +331,7 @@ object QueryType extends Enumeration {
   val QUERY, LABELS, RELATIONSHIP = Value
 }
 
-object RelationshipSavStrategy extends Enumeration {
+object RelationshipSaveStrategy extends Enumeration {
   val NATIVE, KEYS = Value
 }
 

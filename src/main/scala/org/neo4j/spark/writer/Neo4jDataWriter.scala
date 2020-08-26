@@ -50,8 +50,10 @@ class Neo4jDataWriter(jobId: String,
       transaction = session.beginTransaction()
     }
     try {
-      log.info(s"Writing a batch of ${batch.size()} elements to Neo4j, for jobId=$jobId and partitionId=$partitionId")
-      log.info(s"Writing batch into Neo4j with query: $query")
+      log.info(
+        s"""Writing a batch of ${batch.size()} elements to Neo4j, for jobId=$jobId and partitionId=$partitionId
+           |Writing batch into Neo4j with query: $query
+           |""".stripMargin)
       val result = transaction.run(query,
         Values.value(Collections.singletonMap[String, Object]("events", batch)))
       if (log.isDebugEnabled) {
