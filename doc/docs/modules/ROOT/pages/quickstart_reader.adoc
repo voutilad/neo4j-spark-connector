@@ -196,7 +196,7 @@ every single node property as column prefixed by `source` or `target`
 |`5000`
 |No
 
-|`relationship.write.strategy`
+|`relationship.save.strategy`
 |<<quickstart_writer.adoc#node-keys,Docs here>>
 |``
 |Yes for <<quickstart_writer.adoc#keys-strategy,KEYS>> strategy
