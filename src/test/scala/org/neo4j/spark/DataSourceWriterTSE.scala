@@ -438,7 +438,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .mode(SaveMode.Overwrite)
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
       .option("labels", "Person")
-      .option("node.keys", "surname")
+        .option("node.keys", "surname")
       .save()
 
     val nodeList = SparkConnectorScalaSuiteIT.session()
@@ -575,7 +575,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
     val total = 100
     val fixtureQuery: String =
       s"""UNWIND range(1, $total) as id
-         |CREATE (pr:Product {id: id * rand(), name: 'Product ' + id})
+         |CREATE (pr:Product {id: id * $total, name: 'Product ' + id})
          |CREATE (pe:Person {id: id, fullName: 'Person ' + id})
          |CREATE (pe)-[:BOUGHT{when: rand(), quantity: rand() * 1000}]->(pr)
          |RETURN *
@@ -583,14 +583,12 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
 
     SparkConnectorScalaSuiteIT.driver.session(SessionConfig.forDatabase("db1"))
       .writeTransaction(
-        new TransactionWork[ResultSummary] {
-          override def execute(tx: Transaction): ResultSummary = tx.run("MATCH (n) DETACH DELETE n").consume()
-        })
-
-    SparkConnectorScalaSuiteIT.driver.session(SessionConfig.forDatabase("db1"))
-      .writeTransaction(
-        new TransactionWork[ResultSummary] {
-          override def execute(tx: Transaction): ResultSummary = tx.run(fixtureQuery).consume()
+        new TransactionWork[Unit] {
+          override def execute(tx: Transaction): Unit = {
+            tx.run("MATCH (n) DETACH DELETE n")
+            tx.run(fixtureQuery)
+            tx.commit()
+          }
         })
 
     SparkConnectorScalaSuiteIT.driver.session(SessionConfig.forDatabase("db2"))
@@ -599,7 +597,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
           override def execute(tx: Transaction): ResultSummary = tx.run("MATCH (n) DETACH DELETE n").consume()
         })
 
-    val df: DataFrame = ss.read.format(classOf[DataSource].getName)
+    val dfOriginal: DataFrame = ss.read.format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
       .option("database", "db1")
       .option("relationship", "BOUGHT")
@@ -608,22 +606,20 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .option("relationship.target.labels", ":Product")
       .load()
 
-    val df1count = df.count()
-
-    df.write
+    dfOriginal.write
       .format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
       .option("database", "db2")
       .option("relationship", "SOLD")
-      .option("relationship.write.strategy", "NATIVE")
+      .option("relationship.save.strategy", "NATIVE")
       .option("relationship.source.labels", ":Person")
-      .option("relationship.source.write.mode", "ErrorIfExists")
+      .option("relationship.source.save.mode", "ErrorIfExists")
       .option("relationship.target.labels", ":Product")
-      .option("relationship.target.write.mode", "ErrorIfExists")
+      .option("relationship.target.save.mode", "ErrorIfExists")
       .option("batch.size", "11")
       .save()
 
-    val df2count = ss.read.format(classOf[DataSource].getName)
+    val dfCopy = ss.read.format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
       .option("database", "db2")
       .option("relationship", "SOLD")
@@ -631,9 +627,16 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .option("relationship.source.labels", ":Person")
       .option("relationship.target.labels", ":Product")
       .load()
-      .count()
 
-    assertEquals(df1count, df2count)
+    assertEquals(dfOriginal.count(), dfCopy.count())
+    assertEquals(
+      dfOriginal.select("`source.id`").collectAsList().get(0).getLong(0),
+      dfCopy.select("`source.id`").collectAsList().get(0).getLong(0)
+    )
+    assertEquals(
+      dfOriginal.select("`target.id`").collectAsList().get(0).getLong(0),
+      dfCopy.select("`target.id`").collectAsList().get(0).getLong(0)
+    )
   }
 
   @Test
@@ -649,30 +652,25 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
 
     SparkConnectorScalaSuiteIT.driver.session(SessionConfig.forDatabase("db1"))
       .writeTransaction(
-        new TransactionWork[ResultSummary] {
-          override def execute(tx: Transaction): ResultSummary = tx.run("MATCH (n) DETACH DELETE n").consume()
-        })
-
-    SparkConnectorScalaSuiteIT.driver.session(SessionConfig.forDatabase("db1"))
-      .writeTransaction(
-        new TransactionWork[ResultSummary] {
-          override def execute(tx: Transaction): ResultSummary = tx.run(fixtureQuery).consume()
-        })
-
-
-    SparkConnectorScalaSuiteIT.driver.session(SessionConfig.forDatabase("db2"))
-      .writeTransaction(
-        new TransactionWork[ResultSummary] {
-          override def execute(tx: Transaction): ResultSummary = tx.run("MATCH (n) DETACH DELETE n").consume()
+        new TransactionWork[Unit] {
+          override def execute(tx: Transaction): Unit = {
+            tx.run("MATCH (n) DETACH DELETE n")
+            tx.run(fixtureQuery)
+            tx.commit()
+          }
         })
 
     SparkConnectorScalaSuiteIT.driver.session(SessionConfig.forDatabase("db2"))
       .writeTransaction(
-        new TransactionWork[ResultSummary] {
-          override def execute(tx: Transaction): ResultSummary = tx.run(fixtureQuery).consume()
+        new TransactionWork[Unit] {
+          override def execute(tx: Transaction): Unit = {
+            tx.run("MATCH (n) DETACH DELETE n")
+            tx.run(fixtureQuery)
+            tx.commit()
+          }
         })
 
-    val df: DataFrame = ss.read.format(classOf[DataSource].getName)
+    val dfOriginal: DataFrame = ss.read.format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
       .option("database", "db1")
       .option("relationship", "BOUGHT")
@@ -681,24 +679,22 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .option("relationship.target.labels", ":Product")
       .load()
 
-    val df1count = df.count()
-
-    df.write
+    dfOriginal.write
       .format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
       .option("database", "db2")
       .option("relationship", "SOLD")
-      .option("relationship.write.strategy", "NATIVE")
+      .option("relationship.save.strategy", "NATIVE")
       .option("relationship.source.labels", ":Person")
       .option("relationship.target.labels", ":Product")
-      .option("relationship.source.node.keys", "id:source.id")
-      .option("relationship.target.node.keys", "id:target.id")
-      .option("relationship.source.write.mode", "Match")
-      .option("relationship.target.write.mode", "Match")
+      .option("relationship.source.node.keys", "source.id:id")
+      .option("relationship.target.node.keys", "target.id:id")
+      .option("relationship.source.save.mode", "Match")
+      .option("relationship.target.save.mode", "Match")
       .option("batch.size", "11")
       .save()
 
-    val df2count = ss.read.format(classOf[DataSource].getName)
+    val dfCopy = ss.read.format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
       .option("database", "db2")
       .option("relationship", "SOLD")
@@ -706,9 +702,16 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .option("relationship.source.labels", ":Person")
       .option("relationship.target.labels", ":Product")
       .load()
-      .count()
 
-    assertEquals(df1count, df2count)
+    assertEquals(dfOriginal.count(), dfCopy.count())
+    assertEquals(
+      dfOriginal.select("`source.id`").collectAsList().get(0).getLong(0),
+      dfCopy.select("`source.id`").collectAsList().get(0).getLong(0)
+    )
+    assertEquals(
+      dfOriginal.select("`target.id`").collectAsList().get(0).getLong(0),
+      dfCopy.select("`target.id`").collectAsList().get(0).getLong(0)
+    )
   }
 
   @Test
@@ -724,14 +727,12 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
 
     SparkConnectorScalaSuiteIT.driver.session(SessionConfig.forDatabase("db1"))
       .writeTransaction(
-        new TransactionWork[ResultSummary] {
-          override def execute(tx: Transaction): ResultSummary = tx.run("MATCH (n) DETACH DELETE n").consume()
-        })
-
-    SparkConnectorScalaSuiteIT.driver.session(SessionConfig.forDatabase("db1"))
-      .writeTransaction(
-        new TransactionWork[ResultSummary] {
-          override def execute(tx: Transaction): ResultSummary = tx.run(fixtureQuery).consume()
+        new TransactionWork[Unit] {
+          override def execute(tx: Transaction): Unit = {
+            tx.run("MATCH (n) DETACH DELETE n")
+            tx.run(fixtureQuery)
+            tx.commit()
+          }
         })
 
     SparkConnectorScalaSuiteIT.driver.session(SessionConfig.forDatabase("db2"))
@@ -740,7 +741,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
           override def execute(tx: Transaction): ResultSummary = tx.run("MATCH (n) DETACH DELETE n").consume()
         })
 
-    val df: DataFrame = ss.read.format(classOf[DataSource].getName)
+    val dfOriginal: DataFrame = ss.read.format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
       .option("database", "db1")
       .option("relationship", "BOUGHT")
@@ -749,24 +750,22 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .option("relationship.target.labels", ":Product")
       .load()
 
-    val df1count = df.count()
-
-    df.write
+    dfOriginal.write
       .format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
       .option("database", "db2")
       .option("relationship", "SOLD")
-      .option("relationship.write.strategy", "NATIVE")
+      .option("relationship.save.strategy", "NATIVE")
       .option("relationship.source.labels", ":Person")
       .option("relationship.target.labels", ":Product")
-      .option("relationship.source.node.keys", "id:source.id")
-      .option("relationship.source.write.mode", "Overwrite")
-      .option("relationship.target.node.keys", "id:target.id")
-      .option("relationship.target.write.mode", "Overwrite")
+      .option("relationship.source.node.keys", "source.id:id")
+      .option("relationship.source.save.mode", "Overwrite")
+      .option("relationship.target.node.keys", "target.id:id")
+      .option("relationship.target.save.mode", "Overwrite")
       .option("batch.size", "11")
       .save()
 
-    val df2count = ss.read.format(classOf[DataSource].getName)
+    val dfCopy = ss.read.format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
       .option("database", "db2")
       .option("relationship", "SOLD")
@@ -774,9 +773,16 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .option("relationship.source.labels", ":Person")
       .option("relationship.target.labels", ":Product")
       .load()
-      .count()
 
-    assertEquals(df1count, df2count)
+    assertEquals(dfOriginal.count(), dfCopy.count())
+    assertEquals(
+      dfOriginal.select("`source.id`").collectAsList().get(0).getLong(0),
+      dfCopy.select("`source.id`").collectAsList().get(0).getLong(0)
+    )
+    assertEquals(
+      dfOriginal.select("`target.id`").collectAsList().get(0).getLong(0),
+      dfCopy.select("`target.id`").collectAsList().get(0).getLong(0)
+    )
   }
 
   @Test
@@ -792,9 +798,9 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
       .option("relationship", "PLAYS")
-      .option("relationship.source.write.mode", "ErrorIfExists")
-      .option("relationship.target.write.mode", "ErrorIfExists")
-      .option("relationship.write.strategy", "keys")
+      .option("relationship.source.save.mode", "ErrorIfExists")
+      .option("relationship.target.save.mode", "ErrorIfExists")
+      .option("relationship.save.strategy", "keys")
       .option("relationship.source.labels", ":Musician")
       .option("relationship.source.node.keys", "name:name")
       .option("relationship.target.labels", ":Instrument")
@@ -829,9 +835,9 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
       .option("relationship", "PLAYS")
-      .option("relationship.source.write.mode", "ErrorIfExists")
-      .option("relationship.target.write.mode", "ErrorIfExists")
-      .option("relationship.write.strategy", "keys")
+      .option("relationship.source.save.mode", "ErrorIfExists")
+      .option("relationship.target.save.mode", "ErrorIfExists")
+      .option("relationship.save.strategy", "keys")
       .option("relationship.source.labels", ":Musician")
       .option("relationship.source.node.properties", "name:name")
       .option("relationship.target.labels", ":Instrument")
@@ -879,10 +885,10 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
       .option("relationship.nodes.map", "false")
-      .option("relationship.source.write.mode", "Overwrite")
-      .option("relationship.target.write.mode", "Overwrite")
+      .option("relationship.source.save.mode", "Overwrite")
+      .option("relationship.target.save.mode", "Overwrite")
       .option("relationship", "PLAYS")
-      .option("relationship.write.strategy", "keys")
+      .option("relationship.save.strategy", "keys")
       .option("relationship.source.labels", ":Musician")
       .option("relationship.source.node.keys", "id:id")
       .option("relationship.source.node.properties", "name:name")
@@ -929,9 +935,9 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .option("database", "db1")
       .option("relationship.nodes.map", "false")
       .option("relationship", "PLAYS")
-      .option("relationship.source.write.mode", "Match")
-      .option("relationship.target.write.mode", "Match")
-      .option("relationship.write.strategy", "keys")
+      .option("relationship.source.save.mode", "Match")
+      .option("relationship.target.save.mode", "Match")
+      .option("relationship.save.strategy", "keys")
       .option("relationship.source.labels", ":Musician")
       .option("relationship.source.node.keys", "name:name,age:age")
       .option("relationship.target.labels", ":Instrument")

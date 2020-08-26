@@ -11,7 +11,7 @@ import org.neo4j.driver.types.Node
 import org.neo4j.driver.{Record, Value, Values}
 import org.neo4j.spark.service.Neo4jWriteMappingStrategy.{KEYS, PROPERTIES}
 import org.neo4j.spark.util.Neo4jUtil
-import org.neo4j.spark.{Neo4jOptions, QueryType, RelationshipWriteStrategy}
+import org.neo4j.spark.{Neo4jOptions, QueryType, RelationshipSavStrategy}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -42,14 +42,14 @@ class Neo4jWriteMappingStrategy(private val options: Neo4jOptions)
     val rowMap: java.util.Map[String, AnyRef] = new java.util.HashMap[String, AnyRef]
 
     val relMap = new util.HashMap[String, util.Map[String, AnyRef]]()
-    val sourceMap = new util.HashMap[String, util.Map[String, AnyRef]]()
-    val targetMap = new util.HashMap[String, util.Map[String, AnyRef]]()
+    val sourceNodeMap = new util.HashMap[String, util.Map[String, AnyRef]]()
+    val targetNodeMap = new util.HashMap[String, util.Map[String, AnyRef]]()
 
     relMap.put(PROPERTIES, new util.HashMap[String, AnyRef]())
-    sourceMap.put(PROPERTIES, new util.HashMap[String, AnyRef]())
-    sourceMap.put(KEYS, new util.HashMap[String, AnyRef]())
-    targetMap.put(PROPERTIES, new util.HashMap[String, AnyRef]())
-    targetMap.put(KEYS, new util.HashMap[String, AnyRef]())
+    sourceNodeMap.put(PROPERTIES, new util.HashMap[String, AnyRef]())
+    sourceNodeMap.put(KEYS, new util.HashMap[String, AnyRef]())
+    targetNodeMap.put(PROPERTIES, new util.HashMap[String, AnyRef]())
+    targetNodeMap.put(KEYS, new util.HashMap[String, AnyRef]())
 
     query(row, schema)
       .forEach(new BiConsumer[String, AnyRef] {
@@ -58,27 +58,27 @@ class Neo4jWriteMappingStrategy(private val options: Neo4jOptions)
             relMap.get(PROPERTIES).put(key.removeAlias(), value)
           }
           else if (key.startsWith(Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS.concat("."))) {
-            if(options.relationshipMetadata.source.nodeKeys.contains(key.removeAlias())) {
-              sourceMap.get(KEYS).put(key.removeAlias(), value)
+            if(options.relationshipMetadata.source.nodeKeys.contains(key)) {
+              sourceNodeMap.get(KEYS).put(key.removeAlias(), value)
             }
             else {
-              sourceMap.get(PROPERTIES).put(key.removeAlias(), value)
+              sourceNodeMap.get(PROPERTIES).put(key.removeAlias(), value)
             }
           }
           else if (key.startsWith(Neo4jUtil.RELATIONSHIP_TARGET_ALIAS.concat("."))) {
-            if(options.relationshipMetadata.target.nodeKeys.contains(key.removeAlias())) {
-              targetMap.get(KEYS).put(key.removeAlias(), value)
+            if(options.relationshipMetadata.target.nodeKeys.contains(key)) {
+              targetNodeMap.get(KEYS).put(key.removeAlias(), value)
             }
             else {
-              targetMap.get(PROPERTIES).put(key.removeAlias(), value)
+              targetNodeMap.get(PROPERTIES).put(key.removeAlias(), value)
             }
           }
         }
       })
 
     rowMap.put(Neo4jUtil.RELATIONSHIP_ALIAS, relMap)
-    rowMap.put(Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS, sourceMap)
-    rowMap.put(Neo4jUtil.RELATIONSHIP_TARGET_ALIAS, targetMap)
+    rowMap.put(Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS, sourceNodeMap)
+    rowMap.put(Neo4jUtil.RELATIONSHIP_TARGET_ALIAS, targetNodeMap)
 
     rowMap
   }
@@ -87,29 +87,29 @@ class Neo4jWriteMappingStrategy(private val options: Neo4jOptions)
     val rowMap: java.util.Map[String, AnyRef] = new java.util.HashMap[String, AnyRef]
 
     val relMap = new util.HashMap[String, util.Map[String, AnyRef]]()
-    val sourceMap = new util.HashMap[String, util.Map[String, AnyRef]]()
-    val targetMap = new util.HashMap[String, util.Map[String, AnyRef]]()
+    val sourceNodeMap = new util.HashMap[String, util.Map[String, AnyRef]]()
+    val targetNodeMap = new util.HashMap[String, util.Map[String, AnyRef]]()
 
     relMap.put(PROPERTIES, new util.HashMap[String, AnyRef]())
-    sourceMap.put(PROPERTIES, new util.HashMap[String, AnyRef]())
-    sourceMap.put(KEYS, new util.HashMap[String, AnyRef]())
-    targetMap.put(PROPERTIES, new util.HashMap[String, AnyRef]())
-    targetMap.put(KEYS, new util.HashMap[String, AnyRef]())
+    sourceNodeMap.put(PROPERTIES, new util.HashMap[String, AnyRef]())
+    sourceNodeMap.put(KEYS, new util.HashMap[String, AnyRef]())
+    targetNodeMap.put(PROPERTIES, new util.HashMap[String, AnyRef]())
+    targetNodeMap.put(KEYS, new util.HashMap[String, AnyRef]())
 
     query(row, schema)
       .forEach(new BiConsumer[String, AnyRef] {
         override def accept(key: String, value: AnyRef): Unit =
           if (options.relationshipMetadata.source.nodeKeys.contains(key)) {
-            sourceMap.get(KEYS).put(key, value)
+            sourceNodeMap.get(KEYS).put(key, value)
           }
           else if(options.relationshipMetadata.source.nodeProps.contains(key)) {
-            sourceMap.get(PROPERTIES).put(key, value)
+            sourceNodeMap.get(PROPERTIES).put(key, value)
           }
           else if (options.relationshipMetadata.target.nodeKeys.contains(key)) {
-            targetMap.get(KEYS).put(key, value)
+            targetNodeMap.get(KEYS).put(key, value)
           }
           else if (options.relationshipMetadata.target.nodeProps.contains(key)) {
-            targetMap.get(PROPERTIES).put(key, value)
+            targetNodeMap.get(PROPERTIES).put(key, value)
           }
           else {
             relMap.get(PROPERTIES).put(key, value)
@@ -117,16 +117,16 @@ class Neo4jWriteMappingStrategy(private val options: Neo4jOptions)
       })
 
     rowMap.put(Neo4jUtil.RELATIONSHIP_ALIAS, relMap)
-    rowMap.put(Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS, sourceMap)
-    rowMap.put(Neo4jUtil.RELATIONSHIP_TARGET_ALIAS, targetMap)
+    rowMap.put(Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS, sourceNodeMap)
+    rowMap.put(Neo4jUtil.RELATIONSHIP_TARGET_ALIAS, targetNodeMap)
 
     rowMap
   }
 
   override def relationship(row: InternalRow, schema: StructType): java.util.Map[String, AnyRef] = {
     options.relationshipMetadata.writeStrategy match {
-      case RelationshipWriteStrategy.NATIVE => relationshipNativeMap(row, schema)
-      case RelationshipWriteStrategy.KEYS => relationshipKeysMap(row, schema)
+      case RelationshipSavStrategy.NATIVE => relationshipNativeMap(row, schema)
+      case RelationshipSavStrategy.KEYS => relationshipKeysMap(row, schema)
     }
   }
 
@@ -241,5 +241,5 @@ class MappingService[IN, OUT](private val strategy: Neo4jMappingStrategy[IN, OUT
 
 object Neo4jWriteMappingStrategy {
   val KEYS = "keys"
-  val PROPERTIES = "properies"
+  val PROPERTIES = "properties"
 }

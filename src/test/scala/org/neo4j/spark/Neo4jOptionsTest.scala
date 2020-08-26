@@ -70,7 +70,7 @@ class Neo4jOptionsTest {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
     options.put(QueryType.LABELS.toString.toLowerCase, "PERSON")
-    options.put("relationship.write.strategy", "nope")
+    options.put("relationship.save.strategy", "nope")
 
     _expectedException.expect(classOf[NoSuchElementException])
     _expectedException.expectMessage("No value found for 'NOPE'")
@@ -146,7 +146,7 @@ class Neo4jOptionsTest {
     assertEquals(-1, neo4jOptions.connection.acquisitionTimeout)
     assertEquals(-1, neo4jOptions.connection.connectionTimeout)
     assertEquals(-1, neo4jOptions.connection.livenessCheckTimeout)
-    assertEquals(RelationshipWriteStrategy.NATIVE, neo4jOptions.relationshipMetadata.writeStrategy)
+    assertEquals(RelationshipSavStrategy.NATIVE, neo4jOptions.relationshipMetadata.writeStrategy)
 
     assertTrue(neo4jOptions.pushdownFiltersEnabled)
   }

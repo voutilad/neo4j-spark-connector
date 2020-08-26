@@ -7,7 +7,7 @@ import org.apache.spark.sql.sources.v2.writer.{DataSourceWriter, DataWriterFacto
 import org.apache.spark.sql.types.StructType
 import org.neo4j.driver.AccessMode
 import org.neo4j.spark.util.Validations
-import org.neo4j.spark.{DriverCache, Neo4jOptions, NodeWriteMode}
+import org.neo4j.spark.{DriverCache, Neo4jOptions, NodeSaveMode}
 
 class Neo4jDataSourceWriter(jobId: String,
                             structType: StructType,
