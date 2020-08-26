@@ -27,13 +27,6 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
   }
 
   @Test
-  def teestteest(): Unit = {
-    val df: DataFrame = initTest(s"CREATE (p:Person {name: 'John', age: 32})")
-
-    df.show()
-  }
-
-  @Test
   def testReadNodeHasLabelsField(): Unit = {
     val df: DataFrame = initTest(s"CREATE (p:Person:Customer {name: 'John'})")
 
