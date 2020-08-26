@@ -166,7 +166,7 @@ try to flatten it, so if you have the follwing Dataset:
 |Andrea Santurbano
 |{address: 'Times Square, 1', city: 'NY', state: 'NY'}
 
-|1
+|2
 |Davide Fantuzzi
 |{address: 'Statue of Liberty, 10', city: 'NY', state: 'NY'}
 
@@ -224,7 +224,7 @@ There are two strategies you can use to write relationships: *NATIVE* and *KEYS*
 
 ==== Native Strategy
 
-This strategy is useful when you have a schema that conforms with the <<bookmark-rel-read-schema,Relationship Read Schema>>
+This strategy is useful when you have a schema that conforms with the <<quickstart_reader.adoc#bookmark-rel-read-schema,Relationship Read Schema>>
 
 ```scala
 df.write
