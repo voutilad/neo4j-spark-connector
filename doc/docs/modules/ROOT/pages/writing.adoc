@@ -77,6 +77,60 @@ The DataSource Writer has several options in order to connect and persist data i
 |_(none)_
 |No
 
+
+4+|*Data Write Options*
+
+|`batch.size`
+|Number of records to be passed to the transaction
+|`5000`
+|No
+
+|`relationship.save.strategy`
+|<<writing.adoc#node-keys,Docs here>>
+|_(empty)_
+|Yes for <<writing.adoc#keys-strategy,KEYS>> strategy
+
+|`relationship.source.labels`
+|List of source node Labels separated by `:`
+|_(empty)_
+|Yes^*^
+
+|`relationship.source.node.keys`
+|<<writing.adoc#node-keys,Docs here>>
+|_(empty)_
+|No
+
+|`relationship.source.save.mode`
+|<<writing.adoc#node-save-modes,Node Save Mode>>
+|`Match`
+|No
+
+|`relationship.source.node.props`
+|<<writing.adoc#node-keys,Docs here>>
+|_(empty)_
+|No
+
+|`relationship.target.labels`
+|List of target node Labels separated by `:`
+|_(empty)_
+|Yes^*^
+
+|`relationship.target.node.keys`
+|<<writing.adoc#node-keys,Docs here>>
+|_(empty)_
+|No
+
+|`relationship.target.save.mode`
+|<<writing.adoc#node-save-modes,Node Save Mode>>
+|`Match`
+|No
+
+|`relationship.target.node.props`
+|<<writing.adoc#node-keys,Docs here>>
+|_(empty)_
+|No
+
+
 |===
 
 ==== How the Spark Connector persist the data

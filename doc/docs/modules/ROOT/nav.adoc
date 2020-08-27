@@ -1,5 +1,5 @@
 * xref::index.adoc[Neo4j Spark Connector User Guide]
-* xref::overview.adoc[Project overview]
+* xref::overview.adoc[Project Overview]
 * xref::configuration.adoc[Neo4j Driver Configuration]
 * xref::reading.adoc[Reading from Neo4j]
 * xref::writing.adoc[Writing to Neo4j]

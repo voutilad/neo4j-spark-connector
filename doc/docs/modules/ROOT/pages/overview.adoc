@@ -5,6 +5,8 @@
 
 It's fairly easy to use, although it can be highly customized.
 
+== Getting Started
+
 You can read your Neo4j database and have the data available as Spark DataFrame.
 
 .Read all the nodes with of type Person
@@ -43,3 +45,146 @@ df.write.format("org.neo4j.spark.DataSource")
 ----
 
 Visit the link:reading[Reading] and link:writing[Writing] sections for advanced usage.
+
+
+== General Considerations
+
+Before diving into the advanced stuff, we need to address you to some preliminary considerations on data types, filters, and schema.
+
+=== Complex Data Types
+
+Spark doesn't support all Neo4j data types (ie: Point, Time, Duration). Such types are transformed into Struct types containing all the useful data.
+
+|===
+|Type |Struct
+
+|`Duration`
+a|
+----
+Struct(Array(
+    ("type", DataTypes.StringType, false),
+    ("months", DataTypes.LongType, false),
+    ("days", DataTypes.LongType, false),
+    ("seconds", DataTypes.LongType, false),
+    ("nanoseconds", DataTypes.IntegerType, false),
+    ("value", DataTypes.StringType, false)
+  ))
+----
+
+|`Point`
+a|
+----
+Struct(Array(
+    ("type", DataTypes.StringType, false),
+    ("srid", DataTypes.IntegerType, false),
+    ("x", DataTypes.DoubleType, false),
+    ("y", DataTypes.DoubleType, false),
+    ("z", DataTypes.DoubleType, true),
+  ))
+----
+
+|`Time`
+a|
+----
+Struct(Array(
+    ("type", DataTypes.StringType, false),
+    ("value", DataTypes.StringType, false)
+  ))
+----
+|===
+
+=== Filters
+
+The Neo4j Spark Connector implements the `SupportPushDownFilters` interface, that allows you to push the Spark filters down to the Neo4j layer.
+In this way the data that Spark will receive will be already filtered by Neo4j,
+decreasing the amount of data transferred from Neo4j to Spark.
+
+You can manually disable the Push Down Filters support using the `pushdown.filters.enabled` option and set it to `false` (default is `true`).
+
+If you use the filter function more than once, like in this example:
+
+[source,scala]
+----
+import org.apache.spark.sql.{SaveMode, SparkSession}
+
+val spark = SparkSession.builder().getOrCreate()
+
+val df = spark.read.format("org.neo4j.spark.DataSource")
+  .option("url", "bolt://localhost:7687")
+  .option("labels", ":Person")
+  .load()
+
+df.where("name = 'John Doe'").where("age = 32").show()
+----
+The conditions will be automatically joined with an `AND` operator.
+
+[NOTE]
+When using `relationship.node.map = true` or `query` the PushDownFilters support automatically disabled,
+thus the filters will be applied by Spark and not by Neo4j.
+
+[[bookmarks-schema]]
+=== Schema
+
+Spark works with data in a fixed tabular schema.
+To accomplish this Neo4j Connector has a schema infer system that creates the schema based on the data retrieved from the db.
+Each read data method has is own strategy to create it, that will be explained it each section.
+
+In general, we first try to use APOC, if these are not available we flatten the first `schema.flatten.limit` results
+and try to infer the schema by the type of each column.
+
+If you don't want this process to happen you can set `schema.strategy` to `string` (default is `sample`),
+and every column will be a string.
+
+[NOTE]
+Schema strategy `sample` is good when all instances of a property in Neo4j are the same type,
+and `string` followed by cast is better when property types may differ.
+Remember that Neo4j does not enforce property typing, and so `person.age` could sometimes be a `long`
+and sometimes be a `string`.
+
+==== Example
+
+.Using sample strategy
+[source,scala]
+----
+import org.apache.spark.sql.{SaveMode, SparkSession}
+
+val spark = SparkSession.builder().getOrCreate()
+
+spark.read.format("org.neo4j.spark.DataSource")
+  .option("url", "bolt://localhost:7687")
+  .option("query", "MATCH (n:Person) WITH n LIMIT 2 RETURN id(n) as id, n.name as name")
+  .load()
+  .show()
+
+// +--+--------+
+// |id|name    |
+// +--+--------+
+// | 0|John Doe|
+// | 1|Jane Doe|
+// +--+--------+
+----
+
+[[bookmark-string-strategy]]
+.Using string strategy
+[source,scala]
+----
+import org.apache.spark.sql.{SaveMode, SparkSession}
+
+val spark = SparkSession.builder().getOrCreate()
+
+spark.read.format("org.neo4j.spark.DataSource")
+  .option("query", "MATCH (n:Person) WITH n WITH n LIMIT 2 RETURN id(n) as id, n.name as name")
+  .option("schema.strategy", "string")
+  .load()
+  .show()
+
+// +---+----------+
+// |id |name      |
+// +---+----------+
+// |"0"|"John Doe"|
+// |"1"|"Jane Doe"|
+// +---+----------+
+----
+
+As you can see, the struct returned by the query is made of strings
+that you can then be casted Spark's getters (ie: `getLong`).
