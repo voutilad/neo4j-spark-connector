@@ -1,27 +1,28 @@
 
-= Quick Start
+= Reading from Neo4j
 
-== Neo4j Spark Connector Plugin
-
-=== Overview
-
-Neo4j Spark Connector allows Spark to read from and write to Neo4j databases.
+[abstract]
+--
+Neo4j Spark Connector allows you to read data from Neo4j in 3 different ways:
+by node labels, by relationship name, and by direct query
+--
 
 === Getting Started
 
 Reading all the nodes of type `Person` from your local Neo4j instance is as simple as this:
 
-```scala
+[source,scala]
+----
 val df = spark.read.format("org.neo4j.spark.DataSource")
         .option("url", "bolt://localhost:7687")
         .option("labels", "Person")
         .load()
         .show()
-```
+---
 
 The above code will produce something similar to this:
 
-```
+```text
 +----+--------+----+---+
 |<id>|<labels>|name|age|
 +----+--------+----+---+
@@ -46,99 +47,6 @@ val df = spark.read.format("org.neo4j.spark.DataSource")
 .List of available options
 |===
 |Setting Name |Description |Default Value |Required 
-
-4+|*Driver Options*
-
-|`url`
-|The url of the Neo4j instance to connect to
-|_(none)_
-|Yes
-
-|`authentication.type`
-|The authentication method to be used: `none`, `basic`, `kerberos`, `custom`. More info https://neo4j.com/docs/driver-manual/4.1/client-applications/#driver-authentication[here]
-|`basic`
-|No
-
-|`authentication.basic.username`
-|Username to use for basic authentication type
-|_(none)_
-|No
-
-|`authentication.basic.password`
-|Username to use for basic authentication type
-|_(none)_
-|No
-
-|`authentication.kerberos.ticket`
-|Kerberos Auth Ticket
-|_(none)_
-|No
-
-|`authentication.custom.principal`
-|This used to identify who this token represents
-|_(none)_
-|No
-
-|`authentication.custom.credentials`
-|This are the credentials authenticating the principal
-|_(none)_
-|No
-
-|`authentication.custom.realm`
-|This is the "realm:" string, specifying the authentication provider
-|_(none)_
-|No
-
-|`encryption.enabled`
-|Specify if encryption should be enabled. This setting is totally ignored if you use a URI scheme with +s or +ssc
-|`false`
-|No
-
-|`encryption.trust.strategy`
-|Set certificate trust strategy, is ignored in case the connection URI uses `+s` or `+ssc` as suffix.
-|`TRUST_SYSTEM_CA_SIGNED_CERTIFICATES`
-|No
-
-|`encryption.ca.certificate.path`
-|Set certificate path for `TRUST_CUSTOM_CA_SIGNED_CERTIFICATES` trust strategy
-|_(Neo4j Driver default)_
-|No
-
-|`connection.max.lifetime.msecs`
-|Connection lifetime in milliseconds
-|_(Neo4j Driver default)_
-|No
-
-|`connection.liveness.timeout.msec`
-|Liveness check timeout
-|_(Neo4j Driver default)_
-|No
-
-|`connection.acquisition.timeout.msecs`
-|Connection acquisition timeout in milliseconds
-|_(Neo4j Driver default)_
-|No
-
-|`connection.timeout.msecs`
-|Connection timeout in milliseconds
-|_(Neo4j Driver default)_
-|No
-
-4+|*Session Options*
-
-|`database`
-|Database name to connect to. As the driver allows to define the database in the URL,
-in case you set this option will have the priority compared to the one defined in the URL
-|``
-|No
-
-|`access.mode`
-|Possible values are: `read`, `write`.
-Used only while you're pulling data from Neo4j.
-In case of `read` the connector, in a cluster environment,
-will route the requests to the followers, otherwise to the leader.
-|`read`
-|No
 
 4+|*Data Read Options*
 
@@ -197,9 +105,9 @@ every single node property as column prefixed by `source` or `target`
 |No
 
 |`relationship.save.strategy`
-|<<quickstart_writer.adoc#node-keys,Docs here>>
+|<<writing.adoc#node-keys,Docs here>>
 |``
-|Yes for <<quickstart_writer.adoc#keys-strategy,KEYS>> strategy
+|Yes for <<writing.adoc#keys-strategy,KEYS>> strategy
 
 |`relationship.source.labels`
 |List of source node Labels separated by `:`
@@ -207,17 +115,17 @@ every single node property as column prefixed by `source` or `target`
 |Yes^*^
 
 |`relationship.source.node.keys`
-|<<quickstart_writer.adoc#node-keys,Docs here>>
+|<<writing.adoc#node-keys,Docs here>>
 |``
 |No
 
 |`relationship.source.save.mode`
-|<<quickstart_writer.adoc#node-save-modes,Node Save Mode>>
+|<<writing.adoc#node-save-modes,Node Save Mode>>
 |`Match`
 |No
 
 |`relationship.source.node.props`
-|<<quickstart_writer.adoc#node-keys,Docs here>>
+|<<writing.adoc#node-keys,Docs here>>
 |``
 |No
 
@@ -227,17 +135,17 @@ every single node property as column prefixed by `source` or `target`
 |Yes^*^
 
 |`relationship.target.node.keys`
-|<<quickstart_writer.adoc#node-keys,Docs here>>
+|<<writing.adoc#node-keys,Docs here>>
 |``
 |No
 
 |`relationship.target.save.mode`
-|<<quickstart_writer.adoc#node-save-modes,Node Save Mode>>
+|<<writing.adoc#node-save-modes,Node Save Mode>>
 |`Match`
 |No
 
 |`relationship.target.node.props`
-|<<quickstart_writer.adoc#node-keys,Docs here>>
+|<<writing.adoc#node-keys,Docs here>>
 |``
 |No
 

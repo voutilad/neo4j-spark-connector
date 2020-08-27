@@ -1,5 +1,5 @@
 
-= Neo4j Spark Connector v{docs-version}
+= Neo4j Spark Connector v{connector-version}
 
 ifdef::backend-html5[(C) {copyright}]
 
@@ -7,14 +7,13 @@ License: link:{attachmentsdir}/LICENSE.txt[Creative Commons 4.0]
 
 [abstract]
 --
-This is the user guide for Neo4j Spark Connector version {docs-version}, authored by the Neo4j Labs Team.
+This is the user guide for Neo4j Spark Connector version {connector-version}, authored by the Neo4j Labs Team.
 --
 
 The guide covers the following areas:
 
-* xref:overview.adoc[Project overview]
-* xref::quickstart_reader.adoc[Getting Started with Reading]
-* xref::quickstart_writer.adoc[Getting Started with Writing]
-* xref:neo4j-cluster.adoc[Using with Neo4j Causal Cluster]
-* xref:cloud.adoc[Configuring a connection to a Confluent Cloud]
-* xref:faq.adoc[Neo4j Spark FAQ]
+* xref::overview.adoc[Project overview]
+* xref::configuration.adoc[Neo4j Driver Configuration]
+* xref::reading.adoc[Reading from Neo4j]
+* xref::writing.adoc[Writing to Neo4j]
+* xref::faq.adoc[Neo4j Spark FAQ]

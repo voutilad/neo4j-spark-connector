@@ -8,5 +8,5 @@ nav:
 asciidoc:
   attributes:
     theme: docs
-    docs-version: 1.0.0
+    connector-version: 4.0.0
     copyright: Neo4j Inc.

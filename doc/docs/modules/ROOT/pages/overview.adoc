@@ -1,19 +1,45 @@
 
 = Project Overview
 
-[abstract]
---
-This chapter provides an introduction to the Neo4j Spark Connector.
---
+*Neo4j Spark Connector* allows you to read from and write to Neo4j databases.
 
-Overview here
+It's fairly easy to use, although it can be highly customized.
 
-Neo4j Streams can run in two modes:
+You can read your Neo4j database and have the data available as Spark DataFrame.
 
-* as a Neo4j plugin:
+.Read all the nodes with of type Person
+[source,scala]
+----
+import org.apache.spark.sql.{SaveMode, SparkSession}
 
-** Runmode1
-** Runmode2
+val spark = SparkSession.builder().getOrCreate()
 
-[NOTE]
-**Be aware of stuff here.**
+val df = spark.read.format("org.neo4j.spark.DataSource")
+  .option("url", "bolt://localhost:7687")
+  .option("labels", "Person")
+  .load()
+----
+
+Similarly, is possible to write your own DataFrame to Neo4j:
+
+.Write the DataFrame to nodes of type Person
+[source,scala]
+----
+import org.apache.spark.sql.{SaveMode, SparkSession}
+
+val spark = SparkSession.builder().getOrCreate()
+import spark.implicits._
+
+val df = Seq(
+  ("John Doe"),
+  ("Jane Doe")
+).toDF("name")
+
+df.write.format("org.neo4j.spark.DataSource")
+  .mode(SaveMode.ErrorIfExists)
+  .option("url", "bolt://localhost:7687")
+  .option("labels", ":Person")
+  .save()
+----
+
+Visit the link:reading[Reading] and link:writing[Writing] sections for advanced usage.

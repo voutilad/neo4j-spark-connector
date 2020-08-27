@@ -1,0 +1,162 @@
+= Neo4j Driver Configuration
+
+== Overview
+
+Neo4j Spark Connector uses the link:https://neo4j.com/developer/java/[Neo4j Driver] under the hood.
+This means you can setup the connection to your database like you were using the driver.
+
+This is made possible by the Spark Session `option` method.
+Neo4j Spark Connector exposes a large number of options that can be used to setup your driver connection.
+
+== Available Options
+
+Following you can find a complete list of values you can set to customize the Neo4j Driver and the Spark Session.
+
+[NOTE]
+More info on the Neo4j Driver can be found link:https://neo4j.com/docs/driver-manual/4.1/client-applications/[here, window=_blank].
+Particularly link:https://neo4j.com/docs/driver-manual/4.1/client-applications/#driver-configuration[here, window=_blank] are the Driver configuration parameters exhaustive descriptions and default values.
+
+.List of available options
+|===
+|Setting Name |Description |Default Value |Required
+
+4+|*Driver Options*
+
+|`url`
+|The url of the Neo4j instance to connect to
+|_(none)_
+|Yes
+
+|`authentication.type`
+|The authentication method to be used: `none`, `basic`, `kerberos`, `custom`. More info link:https://neo4j.com/docs/driver-manual/4.1/client-applications/#driver-authentication[here, window=_blank]
+|`basic`
+|No
+
+|`authentication.basic.username`
+|Username to use for basic authentication type
+|_(Neo4j Driver default)_
+|No
+
+|`authentication.basic.password`
+|Username to use for basic authentication type
+|_(Neo4j Driver default)_
+|No
+
+|`authentication.kerberos.ticket`
+|Kerberos Auth Ticket
+|_(Neo4j Driver default)_
+|No
+
+|`authentication.custom.principal`
+|This used to identify who this token represents
+|_(Neo4j Driver default)_
+|No
+
+|`authentication.custom.credentials`
+|These are the credentials authenticating the principal
+|_(Neo4j Driver default)_
+|No
+
+|`authentication.custom.realm`
+|This is the "realm:" string, specifying the authentication provider
+|_(Neo4j Driver default)_
+|No
+
+|`encryption.enabled`
+|Specify if encryption should be enabled. This setting is ignored if you use a URI scheme with +s or +ssc
+|`false`
+|No
+
+|`encryption.trust.strategy`
+|Set certificate trust strategy, is ignored in case the connection URI uses `+s` or `+ssc` as suffix.
+Available values are: `TRUST_SYSTEM_CA_SIGNED_CERTIFICATES`, `TRUST_CUSTOM_CA_SIGNED_CERTIFICATES`, `TRUST_ALL_CERTIFICATES`
+|_(Neo4j Driver default)_
+|No
+
+|`encryption.ca.certificate.path`
+|Set certificate path for `TRUST_CUSTOM_CA_SIGNED_CERTIFICATES` trust strategy
+|_(Neo4j Driver default)_
+|No
+
+|`connection.max.lifetime.msecs`
+|Connection lifetime in milliseconds
+|_(Neo4j Driver default)_
+|No
+
+|`connection.liveness.timeout.msecs`
+|Liveness check timeout in milliseconds
+|_(Neo4j Driver default)_
+|No
+
+|`connection.acquisition.timeout.msecs`
+|Connection acquisition timeout in milliseconds
+|_(Neo4j Driver default)_
+|No
+
+|`connection.timeout.msecs`
+|Connection timeout in milliseconds
+|_(Neo4j Driver default)_
+|No
+
+4+|*Session Options*
+
+|`database`
+|Database name to connect to. As the driver allows to define the database in the URL,
+in case you set this option will have the priority compared to the one defined in the URL
+|_(Neo4j Driver default)
+|No
+
+|`access.mode`
+|Possible values are: `read`, `write`.
+Used only while you're pulling data from Neo4j.
+In case of `read` the connector, in a cluster environment,
+will route the requests to the followers, otherwise to the leader.
+|`read`
+|No
+|===
+
+== Multiple connections
+
+Neo4j Spark Connector allows you to use more connections in a single Spark Session.
+For example, you can read data from a database and write them in another database in the same session.
+
+.Reading from a database and writing to a different one
+[source,scala]
+----
+import org.apache.spark.sql.{SaveMode, SparkSession}
+
+val spark = SparkSession.builder().getOrCreate()
+
+val df = spark.read.format("org.neo4j.spark.DataSource")
+  .option("url", "bolt://first.host.com:7687")
+  .option("labels", "Person")
+  .load()
+
+df.write.format("org.neo4j.spark.DataSource")
+  .mode(SaveMode.ErrorIfExists)
+  .option("url", "bolt://second.host.com:7687")
+  .option("labels", "Person")
+  .save()
+----
+
+Another case to use multiple connections is when you want to merge two datasources.
+
+.Merge data between two databases
+[source,scala]
+----
+import org.apache.spark.sql.{SaveMode, SparkSession}
+
+val spark = SparkSession.builder().getOrCreate()
+
+val dfOne = spark.read.format("org.neo4j.spark.DataSource")
+  .option("url", "bolt://first.host.com:7687")
+  .option("labels", "Person")
+  .load()
+
+val dfTwo = spark.read.format("org.neo4j.spark.DataSource")
+  .option("url", "bolt://second.host.com:7687")
+  .option("labels", "Person")
+  .load()
+
+val dfJoin = dfOne.join(dfTwo, dfOne("name") === dfTwo("name"))
+----
