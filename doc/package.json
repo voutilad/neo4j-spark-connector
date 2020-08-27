@@ -4,17 +4,15 @@
   "description": "Neo4j Docs builder",
   "main": "index.js",
   "watch": {
-    "build:docs": {
-      "patterns": [
-        "docs"
-      ],
+    "build:dev": {
+      "patterns": ["docs"],
       "extensions": "adoc"
     }
   },
   "scripts": {
-    "server": "forever start server.js",
-    "start": "npm run server && npm-watch",
-    "stop": "forever stop server.js",
+    "start": "node server.js",
+    "build:dev": "antora --stacktrace docs-dev.yml",
+    "watch": "npm-watch",
     "build:docs": "antora --fetch --stacktrace docs.yml"
   },
   "license": "ISC",
@@ -24,7 +22,6 @@
   },
   "devDependencies": {
     "express": "^4.17.1",
-    "npm-watch": "^0.7.0",
-    "forever": "^3.0.2"
+    "npm-watch": "^0.7.0"
   }
 }

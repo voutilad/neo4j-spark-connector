@@ -1,30 +1,20 @@
-[#options]
-= Connector Options & Configuration
+= Neo4j Driver Configuration
 
-When using the connector, any valid Neo4j driver option can be set using the `option` method in
-Spark, like so:
+== Overview
 
-[source,scala]
-----
-import org.apache.spark.sql.{SaveMode, SparkSession}
+Neo4j Spark Connector uses the link:https://neo4j.com/developer/java/[Neo4j Driver] under the hood.
+This means you can setup the connection to your database like you were using the driver.
 
-val spark = SparkSession.builder().getOrCreate()
+This is made possible by the Spark Session `option` method.
+Neo4j Spark Connector exposes a large number of options that can be used to setup your driver connection.
 
-val df = spark.read.format("org.neo4j.spark.DataSource")
-        .option("url", "bolt://localhost:7687")
-        .option("authentication.type", "basic")
-        .option("authentication.basic.username", "myuser")
-        .option("authentication.basic.password", "neo4jpassword")
-        .option("labels", "Person")
-        .load()
-----
+== Available Options
 
-== Neo4j Driver Options
+Following you can find a complete list of values you can set to customize the Neo4j Driver and the Spark Session.
 
-Under the covers, the spark connector uses the link:https://neo4j.com/docs/driver-manual/current/get-started/#driver-get-started-about[official Neo4j Java Driver].  As such, in many situations you'll want the control to set driver options to account for your production deployment of Neo4j, and how to communicate with it.   This is done using the `options` example above.
-
-The following table captures the most common configuration settings to use with the Neo4j driver.  For full
-documentation on all possible configuration options for Neo4j drivers, see the link:https://neo4j.com/docs/driver-manual/current/client-applications/#driver-configuration[Neo4j Drivers Manual].
+[NOTE]
+More info on the Neo4j Driver can be found link:https://neo4j.com/docs/driver-manual/4.1/client-applications/[here, window=_blank].
+Particularly link:https://neo4j.com/docs/driver-manual/4.1/client-applications/#driver-configuration[here, window=_blank] are the Driver configuration parameters exhaustive descriptions and default values.
 
 .List of available options
 |===
@@ -38,8 +28,7 @@ documentation on all possible configuration options for Neo4j drivers, see the l
 |Yes
 
 |`authentication.type`
-|The authentication method to be used: `none`, `basic`, `kerberos`, `custom`.
-More info link:https://neo4j.com/docs/driver-manual/4.1/client-applications/#driver-authentication[here, window=_blank]
+|The authentication method to be used: `none`, `basic`, `kerberos`, `custom`. More info link:https://neo4j.com/docs/driver-manual/4.1/client-applications/#driver-authentication[here, window=_blank]
 |`basic`
 |No
 
@@ -74,8 +63,7 @@ More info link:https://neo4j.com/docs/driver-manual/4.1/client-applications/#dri
 |No
 
 |`encryption.enabled`
-|Specify if encryption should be enabled.
-This setting is ignored if you use a URI scheme with +s or +ssc
+|Specify if encryption should be enabled. This setting is ignored if you use a URI scheme with +s or +ssc
 |`false`
 |No
 
@@ -113,8 +101,7 @@ Available values are: `TRUST_SYSTEM_CA_SIGNED_CERTIFICATES`, `TRUST_CUSTOM_CA_SI
 4+|*Session Options*
 
 |`database`
-|Database name to connect to.
-As the driver allows to define the database in the URL,
+|Database name to connect to. As the driver allows to define the database in the URL,
 in case you set this option will have the priority compared to the one defined in the URL
 |_(Neo4j Driver default)
 |No

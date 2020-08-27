@@ -1,47 +1,62 @@
 
 = Reading from Neo4j
 
+[abstract]
+--
 Neo4j Spark Connector allows you to read data from Neo4j in 3 different ways:
-by node labels, by relationship name, and by direct Cypher query.
+by node labels, by relationship name, and by direct query
+--
 
-== Getting Started
+=== Getting Started
 
 Reading all the nodes of type `Person` from your local Neo4j instance is as simple as this:
 
 [source,scala]
 ----
-import org.apache.spark.sql.{SaveMode, SparkSession}
+val df = spark.read.format("org.neo4j.spark.DataSource")
+        .option("url", "bolt://localhost:7687")
+        .option("labels", "Person")
+        .load()
+        .show()
+---
 
-val spark = SparkSession.builder().getOrCreate()
+The above code will produce something similar to this:
 
-spark.read.format("org.neo4j.spark.DataSource")
-  .option("url", "bolt://localhost:7687")
-  .option("labels", "Person")
-  .load()
-  .show()
-----
+```text
++----+--------+----+---+
+|<id>|<labels>|name|age|
++----+--------+----+---+
+|   0|[Person]|John| 32|
++----+--------+----+---+
+```
 
-.Result of the above code
-|===
-|<id> |<labels> |name |age
+=== Neo4j Options
 
-|0|[Person]|John|32
-|===
+Spark method `option` is used to configure the Neo4j Connector.
 
-== Neo4j Read Options
+```scala
+val df = spark.read.format("org.neo4j.spark.DataSource")
+        .option("url", "bolt://localhost:7687")
+        .option("authentication.type", "basic")
+        .option("authentication.basic.username", "myuser")
+        .option("authentication.basic.password", "neo4jpassword")
+        .option("labels", "Person")
+        .load()
+```
 
-.List of available read options
+.List of available options
 |===
 |Setting Name |Description |Default Value |Required 
 
+4+|*Data Read Options*
+
 |`query`
-|Cypher query to read the data
+|Specify a query to read the data
 |_(none)_
 |Yes^*^
 
 |`labels`
-|List of node labels separated by `:`.
-The first label will be the primary label
+|List of labels separated by `:`. First label is the primary label
 |_(none)_
 |Yes^*^
 
@@ -49,50 +64,6 @@ The first label will be the primary label
 |Name of a relationship
 |_(none)_
 |Yes^*^
-
-|`schema.flatten.limit`
-|Number of records to be used to create the Schema (only if APOC are not installed)
-|`10`
-|No
-
-|`schema.strategy`
-|Strategy used by the connector in order to compute the Schema definition for the Dataset.
-Possibile values are `string`, `sample`.
-When `string` it coerces all the properties to String otherwise it will try to sample the Neo4j's dataset.
-|`sample`
-|No
-
-|`pushdown.filters.enabled`
-|Enable or disable the Push Down Filters support
-|`true`
-|No
-
-|`partitions`
-|This defines the parallelization level while pulling data from Neo4j.
-
-*Note*: as more parallelization does not mean more performances so please tune wisely in according to
-your Neo4j installation.
-|`1`
-|No
-
-4+|*Query Specific Options*
-
-|`query.count`
-a|Query count, used only in combination with `query` option, it's a query that returns a `count`
-field like the following:
-----
-MATCH (p:Person)-[r:BOUGHT]->(pr:Product)
-WHERE pr.name = 'An Awesome Product'
-RETURN count(p) AS count
-----
-
-or *a simple number* that represents the amount of records returned by `query`.
-Consider that the number passed by this value represent the volume of the data pulled of Neo4j,
-so please use it carefully.
-|_(empty)_
-|No
-
-4+|*Relationship Specific Options*
 
 |`relationship.nodes.map`
 |If true return `source` and `target` nodes as Map<String, String>, otherwise we flatten the properties by returning
@@ -102,139 +73,242 @@ every single node property as column prefixed by `source` or `target`
 
 |`relationship.source.labels`
 |List of source node Labels separated by `:`
-|_(empty)_
-|Yes
+|``
+|Yes^*^
 
 |`relationship.target.labels`
 |List of target node Labels separated by `:`
-|_(empty)_
-|Yes
+|``
+|Yes^*^
+
+|`schema.flatten.limit`
+|Number of records to be used to create the Schema (only if APOC are not installed)
+|`10`
+|No
+
+|`schema.strategy`
+|Strategy used by the connector in order to compute the Schema definition for the Dataset. Values `string` and
+`sample`. If `string` coerces all the properties to String otherwise it will try to sample the Neo4j's dataset.
+|`sample`
+|No
+
+|`pushdown.filters.enabled`
+|Enable or disable the Push Down Filters support
+|`true`
+|No
+
+4+|*Data Write Options*
+
+|`batch.size`
+|Number of records to be passed to the transaction
+|`5000`
+|No
+
+|`relationship.save.strategy`
+|<<writing.adoc#node-keys,Docs here>>
+|``
+|Yes for <<writing.adoc#keys-strategy,KEYS>> strategy
+
+|`relationship.source.labels`
+|List of source node Labels separated by `:`
+|``
+|Yes^*^
+
+|`relationship.source.node.keys`
+|<<writing.adoc#node-keys,Docs here>>
+|``
+|No
+
+|`relationship.source.save.mode`
+|<<writing.adoc#node-save-modes,Node Save Mode>>
+|`Match`
+|No
+
+|`relationship.source.node.props`
+|<<writing.adoc#node-keys,Docs here>>
+|``
+|No
+
+|`relationship.target.labels`
+|List of target node Labels separated by `:`
+|``
+|Yes^*^
+
+|`relationship.target.node.keys`
+|<<writing.adoc#node-keys,Docs here>>
+|``
+|No
+
+|`relationship.target.save.mode`
+|<<writing.adoc#node-save-modes,Node Save Mode>>
+|`Match`
+|No
+
+|`relationship.target.node.props`
+|<<writing.adoc#node-keys,Docs here>>
+|``
+|No
 
 |===
 
-^*^ Just one of the options can be specified at the time.
+^*^ Just one of the options can be specified.
 
 == Read Data
 
 Reading data from a Neo4j Database can be done in 3 ways:
 
- * <<bookmark-read-query,Custom Cypher Query>>
- * <<bookmark-read-node,Node>>
- * <<bookmark-read-rel,Relationship>>
+ * with a Cypher query
+ * with a set of node Labels 
+ * by specifying a relationship
 
-[[bookmark-read-query]]
-=== Custom Cypher Query
+=== Consideration on the schema
 
-You can specify a Cypher query in this way:
+Spark works with data in a tabular fixed schema. To accomplish this Neo4j Connector has a schema infer system that creates the schema based on the data requested for the read. Each read data method has is own strategy to create it, that will be explained it each section.
 
-[source,scala]
-----
-import org.apache.spark.sql.{SaveMode, SparkSession}
+TK list of supported data types
 
-val spark = SparkSession.builder().getOrCreate()
+=== Consideration on the filters
 
-spark.read.format("org.neo4j.spark.DataSource")
-  .option("url", "bolt://localhost:7687")
-  .option("query", "MATCH (n:Person) WITH n LIMIT 2 RETURN id(n) as id, n.name as name")
-  .load()
-  .show()
-----
+The Neo4j Spark Connector implements the `SupportPushDownFilters` interface, that allows you to push the Spark filters down to the Neo4j layer. In this way the data that Spark will receive will be already filtered by Neo4j.
 
-.Result of the above code
-|===
-|id |name
+You can manually disable the Push Down Filters support using the `pushdown.filters.enabled` option and set it to `false` (default is `true`).
 
-|0|John Doe
-|1|Jane Doe
-|===
+If you use use the filter function more than once, like in this example:
+```scala
+df.where("name = 'John Doe'").where("age = 32")
+```
+The conditions will be automatically joined with an `AND` operator.
 
 [NOTE]
-We recommend that individual property fields be returned, rather than returning  graph entity (node, relationship, and path) types.
-This best maps to Spark's type system and yields best results.
-So instead writing this `MATCH (p:Person) RETURN p` please write this: `MATCH (p:Person) RETURN id(p) as id, p.name as name`.
-If your query returns a graph entity please use the `labels` or `relationship` modes instead.
+When using `relationship.node.map = true` or `query` the PushDownFilters support is not active, thus the filters will be applied by Spark and not by Neo4j.
 
-The struct of the Dataset returned by the query is influenced by the query itself,
-in this particular context it could happen that the connector won't be able to sample the Schema from the query,
-in these cases we suggest trying with the option `schema.strategy` set to `string` as described <<bookmark-string-strategy,here>>.
+==== How we extract the schema
 
-==== Schema
-The first 10 (or any number specified by the `schema.flatten.limit` option) results will be flattened and the schema will be created from those properties.
+As Neo4j has a schema-less approach and Spark needs a Schema in order to create a Dataset,
+we use several approaches in order to sample the dataset into Neo4j and compute the schema for Spark's Dataset.
 
-[[bookmark-read-node]]
-=== Node
+===== Extract schema for Nodes
 
-You can read nodes by specifiying a single label, or multiple labels. Like so:
+In case you're extracting nodes from Neo4j we try as first step to invoke the `apoc.meta.nodeTypeProperties` procedure,
+in case the procedure is not installed we'll execute the following Cypher query:
 
-.Single label
-[source,scala]
-----
-import org.apache.spark.sql.{SaveMode, SparkSession}
-
-val spark = SparkSession.builder().getOrCreate()
-
-spark.read.format("org.neo4j.spark.DataSource")
-  .option("url", "bolt://localhost:7687")
-  .option("labels", "Person")
-  .load()
-----
-
-.Multiple label
-[source,scala]
-----
-import org.apache.spark.sql.{SaveMode, SparkSession}
-
-val spark = SparkSession.builder().getOrCreate()
-
-spark.read.format("org.neo4j.spark.DataSource")
-  .option("url", "bolt://localhost:7687")
-  .option("labels", "Person:Customer:Confirmed")
-  .load()
-----
-
-[NOTE]
-Label list can be speficied both with starting color or without it:
-`Person:Customer` and `:Person:Customer` are considered the same thing.
-
-==== Columns
-
-When reading data with this method, the Dataframe will contain all the fields contained in the nodes,
-plus 2 additional columns.
-
-* `<id>` the internal Neo4j id
-* `<labels>` a list of labels for that node
-
-==== Schema
-
-If APOC are available, the schema will be created with
-link:https://neo4j.com/labs/apoc/4.1/overview/apoc.meta/apoc.meta.nodeTypeProperties/[apoc.meta.nodeTypeProperties, window=_blank].
-Otherwise, we'll execute the following Cypher query:
-
-[source,cypher]
-----
+```cypher
 MATCH (n:<labels>)
 RETURN n
 ORDER BY rand()
 LIMIT <limit>
+```
+
+Where `<labels>` is the list of labels provided via `.option("labels", ":MyLabel:MyOtherLabel")` and `<limit>` is the
+value provided via `.option("schema.flatten.limit", "100")`
+
+===== Extract schema for Relationships
+
+In case you're extracting a relationship from Neo4j we try as first step to invoke the `apoc.meta.relTypeProperties` procedure,
+in case the procedure is not installed we'll execute the following Cypher query:
+
+```cypher
+MATCH (source:<source_labels>)-[rel:<relationship>]->(target:<target_labels>)
+RETURN rel
+ORDER BY rand()
+LIMIT <limit>
+```
+
+Where:
+
+ * `<source_labels>` is the list of labels provided via `.option("relationship.source.labels", ":MyLabel:MyOtherLabel")`
+ * `<target_labels>` is the list of labels provided via `.option("relationship.target.labels", ":MyLabel:MyOtherLabel")`
+ * `<relationship>` is the list of labels provided via `.option("relationship", "MY_RELATIONSHIP")`
+ * `<limit>` is the value provided via `.option("schema.flatten.limit", "100")`
+
+==== Complex Data Types
+
+Spark doesn't support all Neo4j data types (ie: Point, Time, Duration). Such types are transformed into Struct types containing all the useful data.
+
+|===
+
+|Type |Struct 
+
+|`Duration`
+a|
+----
+Struct(Array(
+    ("type", DataTypes.StringType, false),
+    ("months", DataTypes.LongType, false),
+    ("days", DataTypes.LongType, false),
+    ("seconds", DataTypes.LongType, false),
+    ("nanoseconds", DataTypes.IntegerType, false),
+    ("value", DataTypes.StringType, false)
+  ))
 ----
 
-Where `<labels>` is the list of labels provided by `labels` option and `<limit>` is the
-value provided by `schema.flatten.limit` option.
-The results of such query will be flattened and the schema will be create from those properties.
+|`Point`
+a|
+----
+Struct(Array(
+    ("type", DataTypes.StringType, false),
+    ("srid", DataTypes.IntegerType, false),
+    ("x", DataTypes.DoubleType, false),
+    ("y", DataTypes.DoubleType, false),
+    ("z", DataTypes.DoubleType, true),
+  ))
+----
+
+|`Time`
+a|
+----
+Struct(Array(
+    ("type", DataTypes.StringType, false),
+    ("value", DataTypes.StringType, false)
+  ))
+----
+
+|=== 
+
+=== Read data by Node Labels
+
+You can both specify a single label, like this example
+```scala
+val df = spark.read.format("org.neo4j.spark.DataSource")
+        .option("url", "bolt://localhost:7687")
+        .option("labels", "Person")
+        .load()
+
+df.show()
+```
+
+Multiple labels can be specified, separated by `:`
+```scala
+val df = spark.read.format("org.neo4j.spark.DataSource")
+        .option("url", "bolt://localhost:7687")
+        .option("labels", "Person:Customer:Admin")
+        .load()
+
+df.show()
+```
+
+When reading data with this method, the Dataframe will contain all the fields contained in the nodes, plus 2 additional columns.
+
+ * `<id>` the internal Neo4j id
+ * `<labels>` a list of labels for that node
+
+==== Schema
+
+If APOC are available, the schema will be created with `apoc.meta.nodeTypeProperties`.
+Otherwise the first 10 (or any number specified by the `schema.flatten.limit` option) results will be flattened and the schema will be create from those properties.
 
 ===== Example
 
-[source,cypher]
-----
+```
 CREATE (p1:Person {age: 31, name: 'Jane Doe'}),
     (p2:Person {name: 'John Doe', age: 33, location: null}),
     (p3:Person {age: 25, location: point({latitude: -37.659560, longitude: -68.178060})})
-----
+```
 
 Will create this schema
 
 |===
-|Field |Type
+|Field |Type 
 
 |<id>|Int
 
@@ -248,187 +322,59 @@ Will create this schema
 
 |===
 
-[[bookmark-read-rel]]
-=== Relationship
+=== Read data by Relationship Type
 
-To read a relationship you must specify the relationship name, the source node labels, and the target node labels.
+You can specify a Cypher Path in this way:
+```scala
+val df = spark.read.format("org.neo4j.spark.DataSource")
+        .option("url", "bolt://localhost:7687")
+        .option("relationship", "BOUGHT")
+        .option("relationship.source.labels", "Person")
+        .option("relationship.target.labels", "Product")
+        .load()
 
-[source,scala]
-----
-import org.apache.spark.sql.{SaveMode, SparkSession}
+df.show()
+```
 
-val spark = SparkSession.builder().getOrCreate()
+This will create a Cypher Query as it follows:
 
-spark.read.format("org.neo4j.spark.DataSource")
-  .option("url", "bolt://localhost:7687")
-  .option("relationship", "BOUGHT")
-  .option("relationship.source.labels", "Person")
-  .option("relationship.target.labels", "Product")
-  .load()
-----
-
-This will create a the following Cypher query:
-
-[source,cypher]
-----
+```cypher
 MATCH (source:Person)-[rel:BOUGHT]->(target:Product)
 RETURN source, rel, target
-----
+```
 
-==== Node mapping
-The result format can be controlled by the `relationship.nodes.map` option (default is `false`).
-
-When set to `false` source and target nodes properties will be returned in separate columns,
-prefixed with `source.` or `target.` (ie: `source.name`, `target.price`)
-
-When set to `true` the source and target properties will be returned as Map[String, String] in two columns named `source`and `target`.
-
-[[bookmark-rel-schema-no-map]]
-.Nodes map set to false
-[source,scala]
-----
-import org.apache.spark.sql.{SaveMode, SparkSession}
-
-val spark = SparkSession.builder().getOrCreate()
-
-spark.read.format("org.neo4j.spark.DataSource")
-  .option("url", "bolt://localhost:7687")
-  .option("relationship", "BOUGHT")
-  .option("relationship.nodes.map", "false")
-  .option("relationship.source.labels", "Person")
-  .option("relationship.target.labels", "Product")
-  .load()
-  .show()
-----
-
-.Result of the above code
-|===
-|<rel.id>|<rel.type>|<source.id>|<source.labels>|source.id|source.fullName|<target.id>|<target.labels>|target.name|target.id|rel.quantity
-
-|4|BOUGHT|1|[Person]|1|John Doe|0|[Product]|Product 1|52|240
-|5|BOUGHT|3|[Person]|2|Jane Doe|2|[Product]|Product 2|53|145
-|===
-
-.Nodes map set to true
-[source,scala]
-----
-import org.apache.spark.sql.{SaveMode, SparkSession}
-
-val spark = SparkSession.builder().getOrCreate()
-
-spark.read.format("org.neo4j.spark.DataSource")
-  .option("url", "bolt://localhost:7687")
-  .option("relationship", "BOUGHT")
-  .option("relationship.nodes.map", "true")
-  .option("relationship.source.labels", "Person")
-  .option("relationship.target.labels", "Product")
-  .load()
-  .show()
-----
-
-.Result of the above code
-|===
-|<rel.id>|<rel.type>|rel.quantity|<source>|<target>
-
-|4
-|BOUGHT
-|240
-a|[.small]
-----
-{
-  "fullName": "John Doe",
-  "id": 1,
-  "<labels>: "[Person]",
-  "<id>": 1
-}
-----
-a|[.small]
-----
-{
-  "name": "Product 1",
-  "id": 52,
-  "<labels>: "[Product]",
-  "<id>": 0
-}
-----
-
-|4
-|BOUGHT
-|145
-a|[.small]
-----
-{
-  "fullName": "Jane Doe",
-  "id": 1,
-  "<labels>:
-  "[Person]",
-  "<id>": 3
-}
-----
-a|[.small]
-----
-{
-  "name": "Product 2",
-  "id": 53,
-  "<labels>: "[Product]",
-  "<id>": 2
-}
-----
-|===
-
-[[bookmark-rel-schema-columns]]
-==== Columns
-When reading data with this method, the Dataframe will contain the following columns:
+When reading data with this method, the Dataframe will contain all the fields contained in the relationship, plus:
 
 * `<id>` the internal Neo4j id
 * `<relationshipType>` the relationship type
-* `rel.[property name]` relationship properties
 
-Depending on the value of `relationship.nodes.map` option.
-
-If `true`:
+and depending on the value of `relationship.node.map` option, if `true`:
 
 * `source` the Map<String, String> of source node
 * `target` the Map<String, String> of target node
 
-If `false`:
+otherwise, if `false`:
 
+[[bookmark-rel-read-schema]]
 * `<sourceId>` the internal Neo4j id of source node
 * `<sourceLabels>` a list of labels for source node
 * `<targetId>` the internal Neo4j id of target node
 * `<targetLabels>` a list of labels for target node
-* `source.[property name]` source node properties
-* `target.[property name]` target node properties
+* `source.[property name]` source node property
+* `target.[property name]` target node property
+* `rel.[property name]` relationship property
 
-==== Filtering
+==== Filter
 
-You can use Spark to filter properties of the relationship, the source node, or the target node.
-Just use the correct prefix:
+You can use Spark to filter properties of the relationship, the source node, or the target node. Just use the correct prefix:
 
-If `relationship.nodes.map` is set to `false`
+If `relationship.node.map` is set to **false**
 
 * ``\`source.[property]` `` for the source node properties
 * ``\`rel.[property]` `` for the relation property
 * ``\`target.[property]` `` for the target node property
 
-[source,scala]
-----
-import org.apache.spark.sql.{SaveMode, SparkSession}
-
-val spark = SparkSession.builder().getOrCreate()
-
-val df = spark.read.format("org.neo4j.spark.DataSource")
-  .option("url", "bolt://localhost:7687")
-  .option("relationship", "BOUGHT")
-  .option("relationship.nodes.map", "false")
-  .option("relationship.source.labels", "Person")
-  .option("relationship.target.labels", "Product")
-  .load()
-
-df.where("`source.id` = 14 AND `target.id` = 16")
-----
-
-If `relationship.nodes.map` is set to `true`
+If `relationship.node.map` is set to **true**
 
 * ``\`<source>`.\`[property]` `` for the source node map properties
 * ``\`<rel>`.\`[property]` `` for the relation map property
@@ -436,40 +382,61 @@ If `relationship.nodes.map` is set to `true`
 
 in this case, all the map values will be strings, so the filter value must be a string too.
 
-[source,scala]
-----
-import org.apache.spark.sql.{SaveMode, SparkSession}
-
-val spark = SparkSession.builder().getOrCreate()
-
+```scala
 val df = spark.read.format("org.neo4j.spark.DataSource")
-  .option("url", "bolt://localhost:7687")
-  .option("relationship", "BOUGHT")
-  .option("relationship.nodes.map", "true")
-  .option("relationship.source.labels", "Person")
-  .option("relationship.target.labels", "Product")
-  .load()
+      .option("relationship.node.map", false)
+      .option("relationship", "BOUGHT")
+      .option("relationship.source.labels", "Person")
+      .option("relationship.target.labels", "Product")
+      .load()
 
-df.where("`<source>`.`id` = '14' AND `<target>`.`id` = '16'")
-----
+df.where("source.name = 'John Doe' AND target.price >= 33")
+```
 
 ==== Schema
 
-In case you're extracting a relationship from Neo4j
-we try as first step to invoke the link:https://neo4j.com/labs/apoc/4.1/overview/apoc.meta/apoc.meta.relTypeProperties/[apoc.meta.relTypeProperties, window=_blank] procedure,
-in case the procedure is not installed we'll execute the following Cypher query:
+If APOC are available, the schema will be created with `apoc.meta.relTypeProperties`.
+Otherwise the first 10 (or any number specified by the `schema.flatten.limit` option) results will be flattened and the schema will be create from those properties.
 
-[source,cypher]
-----
-MATCH (source:<source_labels>)-[rel:<relationship>]->(target:<target_labels>)
-RETURN rel
-ORDER BY rand()
-LIMIT <limit>
-----
+=== Read data by custom Cypher Query
 
-Where:
+You can specify a Cypher query in this way:
+```scala
+val df = spark.read.format("org.neo4j.spark.DataSource")
+      .option("query", "MATCH (n:Person) WITH n LIMIT 2 RETURN collect(n) AS nodes")
+      .load()
 
-* `<source_labels>` is the list of labels provided by `relationship.source.labels` option
-* `<target_labels>` is the list of labels provided by `relationship.target.labels` option
-* `<relationship>` is the list of labels provided by `relationship`  option
-* `<limit>` is the value provided via `schema.flatten.limit`
+df.show()
+```
+
+[NOTE]
+We recommend that individual property fields be returned, rather than returning  graph entity (node, relationship, and path) types.
+This best maps to Spark's type system and yields best results.
+So instead writing this `MATCH (p:Person) RETURN p` please write this: `MATCH (p:Person) RETURN id(p) as id, p.name as name`.
+If your query returns a graph entity please use the `labels` or `relationship`.
+
+The struct of the Dataset returned by the query is influenced by the query itself, in this particular context it could happen
+that the connector could not be able to sample the Schema from the query, in these particular cases we suggest trying with
+the option `schema.strategy` defined as `string` as it follows:
+
+```scala
+val df = spark.read.format("org.neo4j.spark.DataSource")
+      .option("query", "MATCH (n:Person) WITH n LIMIT 2 RETURN collect(n) AS nodes")
+      .option("schema.strategy", "string")
+      .load()
+
+df.show()
+```
+
+This means that the struct returned by the query will be composed by strings that you can than cast via simply Spark's
+transformations.
+
+[NOTE]
+Inference (`schema.strategy` = `sample`) is good when all instances of a property in neo4j are the same type,
+and string followed by cast is better when property types may differ.
+Remember that Neo4j does not enforce property typing, and so `person.age` could sometimes be a `long
+and sometimes be a `string`.
+
+==== Schema
+
+The first 10 (or any number specified by the `schema.flatten.limit` option) results will be flattened and the schema will be created from those properties.
