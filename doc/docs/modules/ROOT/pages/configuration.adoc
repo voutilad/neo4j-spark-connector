@@ -28,7 +28,8 @@ Particularly link:https://neo4j.com/docs/driver-manual/4.1/client-applications/#
 |Yes
 
 |`authentication.type`
-|The authentication method to be used: `none`, `basic`, `kerberos`, `custom`. More info link:https://neo4j.com/docs/driver-manual/4.1/client-applications/#driver-authentication[here, window=_blank]
+|The authentication method to be used: `none`, `basic`, `kerberos`, `custom`.
+More info link:https://neo4j.com/docs/driver-manual/4.1/client-applications/#driver-authentication[here, window=_blank]
 |`basic`
 |No
 
@@ -63,7 +64,8 @@ Particularly link:https://neo4j.com/docs/driver-manual/4.1/client-applications/#
 |No
 
 |`encryption.enabled`
-|Specify if encryption should be enabled. This setting is ignored if you use a URI scheme with +s or +ssc
+|Specify if encryption should be enabled.
+This setting is ignored if you use a URI scheme with +s or +ssc
 |`false`
 |No
 
@@ -101,7 +103,8 @@ Available values are: `TRUST_SYSTEM_CA_SIGNED_CERTIFICATES`, `TRUST_CUSTOM_CA_SI
 4+|*Session Options*
 
 |`database`
-|Database name to connect to. As the driver allows to define the database in the URL,
+|Database name to connect to.
+As the driver allows to define the database in the URL,
 in case you set this option will have the priority compared to the one defined in the URL
 |_(Neo4j Driver default)
 |No
@@ -114,6 +117,10 @@ will route the requests to the followers, otherwise to the leader.
 |`read`
 |No
 |===
+
+== Examples
+
+TK add examples
 
 == Multiple connections
 
