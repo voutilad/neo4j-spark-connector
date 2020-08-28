@@ -71,7 +71,7 @@ When `string` it coerces all the properties to String otherwise it will try to s
 |`true`
 |No
 
-4+|*Relationship Read Options*
+4+|*Relationship Specific Options*
 
 |`relationship.nodes.map`
 |If true return `source` and `target` nodes as Map<String, String>, otherwise we flatten the properties by returning
@@ -259,6 +259,7 @@ prefixed with `source.` or `target.` (ie: `source.name`, `target.price`)
 
 When set to `true` the source and target properties will be returned as Map[String, String] in two columns named `source`and `target`.
 
+[[bookmark-rel-schema-no-map]]
 .Nodes map set to false
 [source,scala]
 ----
@@ -307,6 +308,7 @@ spark.read.format("org.neo4j.spark.DataSource")
 // +--------+----------+--------------------+--------------------+------------+
 ----
 
+[[bookmark-rel-schema-columns]]
 ==== Columns
 When reading data with this method, the Dataframe will contain the following columns:
 
