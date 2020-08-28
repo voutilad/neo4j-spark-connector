@@ -1,5 +1,5 @@
 [#faq]
 = Neo4j Spark Connector FAQ
 
-TK should we keep this now?
+TK should we keep this?
 
