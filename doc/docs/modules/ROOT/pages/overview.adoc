@@ -55,11 +55,12 @@ Before diving into the advanced stuff, we need to address you to some preliminar
 
 Spark doesn't support all Neo4j data types (ie: Point, Time, Duration). Such types are transformed into Struct types containing all the useful data.
 
+.Complex data type conversion
 |===
 |Type |Struct
 
-|`Duration`
-a|
+|Duration
+a|[small]
 ----
 Struct(Array(
     ("type", DataTypes.StringType, false),
@@ -71,8 +72,8 @@ Struct(Array(
   ))
 ----
 
-|`Point`
-a|
+|Point
+a|[small]
 ----
 Struct(Array(
     ("type", DataTypes.StringType, false),
@@ -83,8 +84,8 @@ Struct(Array(
   ))
 ----
 
-|`Time`
-a|
+|Time
+a|[small]
 ----
 Struct(Array(
     ("type", DataTypes.StringType, false),
@@ -154,14 +155,15 @@ spark.read.format("org.neo4j.spark.DataSource")
   .option("query", "MATCH (n:Person) WITH n LIMIT 2 RETURN id(n) as id, n.name as name")
   .load()
   .show()
-
-// +--+--------+
-// |id|name    |
-// +--+--------+
-// | 0|John Doe|
-// | 1|Jane Doe|
-// +--+--------+
 ----
+
+.Result of the above code
+|===
+|id |name
+
+|0|John Doe
+|1|Jane Doe
+|===
 
 [[bookmark-string-strategy]]
 .Using string strategy
@@ -176,14 +178,15 @@ spark.read.format("org.neo4j.spark.DataSource")
   .option("schema.strategy", "string")
   .load()
   .show()
-
-// +---+----------+
-// |id |name      |
-// +---+----------+
-// |"0"|"John Doe"|
-// |"1"|"Jane Doe"|
-// +---+----------+
 ----
+
+.Result of the above code
+|===
+|id |name
+
+|"0"|"John Doe"
+|"1"|"Jane Doe"
+|===
 
 As you can see, the struct returned by the query is made of strings
 that you can then be casted Spark's getters (ie: `getLong`).

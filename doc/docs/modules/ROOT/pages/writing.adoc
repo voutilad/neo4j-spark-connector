@@ -141,12 +141,12 @@ so if in the process at some point fails all the previous data is already persis
 
 Writing data to a Neo4j Database can be done in 3 ways:
 
-* <<bookmark-write-query,Custom Cypher query>>
-* <<bookmark-write-node,Nodes>>
+* <<bookmark-write-query,Custom Cypher Query>>
+* <<bookmark-write-node,Node>>
 * <<bookmark-write-rel,Relationship>>
 
 [[bookmark-write-query]]
-=== Query
+=== Custom Cypher Query
 
 In case you use the option `query` the Spark Connector will persist the entire Dataset by using the provided query.
 The nodes will be sent to Neo4j in a batch of rows defined in the `batch.size` property and we will
@@ -180,7 +180,7 @@ CREATE (n:Person {fullName: event.name + event.surname})
 Where `events` is the batch creted from your dataset.
 
 [[bookmark-write-node]]
-=== Nodes
+=== Node
 
 In case you use the option `labels` the Spark Connector will persist the entire Dataset as nodes.
 Depending on the `SaveMode` it will `CREATE` or `MERGE` nodes (in the last case using the `node.keys`
@@ -330,8 +330,7 @@ You can set source and target indipendently by using `relationship.source.save.m
 
 When using `MATCH` or `MERGE` you will need to specify keys that identify the nodes.
 This is what the options `relationship.source.node.keys` and `relationship.target.node.keys`.
-More on this here.
-TK add link
+More on this <<bookmark-rel-specify-keys,here>>.
 
 The `CREATE` keyword for the relationship can be replaced by a `MERGE`.
 You can control this with <<bookmark-save-mode,Save Mode>>.
@@ -402,26 +401,32 @@ Look at <<bookmark-node-save-modes,here>> for more info about node save modes.
 
 When using `Overwrite` or `Match` node save mode, you should specify which keys should be used to identify the nodes.
 
+.The Dataframe we are working with
+|===
+|<rel.id>|<rel.type>|<source.id>|<source.labels>|source.id|source.fullName|<target.id>|<target.labels>|target.name|target.id|rel.quantity
+
+|4|BOUGHT|1|[Person]|1|John Doe|0|[Product]|Product 1|52|240
+|5|BOUGHT|3|[Person]|2|Jane Doe|2|[Product]|Product 2|53|145
+|===
+
 [source,scala]
 ----
 import org.apache.spark.sql.{SaveMode, SparkSession}
 
 val spark = SparkSession.builder().getOrCreate()
-import spark.implicits._
 
-val df = (1 to 10)/* generate your DF */.toDF()
-
-// This is how the Dataframe look like
-// +--------+----------+-----------+---------------+---------+---------------+-----------+---------------+-----------+---------+------------+
-// |<rel.id>|<rel.type>|<source.id>|<source.labels>|source.id|source.fullName|<target.id>|<target.labels>|target.name|target.id|rel.quantity|
-// +--------+----------+-----------+---------------+---------+---------------+-----------+---------------+-----------+---------+------------+
-// |       4|    BOUGHT|          1|       [Person]|        1|       John Doe|          0|      [Product]|  Product 1|       52|         240|
-// |       5|    BOUGHT|          3|       [Person]|        2|       Jane Doe|          2|      [Product]|  Product 2|       53|         145|
-// +--------+----------+-----------+---------------+---------+---------------+-----------+---------------+-----------+---------+------------+
+// we read our DF from Neo4j using the relationship method
+val df = spark.read.format("org.neo4j.spark.DataSource")
+  .option("url", "bolt://first.host.com:7687")
+  .option("relationship", "BOUGHT")
+  .option("relationship.nodes.map", "false")
+  .option("relationship.source.labels", "Person")
+  .option("relationship.target.labels", "Product")
+  .load()
 
 df.write
   .format("org.neo4j.spark.DataSource")
-  .option("url", "bolt://localhost:7687")
+  .option("url", "bolt://second.host.com:7687")
   .option("relationship", "SOLD")
   .option("relationship.source.labels", ":Person:Rich")
   .option("relationship.source.save.mode", "Overwrite")
@@ -450,13 +455,12 @@ Remember that you can choose to `CREATE` or `MERGE` the relationship with the <<
 [[bookmark-strategy-keys]]
 ==== Keys Strategy
 
-For all the other cases you can use the *KEYS* strategy.
-Say you have a Dataframe like this:
+When you want more control on the relationship writing you can use the *KEYS* strategy.
 
-TK put table
+As the native strategy, you can specify node keys to identify nodes.
+In addition you can also specify which columns should be written as nodes properties.
 
-To write it to Neo4j is enough to specify a list of attributes and
-
+[[bookmark-rel-specify-keys]]
 .Specify keys
 [source,scala]
 ----
