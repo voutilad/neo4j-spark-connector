@@ -67,6 +67,31 @@ When `string` it coerces all the properties to String otherwise it will try to s
 |`true`
 |No
 
+|`partitions`
+|This defines the parallelization level while pulling data from Neo4j.
+
+*Note*: as more parallelization does not mean more performances so please tune wisely in according to
+your Neo4j installation.
+|`1`
+|No
+
+4+|*Query Specific Options*
+
+|`query.count`
+a|Query count, used only in combination with `query` option, it's a query that returns a `count`
+field like the following:
+----
+MATCH (p:Person)-[r:BOUGHT]->(pr:Product)
+WHERE pr.name = 'An Awesome Product'
+RETURN count(p) AS count
+----
+
+or *a simple number* that represents the amount of records returned by `query`.
+Consider that the number passed by this value represent the volume of the data pulled of Neo4j,
+so please use it carefully.
+|_(empty)_
+|No
+
 4+|*Relationship Specific Options*
 
 |`relationship.nodes.map`

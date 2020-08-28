@@ -94,7 +94,7 @@ Default is `native`
 |`relationship.source.labels`
 |Colon separated list of labels that identify the *source* node
 |_(empty)_
-|Yes^*^
+|Yes
 
 |`relationship.source.node.keys`
 |Map used as keys for matching the *source* node
@@ -114,7 +114,7 @@ Default is `native`
 |`relationship.target.labels`
 |Colon separated list of labels that identify the *target* node
 |_(empty)_
-|Yes^*^
+|Yes
 
 |`relationship.target.node.keys`
 |Map used as keys for matching the *target* node

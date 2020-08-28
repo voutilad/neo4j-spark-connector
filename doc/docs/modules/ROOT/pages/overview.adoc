@@ -190,3 +190,65 @@ spark.read.format("org.neo4j.spark.DataSource")
 
 As you can see, the struct returned by the query is made of strings
 that you can then be casted Spark's getters (ie: `getLong`).
+
+=== Partitioning
+
+While we're trying to pull off the data we offer the possibility to partition the extraction in order
+parallelizing it.
+
+Please consider the following job:
+
+[source,scala]
+----
+import org.apache.spark.sql.{SaveMode, SparkSession}
+
+val spark = SparkSession.builder().getOrCreate()
+
+val df = spark.read.format("org.neo4j.spark.DataSource")
+        .option("url", "bolt://localhost:7687")
+        .option("labels", "Person")
+        .option("partitions", "5")
+        .load()
+----
+
+This means that if the total count of the nodes with label `Person` into Neo4j is 100 we are creating 5
+partitions and each one will manage 20 records (we use `SKIP / LIMIT` queries).
+
+Partitioning the dataset makes sense only if you're dealing with a big dataset (>= 10M of records).
+
+==== How we parallelize the query execution
+
+Considering that we have three options
+
+1. Node extraction
+2. Relationship extraction
+3. Query extraction
+
+We adopt generally provide a general count on what you're trying to pull of and add build
+a query with the skip/limit approach over each partition.
+
+So for a dataset of 100 nodes (Person) with a partition size of 5 we'll generate these queries (one for partition):
+
+[source,cypher]
+----
+MATCH (p:Person) RETURN p SKIP 0 LIMIT 20
+MATCH (p:Person) RETURN p SKIP 20 LIMIT 20
+MATCH (p:Person) RETURN p SKIP 40 LIMIT 20
+MATCH (p:Person) RETURN p SKIP 60 LIMIT 20
+MATCH (p:Person) RETURN p SKIP 80 LIMIT 20
+----
+
+While for (1) and (2) we leverage the Neo4j count store in order to retrieve the total count
+about the nodes/relationships we're trying pulling off, for the (3) we have two possible approaches:
+
+* Compute a count over the query that we're using
+* Compute a count over a second *optimized* query that leverages indexes, in this case you can pass
+it via the `.option("query.count", "<your cypher query>")` the query must always return only
+one field named `count` which is the result of the count. ie.:
+
+[source,cypher]
+----
+MATCH (p:Person)-[r:BOUGHT]->(pr:Product)
+WHERE pr.name = 'An Awesome Product'
+RETURN count(p) AS count
+----
