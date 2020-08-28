@@ -118,10 +118,6 @@ will route the requests to the followers, otherwise to the leader.
 |No
 |===
 
-== Examples
-
-TK add examples
-
 == Multiple connections
 
 Neo4j Spark Connector allows you to use more connections in a single Spark Session.
