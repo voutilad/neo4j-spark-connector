@@ -122,7 +122,6 @@ The conditions will be automatically joined with an `AND` operator.
 When using `relationship.node.map = true` or `query` the PushDownFilters support automatically disabled,
 thus the filters will be applied by Spark and not by Neo4j.
 
-[[bookmarks-schema]]
 === Schema
 
 Spark works with data in a fixed tabular schema.
