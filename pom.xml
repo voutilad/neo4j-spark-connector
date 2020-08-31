@@ -4,7 +4,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>neo4j-contrib</groupId>
     <packaging>jar</packaging>
-    <version>4.0.0</version>
+    <version>4.0.0-alpha</version>
     <artifactId>neo4j-spark-connector</artifactId>
     <name>neo4j-spark-connector</name>
     <description>Neo4j Spark Connector using the binary Bolt Driver</description>
@@ -15,8 +15,12 @@
     </organization>
     <developers>
         <developer>
-            <id>jexp</id>
-            <name>Michael Hunger</name>
+            <id>utnaf</id>
+            <name>Davide Fantuzzi</name>
+        </developer>
+        <developer>
+            <id>conker84</id>
+            <name>Andrea Santurbano</name>
         </developer>
     </developers>
 	
