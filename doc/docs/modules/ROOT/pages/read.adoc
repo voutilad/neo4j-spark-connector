@@ -1,0 +1,171 @@
+[#read]
+= Reading Data from Neo4j
+
+[abstract]
+--
+Instructions on how to read any kind of data from Neo4j into a Spark DataFrame
+--
+
+== Overview
+
+Reading data from a Neo4j Database can be done in 3 ways:
+
+ * With a Cypher query
+ * With a set of node Labels (e.g. read all `:Person` nodes)
+ * By specifying a relationship type (e.g. read all `:KNOWS` relationships)
+
+The remainder of this chapter describes all three approaches, and schema considerations around them.
+
+== Read with custom Cypher Query
+
+You can specify a Cypher query in this way:
+```scala
+val df = spark.read.format("org.neo4j.spark.DataSource")
+      .option("query", "MATCH (n:Person) WITH n LIMIT 2 RETURN collect(n) AS nodes")
+      .load()
+
+df.show()
+```
+
+[NOTE]
+We recommend that individual property fields be returned, rather than returning  graph entity (node, relationship, and path) types.
+This best maps to spark's type system and yields best results.
+So instead writing this `MATCH (p:Person) RETURN p` please write this: `MATCH (p:Person) RETURN id(p) as id, p.name as name`.
+If your query returns a graph entity please use the `labels` or `relationship`.
+
+The struct of the Dataset returned by the query is influenced by the query itself, in this particular context it could happen
+that the connector could not be able to sample the Schema from the query, in these particular cases we suggest trying with
+the option `schema.strategy` defined as `string` as it follows:
+
+```scala
+val df = spark.read.format("org.neo4j.spark.DataSource")
+      .option("query", "MATCH (n:Person) WITH n LIMIT 2 RETURN collect(n) AS nodes")
+      .option("schema.strategy", "string")
+      .load()
+
+df.show()
+```
+
+This means that the struct returned by the query will be composed by strings that you can than cast via simply Spark's
+transformations.
+
+[NOTE]
+Inference (`schema.strategy` = `sample`) is good when all instances of a property in neo4j are the same type,
+and string followed by cast is better when property types may differ.
+Remember that Neo4j does not enforce property typing, and so `person.age` could sometimes be a `long
+and sometimes be a `string`.
+
+== Read data by Node Labels
+
+You can both specify a single label, like this example
+```scala
+val df = spark.read.format("org.neo4j.spark.DataSource")
+        .option("url", "bolt://localhost:7687")
+        .option("labels", "Person")
+        .load()
+
+df.show()
+```
+
+Multiple labels can be specified, separated by `:`
+```scala
+val df = spark.read.format("org.neo4j.spark.DataSource")
+        .option("url", "bolt://localhost:7687")
+        .option("labels", "Person:Customer:Admin")
+        .load()
+
+df.show()
+```
+
+When reading data with this method, the Dataframe will contain all the fields contained in the nodes, plus 2 additional columns.
+
+ * `<id>` the internal Neo4j id
+ * `<labels>` a list of labels for that node
+
+
+== Read data by Relationship Type
+
+You can specify a Cypher Path in this way:
+```scala
+val df = spark.read.format("org.neo4j.spark.DataSource")
+      .option("relationship", "BOUGHT")
+      .option("relationship.source.labels", "Person")
+      .option("relationship.target.labels", "Product")
+      .load()
+
+df.show()
+```
+
+This will create a Cypher Query as it follows:
+
+```cypher
+MATCH (source:Person)-[rel:BOUGHT]->(target:Product)
+RETURN source, rel, target
+```
+
+When reading data with this method, the Dataframe will contain all the fields contained in the relationship, plus:
+
+* `<id>` the internal Neo4j id
+* `<relationshipType>` the relationship type
+
+and depending on the value of `relationship.node.map` option, if `true`:
+
+* `source` the Map<String, String> of source node
+* `target` the Map<String, String> of target node
+
+otherwise if `false`:
+
+* `<sourceId>` the internal Neo4j id of source node
+* `<sourceLabels>` a list of labels for source node
+* `<targetId>` the internal Neo4j id of target node
+* `<targetLabels>` a list of labels for target node
+
+
+== Filtering
+
+You can use Spark to filter properties of the relationship by setting various `option()`s.  This is particularly useful when filtering relationships by source node, or the target node. 
+
+If `relationship.node.map` is set to **false**
+
+* ``\`source.[property]` `` for the source node properties
+* ``\`rel.[property]` `` for the relation property
+* ``\`target.[property]` `` for the target node property
+
+If `relationship.node.map` is set to **true**
+
+* ``\`<source>`.\`[property]` `` for the source node map properties
+* ``\`<rel>`.\`[property]` `` for the relation map property
+* ``\`<target>`.\`[property]` `` for the target node map property
+
+in this case, all the map values will be strings, so the filter value must be a string too.
+
+=== Example Relationship Filter
+
+```scala
+val df = spark.read.format("org.neo4j.spark.DataSource")
+      .option("relationship.node.map", false)
+      .option("relationship", "BOUGHT")
+      .option("relationship.source.labels", "Person")
+      .option("relationship.target.labels", "Product")
+      .load()
+
+df.where("source.name = 'John Doe' AND target.price >= 33")
+```
+
+=== Filter Considerations
+
+The Neo4j Spark Connector implements the SupportPushDownFilters interface, that allows you to push the Spark filters down to the Neo4j layer. In this way the data that Spark will receive will be already filtered by Neo4j.
+
+You can manually disable the Push Down Filters support using the `pushdown.filters.enabled` option and set it to `false` (default is `true`).
+
+If you use use the filter function more than once, like in this example:
+
+```scala
+df.where("name = 'John Doe'").where("age = 32")
+```
+
+The conditions will be automatically joined with an `AND` operator.
+
+[NOTE]
+When using `relationship.node.map = true` or `query` the PushDownFilters support is not active, thus the filters will be applied by Spark and not by Neo4j.
+

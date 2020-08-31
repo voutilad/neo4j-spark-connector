@@ -1,0 +1,119 @@
+[#schema]
+= Neo4j/Spark Schema
+
+Spark works with data in a tabular fixed schema. To accomplish this Neo4j Connector has a schema infer system that creates the schema based on the data requested for the read. Each read data method has is own strategy to create it, that will be explained it each section.
+
+== Supported Data Types
+
+TODO -- list a table of Neo4j data types and how they appear in Spark dataframes.
+
+== Schema Extraction
+
+As Neo4j has a schema-less approach and Spark needs a Schema in order to create a Dataset,
+we use several approaches in order to sample the dataset into Neo4j and compute the schema for Spark's Dataset.
+
+If APOC are available, the preferred method for the connector is to obtain schema with `apoc.meta.(rel|node)TypeProperties`. 
+Otherwise the first 10 (or any number specified by the `schema.flatten.limit` option) results will be flattened and the schema will be create from those properties.
+
+=== For Nodes
+
+In case you're extracting nodes from Neo4j we try as first step to invoke the `apoc.meta.nodeTypeProperties` procedure,
+in case the procedure is not installed we'll execute the following Cypher query:
+
+```cypher
+MATCH (n:<labels>)
+RETURN n
+ORDER BY rand()
+LIMIT <limit>
+```
+
+Where `<labels>` is the list of labels provided via `.option("labels", ":MyLabel:MyOtherLabel")` and `<limit>` is the
+value provided via `.option("schema.flatten.limit", "100")`
+
+=== For Relationships
+
+In case you're extracting nodes from Neo4j we try as first step to invoke the `apoc.meta.relTypeProperties` procedure,
+in case the procedure is not installed we'll execute the following Cypher query:
+
+```cypher
+MATCH (source:<source_labels>)-[rel:<relationship>]->(target:<target_labels>)
+RETURN rel
+ORDER BY rand()
+LIMIT <limit>
+```
+
+Where:
+
+ * `<source_labels>` is the list of labels provided via `.option("relationship.source.labels", ":MyLabel:MyOtherLabel")`
+ * `<target_labels>` is the list of labels provided via `.option("relationship.target.labels", ":MyLabel:MyOtherLabel")`
+ * `<relationship>` is the list of labels provided via `.option("relationship", "MY_RELATIONSHIP")`
+ * `<limit>` is the value provided via `.option("schema.flatten.limit", "100")`
+
+=== Complex Data Types
+
+Spark doesn't support all Neo4j data types (ie: Point, Time, Duration). Such types are transformed into Struct types containing all the useful data.
+
+|===
+
+|Type |Struct 
+
+|`Duration`
+a|
+----
+Struct(Array(
+    ("type", DataTypes.StringType, false),
+    ("months", DataTypes.LongType, false),
+    ("days", DataTypes.LongType, false),
+    ("seconds", DataTypes.LongType, false),
+    ("nanoseconds", DataTypes.IntegerType, false),
+    ("value", DataTypes.StringType, false)
+  ))
+----
+
+|`Point`
+a|
+----
+Struct(Array(
+    ("type", DataTypes.StringType, false),
+    ("srid", DataTypes.IntegerType, false),
+    ("x", DataTypes.DoubleType, false),
+    ("y", DataTypes.DoubleType, false),
+    ("z", DataTypes.DoubleType, true),
+  ))
+----
+
+|`Time`
+a|
+----
+Struct(Array(
+    ("type", DataTypes.StringType, false),
+    ("value", DataTypes.StringType, false)
+  ))
+----
+
+|=== 
+
+=== Example
+
+```cypher
+CREATE (p1:Person {age: 31, name: 'Jane Doe'}),
+    (p2:Person {name: 'John Doe', age: 33, location: null}),
+    (p3:Person {age: 25, location: point({latitude: -37.659560, longitude: -68.178060})})
+```
+
+Will create this schema
+
+|===
+|Field |Type 
+
+|<id>|Int
+
+|<labels>|String[]
+
+|age|Int
+
+|name|String
+
+|location|Point
+
+|===

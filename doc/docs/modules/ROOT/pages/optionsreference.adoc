@@ -1,0 +1,178 @@
+[#options]
+= Connector Options & Configuration
+
+When using the connector, any valid Neo4j driver option can be set using the `option` method in
+spark, like so:
+
+```scala
+val df = spark.read.format("org.neo4j.spark.DataSource")
+        .option("url", "bolt://localhost:7687")
+        .option("authentication.type", "basic")
+        .option("authentication.basic.username", "myuser")
+        .option("authentication.basic.password", "neo4jpassword")
+        .option("labels", "Person")
+        .load()
+```
+
+== Neo4j Driver Options
+
+Under the covers, the spark connector uses the link:https://neo4j.com/docs/driver-manual/current/get-started/#driver-get-started-about[official Neo4j Java Driver].  As such, in many situations you'll want the control to set driver options to account for your production deployment of Neo4j, and how to communicate with it.   This is done using the `options` example above.
+
+The following table captures the most common configuration settings to use with the Neo4j driver.  For full
+documentation on all possible configuration options for Neo4j drivers, see the link:https://neo4j.com/docs/driver-manual/current/client-applications/#driver-configuration[Neo4j Drivers Manual].
+
+.Most Common Needed Configuration Settings
+|===
+|Setting Name |Description |Default Value |Required 
+
+|`url`
+|The url of the Neo4j instance to connect to
+|_(none)_
+|Yes
+
+|`authentication.type`
+|The authentication method to be used: `none`, `basic`, `kerberos`, `custom`. More info https://neo4j.com/docs/driver-manual/4.1/client-applications/#driver-authentication[here]
+|`basic`
+|No
+
+|`authentication.basic.username`
+|Username to use for basic authentication type
+|``
+|No
+
+|`authentication.basic.password`
+|Username to use for basic authentication type
+|``
+|No
+
+|`authentication.kerberos.ticket`
+|Kerberos Auth Ticket
+|``
+|No
+
+|`authentication.custom.principal`
+|This used to identify who this token represents
+|``
+|No
+
+|`authentication.custom.credentials`
+|This are the credentials authenticating the principal
+|``
+|No
+
+|`authentication.custom.realm`
+|This is the "realm:"", specifying the authentication provider
+|``
+|No
+
+|`encryption.enabled`
+|Specify if encryption should be enabled. This setting is totally ignored if you use a URI scheme with +s or +ssc
+|`false`
+|No
+
+|`encryption.trust.strategy`
+|Set cerificate trust strategy, is ignored in case the connection URI uses `+s` or `+ssc` as suffix.
+|`TRUST_SYSTEM_CA_SIGNED_CERTIFICATES`
+|No
+
+|`encryption.ca.certificate.path`
+|Set certificate path for `TRUST_CUSTOM_CA_SIGNED_CERTIFICATES` trust strategy
+|``
+|No
+
+|`connection.max.lifetime.msecs`
+|Connection lifetime in milliseconds
+|(Neo4j Driver default)
+|No
+
+|`connection.liveness.timeout.msec`
+|Liveness check timeout
+|(Neo4j Driver default)
+|No
+
+|`connection.acquisition.timeout.msecs`
+|Connection acquisition timeout in milliseconds
+|(Neo4j Driver default)
+|No
+
+|`connection.timeout.msecs`
+|Connection timeout in milliseconds
+|(Neo4j Driver default)
+|No
+|===
+
+== Session Options
+
+Session options control how the connector uses link:https://neo4j.com/docs/driver-manual/current/session-api/[Neo4j Sessions] within the bolt driver.
+
+|===
+|Setting Name |Description |Default Value |Required 
+
+|`database`
+|Database name to connect to. As the driver allows to define the database in the URL,
+in case you set this option will have the priority compared to the one defined in the URL
+|``
+|No
+
+|`access.mode`
+|Used only while you're pulling data from Neo4j. In case is `read` the connector, in a cluster environment
+will route the requests to the followers, otherwise to the leader.
+|`read`
+|No
+|===
+
+== Data Read Options
+
+|===
+|Setting Name |Description |Default Value |Required 
+
+|`query`
+|Specify a query to read the data
+|``
+|Yes^*^
+
+|`labels`
+|List of labels separated by `:`. First label is the primary label
+|``
+|Yes^*^
+
+|`relationship`
+|List of labels separated by `:` (first label is the primary label)
+|``
+|Yes^*^
+
+|`relationship.nodes.map`
+|If true return `source` and `target` nodes as Map<String, String>, otherwise we flatten the properties by returning
+every single node property as column prefixed by `source` or `target`
+|`true`
+|No
+
+|`relationship.source.labels`
+|List of source node Labels separated by `:`
+|``
+|Yes^*^
+
+|`relationship.target.labels`
+|List of target node Labels separated by `:`
+|``
+|Yes^*^
+
+|`schema.flatten.limit`
+|Number of records to be used to create the Schema (only if APOC are not installed)
+|`10`
+|No
+
+|`schema.strategy`
+|Strategy used by the connector in order to compute the Schema definition for the Dataset. Values `string` and
+`sample`. If `string` coerces all the properties to String otherwise it will try to sample the Neo4j's dataset.
+|`sample`
+|No
+
+|`pushdown.filters.enabled`
+|Enable or disable the Push Down Filters support
+|`true`
+|No
+
+|===
+
+^*^ Just one of the options can be specified.

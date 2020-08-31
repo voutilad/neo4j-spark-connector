@@ -6,14 +6,28 @@
 This chapter provides an introduction to the Neo4j Spark Connector.
 --
 
-Overview here
+== Overview
 
-Neo4j Streams can run in two modes:
+The Neo4j Spark Connector is intended to make integrating graphs together with spark easy.  There are effectively two ways of using the connector:
 
-* as a Neo4j plugin:
+- **As a data source**:  read any set of nodes or relationships as a DataFrame in Spark
+- **As a sink**: write any DataFrame to Neo4j as a collection of nodes or relationships, or alternatively; use a 
+Cypher statement to process records in a DataFrame into the graph pattern of your choice.
 
-** Runmode1
-** Runmode2
+== Compatibility
+
+This connector works with Neo4j 3.5, and the entire 4+ series of Neo4j, whether run as a single instance,
+in causal cluster mode, or run as a managed service in Neo4j Aura.
 
 [NOTE]
-**Be aware of stuff here.**
+**Neo4j versions prior to 3.5 are not supported and not guaranteed to work**
+
+== Availability
+
+This connector is provided under the terms of the Apache 2.0 license, which can be found in the GitHub repository.
+
+== Support
+
+For Neo4j Enterprise and Neo4j Aura customers, official releases of this connector are supported under the terms of your existing Neo4j support agreement.  This support extends only to regular releases, and excludes
+alpha, beta, and pre-releases.  If you have any questions about the support policy, please get in touch with
+Neo4j.
