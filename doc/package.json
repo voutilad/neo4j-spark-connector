@@ -5,7 +5,9 @@
   "main": "index.js",
   "watch": {
     "build:dev": {
-      "patterns": ["docs"],
+      "patterns": [
+        "docs"
+      ],
       "extensions": "adoc"
     }
   },

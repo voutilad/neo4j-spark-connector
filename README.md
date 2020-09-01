@@ -1,20 +1,28 @@
-# Neo4j Connector to Apache Spark based on Neo4j 3.0's Bolt protocol
+# Neo4j Spark Connector
 
-These are the beginnings of a Connector from Neo4j to Apache Spark 2.4 using the new binary protocol for Neo4j, Bolt.
-
-Find [more information](http://neo4j.com/docs/developer-manual/current/#driver-manual-index) about the Bolt protocol, available drivers and documentation.
-
-Please note that I still know very little about Apache Spark and might have done really dumb things.
-Please let me know by [creating an issue](https://github.com/neo4j-contrib/neo4j-spark-connector/issues) or even better [submitting a pull request](https://github.com/neo4j-contrib/neo4j-spark-connector/pulls) to this repo.
+This repository contains the Neo4j Spark Connector.
 
 ## License
 
 This neo4j-spark-connector is Apache 2 Licensed
 
+## Generating Documentation from Source
+
+```
+cd doc
+# Install NodeJS dependencies
+npm install
+# Generate HTML/CSS from asciidoc
+./node_modules/.bin/antora docs.yml
+# Start local server to browse docs
+npm run start
+```
+
+This will open http://localhost:8000/ which will serve development docs.
+
 ## Building
 
-
-Build `target/neo4j-spark-connector_2.12-full-4.0.0.jar` for Scala 2.11
+Build `target/neo4j-spark-connector-4.0.0.jar` for Scala 2.11
 
     mvn clean package
 
@@ -22,7 +30,7 @@ Build `target/neo4j-spark-connector_2.12-full-4.0.0.jar` for Scala 2.11
 
 **spark-shell, pyspark, or spark-submit**
 
-`$SPARK_HOME/bin/spark-shell --jars neo4j-spark-connector_2.11-full-4.0.0.jar`
+`$SPARK_HOME/bin/spark-shell --jars neo4j-spark-connector-4.0.0.jar`
 
 `$SPARK_HOME/bin/spark-shell --packages neo4j-contrib:neo4j-spark-connector:4.0.0`
 
