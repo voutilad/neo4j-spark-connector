@@ -1,20 +1,30 @@
-= Neo4j Driver Configuration
+[#options]
+= Connector Options & Configuration
 
-== Overview
+When using the connector, any valid Neo4j driver option can be set using the `option` method in
+Spark, like so:
 
-Neo4j Spark Connector uses the link:https://neo4j.com/developer/java/[Neo4j Driver] under the hood.
-This means you can setup the connection to your database like you were using the driver.
+[source,scala]
+----
+import org.apache.spark.sql.{SaveMode, SparkSession}
 
-This is made possible by the Spark Session `option` method.
-Neo4j Spark Connector exposes a large number of options that can be used to setup your driver connection.
+val spark = SparkSession.builder().getOrCreate()
 
-== Available Options
+val df = spark.read.format("org.neo4j.spark.DataSource")
+        .option("url", "bolt://localhost:7687")
+        .option("authentication.type", "basic")
+        .option("authentication.basic.username", "myuser")
+        .option("authentication.basic.password", "neo4jpassword")
+        .option("labels", "Person")
+        .load()
+----
 
-Following you can find a complete list of values you can set to customize the Neo4j Driver and the Spark Session.
+== Neo4j Driver Options
 
-[NOTE]
-More info on the Neo4j Driver can be found link:https://neo4j.com/docs/driver-manual/4.1/client-applications/[here, window=_blank].
-Particularly link:https://neo4j.com/docs/driver-manual/4.1/client-applications/#driver-configuration[here, window=_blank] are the Driver configuration parameters exhaustive descriptions and default values.
+Under the covers, the spark connector uses the link:https://neo4j.com/docs/driver-manual/current/get-started/#driver-get-started-about[official Neo4j Java Driver].  As such, in many situations you'll want the control to set driver options to account for your production deployment of Neo4j, and how to communicate with it.   This is done using the `options` example above.
+
+The following table captures the most common configuration settings to use with the Neo4j driver.  For full
+documentation on all possible configuration options for Neo4j drivers, see the link:https://neo4j.com/docs/driver-manual/current/client-applications/#driver-configuration[Neo4j Drivers Manual].
 
 .List of available options
 |===
