@@ -20,9 +20,9 @@ class Neo4jQueryWriteStrategy(private val saveMode: SaveMode) extends Neo4jQuery
   private def keywordFromSaveMode(saveMode: Any): String = {
     saveMode match {
       case NodeSaveMode.Overwrite | SaveMode.Overwrite => "MERGE"
-      case NodeSaveMode.ErrorIfExists | SaveMode.ErrorIfExists => "CREATE"
+      case NodeSaveMode.ErrorIfExists | SaveMode.ErrorIfExists | SaveMode.Append => "CREATE"
       case NodeSaveMode.Match => "MATCH"
-      case _ => throw new UnsupportedOperationException(s"Source SaveMode $saveMode not supported")
+      case _ => throw new UnsupportedOperationException(s"SaveMode $saveMode not supported")
     }
   }
 
@@ -208,9 +208,11 @@ abstract class Neo4jQueryStrategy {
 
   protected def createQueryPart(keyword: String, labels: String, keys: String, alias: String, additionalAliases: Seq[String] = Seq[String]()): String = {
     val withAliases = additionalAliases ++ Seq(BATCH_VARIABLE, alias)
-    s"""$keyword ($alias${if (labels.isEmpty) "" else s":$labels"} ${if (keys.isEmpty) "" else s"{$keys}"})
-    |SET $alias += $BATCH_VARIABLE.$alias.${Neo4jWriteMappingStrategy.PROPERTIES}
-    |WITH ${withAliases.mkString(", ")}"""
+
+    val setStatement = if (!keyword.equals("MATCH")) s"SET $alias += $BATCH_VARIABLE.$alias.${Neo4jWriteMappingStrategy.PROPERTIES}" else ""
+
+    s"""$keyword ($alias${if (labels.isEmpty) "" else s":$labels"} ${if (keys.isEmpty) "" else s"{$keys}"}) $setStatement
+    |WITH ${withAliases.mkString(", ")}""".stripMargin
   }
 }
 

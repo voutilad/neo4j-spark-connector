@@ -571,7 +571,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
   }
 
   @Test
-  def `should read and write relations`(): Unit = {
+  def `should read and write relations with append mode`(): Unit = {
     val total = 100
     val fixtureQuery: String =
       s"""UNWIND range(1, $total) as id
@@ -608,6 +608,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
 
     dfOriginal.write
       .format(classOf[DataSource].getName)
+      .mode(SaveMode.Append)
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
       .option("database", "db2")
       .option("relationship", "SOLD")
@@ -616,6 +617,119 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .option("relationship.source.save.mode", "ErrorIfExists")
       .option("relationship.target.labels", ":Product")
       .option("relationship.target.save.mode", "ErrorIfExists")
+      .option("batch.size", "11")
+      .save()
+
+    // let's write again to prove that 2 relationship are being added
+    dfOriginal.write
+      .format(classOf[DataSource].getName)
+      .mode(SaveMode.Append)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("database", "db2")
+      .option("relationship", "SOLD")
+      .option("relationship.save.strategy", "NATIVE")
+      .option("relationship.source.labels", ":Person")
+      .option("relationship.source.save.mode", "ErrorIfExists")
+      .option("relationship.target.labels", ":Product")
+      .option("relationship.target.save.mode", "ErrorIfExists")
+      .option("batch.size", "11")
+      .save()
+
+    val dfCopy = ss.read.format(classOf[DataSource].getName)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("database", "db2")
+      .option("relationship", "SOLD")
+      .option("relationship.nodes.map", "false")
+      .option("relationship.source.labels", ":Person")
+      .option("relationship.target.labels", ":Product")
+      .load()
+
+    val dfOriginalCount = dfOriginal.count()
+    assertEquals(dfOriginalCount * 2, dfCopy.count())
+
+    dfCopy.show
+
+    for (i <- 0 until 1) {
+      assertEquals(
+        dfOriginal.select("`source.id`").collectAsList().get(i).getLong(0),
+        dfCopy.select("`source.id`").collectAsList().get(i).getLong(0)
+      )
+      assertEquals(
+        dfOriginal.select("`target.id`").collectAsList().get(i).getLong(0),
+        dfCopy.select("`target.id`").collectAsList().get(i).getLong(0)
+      )
+    }
+
+    assertEquals(
+      2,
+      dfCopy.where("`source.id` = 1").count()
+    )
+  }
+
+  @Test
+  def `should read and write relations with overwrite mode`(): Unit = {
+    val total = 100
+    val fixtureQuery: String =
+      s"""UNWIND range(1, $total) as id
+         |CREATE (pr:Product {id: id * $total, name: 'Product ' + id})
+         |CREATE (pe:Person {id: id, fullName: 'Person ' + id})
+         |CREATE (pe)-[:BOUGHT{when: rand(), quantity: rand() * 1000}]->(pr)
+         |RETURN *
+    """.stripMargin
+
+    SparkConnectorScalaSuiteIT.driver.session(SessionConfig.forDatabase("db1"))
+      .writeTransaction(
+        new TransactionWork[Unit] {
+          override def execute(tx: Transaction): Unit = {
+            tx.run("MATCH (n) DETACH DELETE n")
+            tx.run(fixtureQuery)
+            tx.commit()
+          }
+        })
+
+    SparkConnectorScalaSuiteIT.driver.session(SessionConfig.forDatabase("db2"))
+      .writeTransaction(
+        new TransactionWork[ResultSummary] {
+          override def execute(tx: Transaction): ResultSummary = tx.run("MATCH (n) DETACH DELETE n").consume()
+        })
+
+    val dfOriginal: DataFrame = ss.read.format(classOf[DataSource].getName)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("database", "db1")
+      .option("relationship", "BOUGHT")
+      .option("relationship.nodes.map", "false")
+      .option("relationship.source.labels", ":Person")
+      .option("relationship.target.labels", ":Product")
+      .load()
+
+    dfOriginal.write
+      .format(classOf[DataSource].getName)
+      .mode(SaveMode.Overwrite)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("database", "db2")
+      .option("relationship", "SOLD")
+      .option("relationship.save.strategy", "NATIVE")
+      .option("relationship.source.labels", ":Person")
+      .option("relationship.source.save.mode", "ErrorIfExists")
+      .option("relationship.target.labels", ":Product")
+      .option("relationship.target.save.mode", "ErrorIfExists")
+      .option("batch.size", "11")
+      .save()
+
+    // let's write the same thing again to prove there will be just one relation
+    dfOriginal.write
+      .format(classOf[DataSource].getName)
+      .mode(SaveMode.Overwrite)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("database", "db2")
+      .option("relationship", "SOLD")
+      .option("relationship.save.strategy", "NATIVE")
+      .option("relationship.source.labels", ":Person")
+      .option("relationship.source.node.keys", "source.id:id")
+      .option("relationship.source.save.mode", "Overwrite")
+      .option("relationship.target.labels", ":Product")
+      .option("relationship.target.node.keys", "target.id:id")
+      .option("relationship.target.save.mode", "Overwrite")
       .option("batch.size", "11")
       .save()
 
@@ -641,6 +755,11 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
         dfCopy.select("`target.id`").collectAsList().get(i).getLong(0)
       )
     }
+
+    assertEquals(
+      1,
+      dfCopy.where("`source.id` = 1").count()
+    )
   }
 
   @Test
@@ -866,7 +985,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
   }
 
   @Test
-  def `should read and write relations with overwrite mode`(): Unit = {
+  def `should read and write relations with node overwrite mode`(): Unit = {
     val fixtureQuery: String =
       s"""CREATE (m:Musician {id: 1, name: "John Bonham"})
          |CREATE (i:Instrument {name: "Drums"})

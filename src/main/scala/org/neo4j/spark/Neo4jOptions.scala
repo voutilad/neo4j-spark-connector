@@ -287,7 +287,7 @@ object Neo4jOptions {
   val NODE_KEYS = "node.keys"
   val NODE_PROPS = "node.properties"
   val BATCH_SIZE = "batch.size"
-  val SUPPORTED_SAVE_MODES = Seq(SaveMode.Overwrite, SaveMode.ErrorIfExists)
+  val SUPPORTED_SAVE_MODES = Seq(SaveMode.Overwrite, SaveMode.ErrorIfExists, SaveMode.Append)
 
   // Relationship Metadata
   val RELATIONSHIP_SOURCE_LABELS = s"${QueryType.RELATIONSHIP.toString.toLowerCase}.source.${QueryType.LABELS.toString.toLowerCase}"
@@ -336,7 +336,7 @@ object RelationshipSaveStrategy extends Enumeration {
 }
 
 object NodeSaveMode extends Enumeration {
-  val Overwrite, ErrorIfExists, Match = Value
+  val Overwrite, ErrorIfExists, Match, Append = Value
 
   def fromSaveMode(saveMode: SaveMode): Value = {
     saveMode match {
