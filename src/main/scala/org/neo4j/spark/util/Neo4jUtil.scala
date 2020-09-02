@@ -56,7 +56,7 @@ object Neo4jUtil {
       }
     } catch {
       case t: Throwable => if (logger != null) logger
-        .error(s"Cannot close ${autoCloseable.getClass.getSimpleName} because of the following exception:", t)
+        .warn(s"Cannot close ${autoCloseable.getClass.getSimpleName} because of the following exception:", t)
     }
   }
 

@@ -2,7 +2,8 @@ package org.neo4j.spark.service
 
 import org.apache.spark.sql.SaveMode
 import org.apache.spark.sql.sources.{And, EqualTo, Filter, IsNull, Not, Or}
-import org.neo4j.cypherdsl.core.{Condition, Conditions, Cypher, Functions, Node, PropertyContainer, Relationship, StatementBuilder}
+import org.neo4j.cypherdsl.core.StatementBuilder.{BuildableStatement, TerminalExposesLimit}
+import org.neo4j.cypherdsl.core.{Condition, Conditions, Cypher, Functions, Node, PropertyContainer, Relationship, Statement, StatementBuilder}
 import org.neo4j.cypherdsl.core.renderer.Renderer
 import org.neo4j.spark.{Neo4jOptions, QueryType}
 import org.neo4j.spark.util.Neo4jImplicits._
@@ -38,7 +39,8 @@ class Neo4jQueryWriteStrategy(private val saveMode: SaveMode) extends Neo4jQuery
   }
 }
 
-class Neo4jQueryReadStrategy(filters: Array[Filter] = Array.empty[Filter]) extends Neo4jQueryStrategy {
+class Neo4jQueryReadStrategy(filters: Array[Filter] = Array.empty[Filter],
+                             partitionSkipLimit: PartitionSkipLimit = PartitionSkipLimit(0, -1, -1)) extends Neo4jQueryStrategy {
   private val renderer: Renderer = Renderer.getDefaultRenderer
 
   override def createStatementForQuery(options: Neo4jOptions): String = options.query.value
@@ -52,7 +54,16 @@ class Neo4jQueryReadStrategy(filters: Array[Filter] = Array.empty[Filter]) exten
 
     val matchQuery: StatementBuilder.OngoingReadingWithoutWhere = filterRelationship(sourceNode, targetNode, relationship)
 
-    renderer.render(matchQuery.returning(sourceNode, relationship, targetNode).build())
+    val returning = matchQuery.returning(sourceNode, relationship, targetNode)
+    renderer.render(buildStatement(returning))
+  }
+
+  private def buildStatement(returning: StatementBuilder.OngoingReadingAndReturn) = {
+    if (partitionSkipLimit.skip != -1 && partitionSkipLimit.limit != -1) {
+      returning.skip[TerminalExposesLimit with BuildableStatement](partitionSkipLimit.skip).limit(partitionSkipLimit.limit).build()
+    } else {
+      returning.build()
+    }
   }
 
   private def filterRelationship(sourceNode: Node, targetNode: Node, relationship: Relationship) = {
@@ -116,7 +127,7 @@ class Neo4jQueryReadStrategy(filters: Array[Filter] = Array.empty[Filter]) exten
   def createStatementForNodeCount(options: Neo4jOptions): String = {
     val node = createNode(Neo4jUtil.NODE_ALIAS, options.nodeMetadata.labels)
     val matchQuery = filterNode(node)
-    renderer.render(matchQuery.returning(Functions.count(node)).build())
+    renderer.render(buildStatement(matchQuery.returning(Functions.count(node))))
   }
 
   def createStatementForRelationshipCount(options: Neo4jOptions): String = {
@@ -128,9 +139,8 @@ class Neo4jQueryReadStrategy(filters: Array[Filter] = Array.empty[Filter]) exten
 
     val matchQuery: StatementBuilder.OngoingReadingWithoutWhere = filterRelationship(sourceNode, targetNode, relationship)
 
-    renderer.render(matchQuery.returning(Functions.count(sourceNode)).build())
+    renderer.render(buildStatement(matchQuery.returning(Functions.count(sourceNode))))
   }
-
 
   private def assembleConditionQuery(matchQuery: StatementBuilder.OngoingReadingWithoutWhere, filters: Array[Condition]): StatementBuilder.OngoingReadingWithWhere = {
     matchQuery.where(
@@ -164,8 +174,7 @@ class Neo4jQueryService(private val options: Neo4jOptions,
     case QueryType.LABELS => strategy.createStatementForNodes(options)
     case QueryType.RELATIONSHIP => strategy.createStatementForRelationships(options)
     case QueryType.QUERY => strategy.createStatementForQuery(options)
-    case _ => throw new UnsupportedOperationException(
-      s"""Query Type not supported.
+    case _ => throw new UnsupportedOperationException(s"""Query Type not supported.
          |You provided ${options.query.queryType},
          |supported types: ${QueryType.values.mkString(",")}""".stripMargin)
   }

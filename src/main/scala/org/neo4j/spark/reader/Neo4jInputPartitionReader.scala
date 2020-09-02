@@ -6,7 +6,7 @@ import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.sources.v2.reader.{InputPartition, InputPartitionReader}
 import org.apache.spark.sql.types.StructType
 import org.neo4j.driver.{Record, Session, Transaction}
-import org.neo4j.spark.service.{MappingService, Neo4jQueryReadStrategy, Neo4jQueryService, Neo4jReadMappingStrategy}
+import org.neo4j.spark.service.{MappingService, Neo4jQueryReadStrategy, Neo4jQueryService, Neo4jReadMappingStrategy, PartitionSkipLimit}
 import org.neo4j.spark.util.Neo4jUtil
 import org.neo4j.spark.{DriverCache, Neo4jOptions}
 
@@ -16,9 +16,7 @@ class Neo4jInputPartitionReader(private val options: Neo4jOptions,
                                 private val filters: Array[Filter],
                                 private val schema: StructType,
                                 private val jobId: String,
-                                private val partitionId: Int = 0,
-                                private val skip: Long = -1L,
-                                private val limit: Long = -1L) extends InputPartition[InternalRow]
+                                private val partitionSkipLimit: PartitionSkipLimit) extends InputPartition[InternalRow]
   with InputPartitionReader[InternalRow]
   with Logging {
 
@@ -26,16 +24,15 @@ class Neo4jInputPartitionReader(private val options: Neo4jOptions,
   private var session: Session = _
   private var transaction: Transaction = _
   private val driverCache: DriverCache = new DriverCache(options.connection,
-    if (partitionId > 0) s"$jobId-$partitionId" else jobId)
+    if (partitionSkipLimit.partitionNumber > 0) s"$jobId-${partitionSkipLimit.partitionNumber}" else jobId)
 
-  private val query: String = new Neo4jQueryService(options, new Neo4jQueryReadStrategy(filters))
+  private val query: String = new Neo4jQueryService(options, new Neo4jQueryReadStrategy(filters, partitionSkipLimit))
     .createQuery()
-    .concat(if (skip != -1 && limit != -1) s" SKIP $$skip LIMIT $$limit" else "")
 
   private val mappingService = new MappingService(new Neo4jReadMappingStrategy(options), options)
 
   override def createPartitionReader(): InputPartitionReader[InternalRow] = new Neo4jInputPartitionReader(options, filters, schema,
-    jobId, partitionId, skip, limit)
+    jobId, partitionSkipLimit)
 
   def next: Boolean = {
     if (result == null) {
@@ -43,7 +40,8 @@ class Neo4jInputPartitionReader(private val options: Neo4jOptions,
       transaction = session.beginTransaction()
       log.info(s"Running the following query on Neo4j: $query")
       val skipLimitParams: java.util.Map[String, AnyRef] = Map[String, AnyRef](
-        "skip" -> skip.asInstanceOf[AnyRef], "limit" -> limit.asInstanceOf[AnyRef])
+          "skip" -> partitionSkipLimit.skip.asInstanceOf[AnyRef],
+          "limit" -> partitionSkipLimit.limit.asInstanceOf[AnyRef])
         .asJava
       result = transaction.run(query, skipLimitParams).asScala
     }

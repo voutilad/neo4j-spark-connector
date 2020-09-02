@@ -19,6 +19,11 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
+object PartitionSkipLimit {
+  val EMPTY = PartitionSkipLimit(0, -1, -1)
+}
+case class PartitionSkipLimit(partitionNumber: Int, skip: Long, limit: Long)
+
 class SchemaService(private val options: Neo4jOptions, private val driverCache: DriverCache, private val filters: Array[Filter] = Array.empty)
   extends AutoCloseable with Logging {
 
@@ -192,12 +197,12 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
     val query = if (filters.isEmpty) {
       val sourceQueries = options.relationshipMetadata.source.labels
         .map(_.quote())
-        .map(label => s"""MATCH (:$label)-[${Neo4jUtil.RELATIONSHIP_ALIAS}:${options.relationshipMetadata.relationshipType}]->()
+        .map(label => s"""MATCH (:$label)-[${Neo4jUtil.RELATIONSHIP_ALIAS}:${options.relationshipMetadata.relationshipType.quote()}]->()
                          |RETURN count(${Neo4jUtil.RELATIONSHIP_ALIAS}) AS count
                          |""".stripMargin)
       val targetQueries = options.relationshipMetadata.target.labels
         .map(_.quote())
-        .map(label => s"""MATCH ()-[${Neo4jUtil.RELATIONSHIP_ALIAS}:${options.relationshipMetadata.relationshipType}]->(:$label)
+        .map(label => s"""MATCH ()-[${Neo4jUtil.RELATIONSHIP_ALIAS}:${options.relationshipMetadata.relationshipType.quote()}]->(:$label)
                          |RETURN count(${Neo4jUtil.RELATIONSHIP_ALIAS}) AS count
                          |""".stripMargin)
       (sourceQueries ++ targetQueries)
@@ -305,14 +310,14 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
     case QueryType.QUERY => countForQuery()
   }
 
-  def skipLimitFromPartition(): Seq[(Long, Long)] = if (options.partitions == 1) {
-    Seq.empty
+  def skipLimitFromPartition(): Seq[PartitionSkipLimit] = if (options.partitions == 1) {
+    Seq(PartitionSkipLimit.EMPTY)
   } else {
     val count: Long = this.count()
     if (count <= 0) {
-      Seq.empty
+      Seq(PartitionSkipLimit.EMPTY)
     } else {
-      val partitionSize = Math.ceil(count / options.partitions).toLong
+      val partitionSize = Math.ceil(count.toDouble / options.partitions).toLong
       val partitions = options.query.queryType match {
         case QueryType.QUERY => if (options.queryMetadata.queryCount.nonEmpty) {
           options.partitions // for custom query count we overfetch
@@ -322,7 +327,7 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
         case _ => options.partitions - 1
       }
       (0 to partitions)
-        .map(index => (index * partitionSize, partitionSize))
+        .map(index => PartitionSkipLimit(index, index * partitionSize, partitionSize))
     }
   }
 
