@@ -594,7 +594,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .save()
   }
 
-  @Test
+  @Test(expected = classOf[SparkException])
   def `should give error if native mode doesn't find a valid schema`(): Unit = {
     val musicDf = Seq(
       (12, "John Bonham", "Drums"),
@@ -616,9 +616,13 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
         .option("relationship.target.save.mode", "ErrorIfExists")
         .save()
     } catch {
-      case illegalArgumentException: IllegalArgumentException => assertTrue(illegalArgumentException.getMessage.equals("NATIVE write strategy requires a schema like: rel.[props], source.[props], target.[props]. " +
-        "All of this columns are empty in the current schema."))
-      case t: Throwable => fail(s"should be thrown a ${classOf[IllegalArgumentException].getName}, but it's ${t.getClass.getSimpleName}")
+      case sparkException: SparkException => {
+        val clientException = ExceptionUtils.getRootCause(sparkException)
+        assertTrue(clientException.getMessage.equals("NATIVE write strategy requires a schema like: rel.[props], source.[props], target.[props]. " +
+          "All of this columns are empty in the current schema."))
+        throw sparkException
+      }
+      case _ => fail(s"should be thrown a ${classOf[SparkException].getName}")
     }
   }
 
