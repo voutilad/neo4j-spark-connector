@@ -177,7 +177,7 @@ UNWIND $events AS event
 CREATE (n:Person {fullName: event.name + event.surname})
 ----
 
-Where `events` is the batch creted from your dataset.
+Where `events` is the batch created from your dataset.
 
 [[bookmark-write-node]]
 === Node
@@ -261,6 +261,15 @@ MERGE (n:`Person`:`Customer` {name: event.keys.name, surname: event.keys.surname
 SET n += event.properties
 ----
 
+Here you must specify which columns of your Dataframe will be used as keys to match the nodes.
+You control this with the option `node.keys`, specifying a comma-separated list of `key:value` pairs,
+where the key is the dataframe column name, and the value is the node property name.
+
+[NOTE]
+If `key` and `value` are the same field you can just specify one without the colon.
+For example, say you have `.option("node.keys", "name:name,email:email")`, you can also write
+`.option("node.keys", "name,email")`.
+
 In case the column value is a Map<String, `Value`> (where `Value` can be any supported
 link:https://neo4j.com/docs/cypher-manual/current/syntax/values/[Neo4j Type]) the Connector will
 automatically try to flatten it.
@@ -310,7 +319,7 @@ We need to spend a some words on this method since its a bit complex, and the co
 So we feel the need to clarify the vocabulary first, before diving into the actual process.
 
 Theory is simple, we take your Dataset and we move the columns around to create source and target nodes,
-eventually creating the speficied relationship between these two.
+eventually creating the specifid relationship between these two.
 
 This is a basic example of what would happen.
 [source,cypher]
@@ -324,9 +333,9 @@ CREATE (source)-[rel:BOUGHT]->(target)
 SET rel += event.rel
 ----
 
-The `CREATE` keywords for the source and target nodes can be replaced by a `MERGE` or a `MATCH`.
+The `CREATE` keyword for the source and target nodes can be replaced by a `MERGE` or a `MATCH`.
 To control this you can use the <<bookmark-node-save-modes,node save modes>>.
-You can set source and target indipendently by using `relationship.source.save.mode` or ``relationship.target.save.mode`.
+You can set source and target independently by using `relationship.source.save.mode` or ``relationship.target.save.mode`.
 
 When using `MATCH` or `MERGE` you will need to specify keys that identify the nodes.
 This is what the options `relationship.source.node.keys` and `relationship.target.node.keys`.
@@ -437,6 +446,10 @@ df.write
   .save()
 ----
 
+Here you must specify which columns of your Dataframe will be used as keys to match the nodes.
+You control this with the options `relationship.source.node.keys` and `relationship.target.node.keys`, specifying a comma-separated list of `key:value` pairs,
+where the key is the dataframe column name, and the value is the node property name.
+
 The generated query will be:
 [source,cypher]
 ----
@@ -462,7 +475,7 @@ the write will fail.
 When you want more control on the relationship writing you can use the *KEYS* strategy.
 
 As the native strategy, you can specify node keys to identify nodes.
-In addition you can also specify which columns should be written as nodes properties.
+In addition, you can also specify which columns should be written as nodes properties.
 
 [[bookmark-rel-specify-keys]]
 .Specify keys
@@ -498,11 +511,16 @@ This will create a `MERGE` query using `name` property as key for `Musician` nod
 The value of `instrument` column will be used as value for `Instrument` property `name`, generating a statement like:
 `MERGE (target:Instrument {name: event.target.instrument})`
 
-Here you must specify which keys of your Dataframe will be written in the source node and in the target node.
-All the remaining properties will be written as the relationship properties.
+Here you must specify which columns of your Dataframe will be written in the source node and in the target node properties.
 You can do this with the options `relationship.source.node.properties` and `relationship.target.node.properties`,
 specifying a comma-separated list of `key:value` pairs, where the key is the dataframe column name,
 and the value is the node property name.
+
+[NOTE]
+If `key` and `value` are the same field you can just specify one without the colon.
+For example, say you have `.option("relationship.source.node.properties", "name:name,email:email")`, you can also write
+`.option("relationship.source.node.properties", "name,email")`.
+Same applies for `relationship.source.node.keys` and `relationship.target.node.keys`.
 
 .Specify properties and keys
 [source,scala]
