@@ -571,6 +571,61 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
   }
 
   @Test
+  def `should handle unusual column names`(): Unit = {
+    val musicDf = Seq(
+      (12, "John Bonham", "Drums", "f``````oo"),
+      (19, "John Mayer", "Guitar", "bar"),
+      (32, "John Scofield", "Guitar", "ba` z"),
+      (15, "John Butler", "Guitar", "qu   ux")
+    ).toDF("experience", "name", "instrument", "fi``(╯°□°)╯︵ ┻━┻eld")
+
+    musicDf.write
+      .option("url", "bolt://localhost:7687")
+      .format(classOf[DataSource].getName)
+      .option("relationship", "PLAYS")
+      .option("relationship.save.strategy", "keys")
+      .option("relationship.source.labels", ":Musician")
+      .option("relationship.properties", "field")
+      .option("relationship.source.save.mode", "Overwrite")
+      .option("relationship.source.node.keys", "name:name")
+      .option("relationship.target.labels", ":Instrument")
+      .option("relationship.target.node.keys", "instrument:name")
+      .option("relationship.target.save.mode", "Overwrite")
+      .save()
+  }
+
+  @Test
+  def `should give error if native mode doesn't find a valid schema`(): Unit = {
+    val musicDf = Seq(
+      (12, "John Bonham", "Drums", "f``````oo"),
+      (19, "John Mayer", "Guitar", "bar"),
+      (32, "John Scofield", "Guitar", "ba` z"),
+      (15, "John Butler", "Guitar", "qu   ux")
+    ).toDF("experience", "name", "instrument", "fi``(╯°□°)╯︵ ┻━┻eld")
+
+    musicDf.write
+      .format(classOf[DataSource].getName)
+      .mode(SaveMode.Append)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("relationship", "PLAYS")
+      .option("relationship.save.strategy", "NATIVE")
+      .option("relationship.source.labels", ":Person")
+      .option("relationship.source.save.mode", "ErrorIfExists")
+      .option("relationship.target.labels", ":Instrument")
+      .option("relationship.target.save.mode", "ErrorIfExists")
+      .save()
+
+    ss.read.format(classOf[DataSource].getName)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("relationship", "PLAYS")
+      .option("relationship.nodes.map", "false")
+      .option("relationship.source.labels", "Person")
+      .option("relationship.target.labels", "Instrument")
+      .load()
+      .show()
+  }
+
+  @Test
   def `should read and write relations with append mode`(): Unit = {
     val total = 100
     val fixtureQuery: String =
@@ -647,16 +702,19 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
     val dfOriginalCount = dfOriginal.count()
     assertEquals(dfOriginalCount * 2, dfCopy.count())
 
-    dfCopy.show
+    val resSourceOrig = dfOriginal.select("`source.id`").orderBy("`source.id`").collectAsList()
+    val resSourceCopy = dfCopy.select("`source.id`").orderBy("`source.id`").collectAsList()
+    val resTargetOrig = dfOriginal.select("`target.id`").orderBy("`target.id`").collectAsList()
+    val resTargetCopy = dfCopy.select("`target.id`").orderBy("`target.id`").collectAsList()
 
     for (i <- 0 until 1) {
       assertEquals(
-        dfOriginal.select("`source.id`").collectAsList().get(i).getLong(0),
-        dfCopy.select("`source.id`").collectAsList().get(i).getLong(0)
+        resSourceOrig.get(i).getLong(0),
+        resSourceCopy.get(i).getLong(0)
       )
       assertEquals(
-        dfOriginal.select("`target.id`").collectAsList().get(i).getLong(0),
-        dfCopy.select("`target.id`").collectAsList().get(i).getLong(0)
+        resTargetOrig.get(i).getLong(0),
+        resTargetCopy.get(i).getLong(0)
       )
     }
 

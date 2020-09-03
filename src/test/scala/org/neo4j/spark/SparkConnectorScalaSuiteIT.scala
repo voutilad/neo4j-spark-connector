@@ -14,7 +14,7 @@ import org.neo4j.spark.util.Neo4jUtil
 
 
 object SparkConnectorScalaSuiteIT {
-  val server: Neo4jContainerExtension = new Neo4jContainerExtension("neo4j:4.0.1-enterprise")
+  val server: Neo4jContainerExtension = new Neo4jContainerExtension("neo4j:4.0.8-enterprise")
     .withNeo4jConfig("dbms.security.auth_enabled", "false")
     .withEnv("NEO4J_ACCEPT_LICENSE_AGREEMENT", "yes")
     .withDatabases(Seq("db1", "db2"))

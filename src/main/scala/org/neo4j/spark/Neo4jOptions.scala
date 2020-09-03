@@ -34,7 +34,7 @@ class Neo4jOptions(private val parameters: java.util.Map[String, String]) extend
   val pushdownFiltersEnabled: Boolean = getParameter(PUSHDOWN_FILTERS_ENABLED, DEFAULT_PUSHDOWN_FILTERS_ENABLED.toString).toBoolean
 
   val schemaMetadata = Neo4jSchemaMetadata(getParameter(SCHEMA_FLATTEN_LIMIT, DEFAULT_SCHEMA_FLATTEN_LIMIT.toString).toInt,
-    SchemaStrategy.withName(getParameter(SCHEMA_STRATEGY, DEFAULT_SCHEMA_STRATEGY.toString).toUpperCase))
+    SchemaStrategy.withCaseInsensitiveName(getParameter(SCHEMA_STRATEGY, DEFAULT_SCHEMA_STRATEGY.toString).toUpperCase))
 
   val query: Neo4jQueryOptions = (
     getParameter(QUERY.toString.toLowerCase),
@@ -134,9 +134,9 @@ class Neo4jOptions(private val parameters: java.util.Map[String, String]) extend
 
     val nodeMap = getParameter(RELATIONSHIP_NODES_MAP, DEFAULT_RELATIONSHIP_NODES_MAP.toString).toBoolean
 
-    val writeStrategy = RelationshipSaveStrategy.withName(getParameter(RELATIONSHIP_SAVE_STRATEGY, DEFAULT_RELATIONSHIP_SAVE_STRATEGY.toString).toUpperCase)
-    val sourceSaveMode = NodeSaveMode.withName(getParameter(RELATIONSHIP_SOURCE_SAVE_MODE, DEFAULT_RELATIONSHIP_SOURCE_SAVE_MODE.toString))
-    val targetSaveMode = NodeSaveMode.withName(getParameter(RELATIONSHIP_TARGET_SAVE_MODE, DEFAULT_RELATIONSHIP_TARGET_SAVE_MODE.toString))
+    val writeStrategy = RelationshipSaveStrategy.withCaseInsensitiveName(getParameter(RELATIONSHIP_SAVE_STRATEGY, DEFAULT_RELATIONSHIP_SAVE_STRATEGY.toString).toUpperCase)
+    val sourceSaveMode = NodeSaveMode.withCaseInsensitiveName(getParameter(RELATIONSHIP_SOURCE_SAVE_MODE, DEFAULT_RELATIONSHIP_SOURCE_SAVE_MODE.toString))
+    val targetSaveMode = NodeSaveMode.withCaseInsensitiveName(getParameter(RELATIONSHIP_TARGET_SAVE_MODE, DEFAULT_RELATIONSHIP_TARGET_SAVE_MODE.toString))
 
     Neo4jRelationshipMetadata(source, target, sourceSaveMode, targetSaveMode, query.value, nodeMap, writeStrategy)
   }
@@ -166,7 +166,7 @@ case class Neo4jRelationshipMetadata(
                                       targetSaveMode: NodeSaveMode.Value,
                                       relationshipType: String,
                                       nodeMap: Boolean,
-                                      writeStrategy: RelationshipSaveStrategy.Value
+                                      saveStrategy: RelationshipSaveStrategy.Value
                                     )
 case class Neo4jQueryMetadata(query: String, queryCount: String)
 
@@ -327,15 +327,22 @@ object Neo4jOptions {
   val DEFAULT_PARTITIONS = 1
 }
 
-object QueryType extends Enumeration {
+class CaseInsensitiveEnumeration extends Enumeration {
+  def withCaseInsensitiveName(s: String): Value = {
+    values.find(_.toString.toLowerCase() == s.toLowerCase).getOrElse(
+      throw new NoSuchElementException(s"No value found for '$s'"))
+  }
+}
+
+object QueryType extends CaseInsensitiveEnumeration {
   val QUERY, LABELS, RELATIONSHIP = Value
 }
 
-object RelationshipSaveStrategy extends Enumeration {
+object RelationshipSaveStrategy extends CaseInsensitiveEnumeration {
   val NATIVE, KEYS = Value
 }
 
-object NodeSaveMode extends Enumeration {
+object NodeSaveMode extends CaseInsensitiveEnumeration {
   val Overwrite, ErrorIfExists, Match, Append = Value
 
   def fromSaveMode(saveMode: SaveMode): Value = {
@@ -347,6 +354,6 @@ object NodeSaveMode extends Enumeration {
   }
 }
 
-object SchemaStrategy extends Enumeration {
+object SchemaStrategy extends CaseInsensitiveEnumeration {
   val STRING, SAMPLE = Value
 }

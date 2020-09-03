@@ -84,7 +84,7 @@ class Neo4jWriteMappingStrategy(private val options: Neo4jOptions)
   override def relationship(row: InternalRow, schema: StructType): java.util.Map[String, AnyRef] = {
     val rowMap: java.util.Map[String, AnyRef] = new java.util.HashMap[String, AnyRef]
 
-    val consumer = options.relationshipMetadata.writeStrategy match {
+    val consumer = options.relationshipMetadata.saveStrategy match {
       case RelationshipSaveStrategy.NATIVE => nativeStrategyConsumer()
       case RelationshipSaveStrategy.KEYS => keysStrategyConsumer()
     }

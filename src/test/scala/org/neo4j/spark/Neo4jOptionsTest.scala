@@ -27,6 +27,22 @@ class Neo4jOptionsTest {
   }
 
   @Test
+  def testRelationshipNodeModesAreCaseInsensitive(): Unit = {
+    val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
+    options.put(Neo4jOptions.URL, "bolt://localhost")
+    options.put(QueryType.RELATIONSHIP.toString.toLowerCase, "KNOWS")
+    options.put(Neo4jOptions.RELATIONSHIP_SAVE_STRATEGY, "nAtIve")
+    options.put(Neo4jOptions.RELATIONSHIP_SOURCE_SAVE_MODE, "Errorifexists")
+    options.put(Neo4jOptions.RELATIONSHIP_TARGET_SAVE_MODE, "overwrite")
+
+    val neo4jOptions = new Neo4jOptions(options)
+
+    assertEquals(RelationshipSaveStrategy.NATIVE, neo4jOptions.relationshipMetadata.saveStrategy)
+    assertEquals(NodeSaveMode.ErrorIfExists, neo4jOptions.relationshipMetadata.sourceSaveMode)
+    assertEquals(NodeSaveMode.Overwrite, neo4jOptions.relationshipMetadata.targetSaveMode)
+  }
+
+  @Test
   def testQueryAndNodeShouldThrowError(): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
@@ -146,7 +162,7 @@ class Neo4jOptionsTest {
     assertEquals(-1, neo4jOptions.connection.acquisitionTimeout)
     assertEquals(-1, neo4jOptions.connection.connectionTimeout)
     assertEquals(-1, neo4jOptions.connection.livenessCheckTimeout)
-    assertEquals(RelationshipSaveStrategy.NATIVE, neo4jOptions.relationshipMetadata.writeStrategy)
+    assertEquals(RelationshipSaveStrategy.NATIVE, neo4jOptions.relationshipMetadata.saveStrategy)
 
     assertTrue(neo4jOptions.pushdownFiltersEnabled)
   }
