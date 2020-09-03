@@ -47,10 +47,19 @@ Will insert 10 nodes into Neo4j via Spark, and each of these will have:
 == Save Mode
 
 In order to persist data into Neo4j the Spark Connector supports two save modes that will
-work only if `UNIQUE` or `NODE KEY` constraints are defined into Neo4j for the given properties:
+work only if `UNIQUE` or `NODE KEY` constraints are defined into Neo4j for the given properties.
+
+For <<bookmark-write-node,Node>> type
 
 * `SaveMode.ErrorIfExists`: this will build a `CREATE` query
 * `SaveMode.Overwrite`: this will build a `MERGE` query
+
+For <<bookmark-write-rel,Relationship>> type
+
+* `SaveMode.ErrorIfExists`: this will build a `CREATE` query
+* `SaveMode.Append`: this will build a `MERGE` query
+
+In both cases the default SaveMode is `ErrorIfExists`.
 
 == Options
 
@@ -86,9 +95,8 @@ The DataSource Writer has several options in order to connect and persist data i
 4+|*Relationship Specific Options*
 
 |`relationship.save.strategy`
-|<<bookmark-strategies,Save strategy>> to be used.
-Default is `native`
-|_(empty)_
+|<<bookmark-strategies,Save strategy>> to be used
+|`native`
 |Yes
 
 |`relationship.source.labels`
