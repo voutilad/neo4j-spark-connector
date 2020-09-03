@@ -597,32 +597,29 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
   @Test
   def `should give error if native mode doesn't find a valid schema`(): Unit = {
     val musicDf = Seq(
-      (12, "John Bonham", "Drums", "f``````oo"),
-      (19, "John Mayer", "Guitar", "bar"),
-      (32, "John Scofield", "Guitar", "ba` z"),
-      (15, "John Butler", "Guitar", "qu   ux")
-    ).toDF("experience", "name", "instrument", "fi``(╯°□°)╯︵ ┻━┻eld")
+      (12, "John Bonham", "Drums"),
+      (19, "John Mayer", "Guitar"),
+      (32, "John Scofield", "Guitar"),
+      (15, "John Butler", "Guitar")
+    ).toDF("experience", "name", "instrument")
 
-    musicDf.write
-      .format(classOf[DataSource].getName)
-      .mode(SaveMode.Append)
-      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
-      .option("relationship", "PLAYS")
-      .option("relationship.save.strategy", "NATIVE")
-      .option("relationship.source.labels", ":Person")
-      .option("relationship.source.save.mode", "ErrorIfExists")
-      .option("relationship.target.labels", ":Instrument")
-      .option("relationship.target.save.mode", "ErrorIfExists")
-      .save()
-
-    ss.read.format(classOf[DataSource].getName)
-      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
-      .option("relationship", "PLAYS")
-      .option("relationship.nodes.map", "false")
-      .option("relationship.source.labels", "Person")
-      .option("relationship.target.labels", "Instrument")
-      .load()
-      .show()
+    try {
+      musicDf.write
+        .format(classOf[DataSource].getName)
+        .mode(SaveMode.Append)
+        .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+        .option("relationship", "PLAYS")
+        .option("relationship.save.strategy", "NATIVE")
+        .option("relationship.source.labels", ":Person")
+        .option("relationship.source.save.mode", "ErrorIfExists")
+        .option("relationship.target.labels", ":Instrument")
+        .option("relationship.target.save.mode", "ErrorIfExists")
+        .save()
+    } catch {
+      case illegalArgumentException: IllegalArgumentException => assertTrue(illegalArgumentException.getMessage.equals("NATIVE write strategy requires a schema like: rel.[props], source.[props], target.[props]. " +
+        "All of this columns are empty in the current schema."))
+      case t: Throwable => fail(s"should be thrown a ${classOf[IllegalArgumentException].getName}, but it's ${t.getClass.getSimpleName}")
+    }
   }
 
   @Test

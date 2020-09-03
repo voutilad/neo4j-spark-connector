@@ -40,34 +40,34 @@ class Neo4jWriteMappingStrategy(private val options: Neo4jOptions)
   }
 
   private def nativeStrategyConsumer(): MappingBiConsumer = new MappingBiConsumer {
-      override def accept(key: String, value: AnyRef): Unit = {
-        if (key.startsWith(Neo4jUtil.RELATIONSHIP_ALIAS.concat("."))) {
-          relMap.get(PROPERTIES).put(key.removeAlias(), value)
+    override def accept(key: String, value: AnyRef): Unit = {
+      if (key.startsWith(Neo4jUtil.RELATIONSHIP_ALIAS.concat("."))) {
+        relMap.get(PROPERTIES).put(key.removeAlias(), value)
+      }
+      else if (key.startsWith(Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS.concat("."))) {
+        if (options.relationshipMetadata.source.nodeKeys.contains(key)) {
+          sourceNodeMap.get(KEYS).put(key.removeAlias(), value)
         }
-        else if (key.startsWith(Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS.concat("."))) {
-          if(options.relationshipMetadata.source.nodeKeys.contains(key)) {
-            sourceNodeMap.get(KEYS).put(key.removeAlias(), value)
-          }
-          else {
-            sourceNodeMap.get(PROPERTIES).put(key.removeAlias(), value)
-          }
+        else {
+          sourceNodeMap.get(PROPERTIES).put(key.removeAlias(), value)
         }
-        else if (key.startsWith(Neo4jUtil.RELATIONSHIP_TARGET_ALIAS.concat("."))) {
-          if(options.relationshipMetadata.target.nodeKeys.contains(key)) {
-            targetNodeMap.get(KEYS).put(key.removeAlias(), value)
-          }
-          else {
-            targetNodeMap.get(PROPERTIES).put(key.removeAlias(), value)
-          }
+      }
+      else if (key.startsWith(Neo4jUtil.RELATIONSHIP_TARGET_ALIAS.concat("."))) {
+        if (options.relationshipMetadata.target.nodeKeys.contains(key)) {
+          targetNodeMap.get(KEYS).put(key.removeAlias(), value)
+        }
+        else {
+          targetNodeMap.get(PROPERTIES).put(key.removeAlias(), value)
         }
       }
     }
+  }
 
   private def keysStrategyConsumer(): MappingBiConsumer = new MappingBiConsumer {
     override def accept(key: String, value: AnyRef): Unit = if (options.relationshipMetadata.source.nodeKeys.contains(key)) {
       sourceNodeMap.get(KEYS).put(key, value)
     }
-    else if(options.relationshipMetadata.source.nodeProps.contains(key)) {
+    else if (options.relationshipMetadata.source.nodeProps.contains(key)) {
       sourceNodeMap.get(PROPERTIES).put(key, value)
     }
     else if (options.relationshipMetadata.target.nodeKeys.contains(key)) {
@@ -90,6 +90,16 @@ class Neo4jWriteMappingStrategy(private val options: Neo4jOptions)
     }
 
     query(row, schema).forEach(consumer)
+
+    if (
+      options.relationshipMetadata.saveStrategy.equals(RelationshipSaveStrategy.NATIVE)
+        && consumer.relMap.get(PROPERTIES).isEmpty
+        && consumer.sourceNodeMap.get(PROPERTIES).isEmpty && consumer.sourceNodeMap.get(KEYS).isEmpty
+        && consumer.targetNodeMap.get(PROPERTIES).isEmpty && consumer.targetNodeMap.get(KEYS).isEmpty
+    ) {
+      throw new IllegalArgumentException("NATIVE write strategy requires a schema like: rel.[props], source.[props], target.[props]. " +
+        "All of this columns are empty in the current schema.")
+    }
 
     rowMap.put(Neo4jUtil.RELATIONSHIP_ALIAS, consumer.relMap)
     rowMap.put(Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS, consumer.sourceNodeMap)
