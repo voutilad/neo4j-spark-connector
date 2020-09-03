@@ -580,7 +580,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
     ).toDF("experience", "name", "instrument", "fi``(╯°□°)╯︵ ┻━┻eld")
 
     musicDf.write
-      .option("url", "bolt://localhost:7687")
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
       .format(classOf[DataSource].getName)
       .option("relationship", "PLAYS")
       .option("relationship.save.strategy", "keys")
