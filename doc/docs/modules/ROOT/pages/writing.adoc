@@ -137,7 +137,7 @@ Default is `native`
 As the Neo4j Spark Connector provide batch writes in order to speed-up the ingestion process
 so if in the process at some point fails all the previous data is already persisted.
 
-== Read Data
+== Write Data
 
 Writing data to a Neo4j Database can be done in 3 ways:
 
@@ -451,6 +451,10 @@ SET rel += event.rel
 
 [NOTE]
 Remember that you can choose to `CREATE` or `MERGE` the relationship with the <<bookmark-save-mode,save mode>>.
+
+[NOTE]
+If the provided dataframe schema doesn't conform the required schema, meaning that none of the required column is present,
+the write will fail.
 
 [[bookmark-strategy-keys]]
 ==== Keys Strategy
