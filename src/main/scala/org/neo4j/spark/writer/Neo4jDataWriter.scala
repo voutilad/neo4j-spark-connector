@@ -109,7 +109,7 @@ class Neo4jDataWriter(jobId: String,
   }
 
   private def close = {
-    closeSafety(transaction)
-    closeSafety(session)
+    closeSafety(transaction, log)
+    closeSafety(session, log)
   }
 }
