@@ -64,21 +64,22 @@ class Neo4jWriteMappingStrategy(private val options: Neo4jOptions)
   }
 
   private def keysStrategyConsumer(): MappingBiConsumer = new MappingBiConsumer {
-    override def accept(key: String, value: AnyRef): Unit = if (options.relationshipMetadata.source.nodeKeys.contains(key)) {
-      sourceNodeMap.get(KEYS).put(key, value)
-    }
-    else if (options.relationshipMetadata.source.nodeProps.contains(key)) {
-      sourceNodeMap.get(PROPERTIES).put(key, value)
-    }
-    else if (options.relationshipMetadata.target.nodeKeys.contains(key)) {
-      targetNodeMap.get(KEYS).put(key, value)
-    }
-    else if (options.relationshipMetadata.target.nodeProps.contains(key)) {
-      targetNodeMap.get(PROPERTIES).put(key, value)
-    }
-    else {
-      relMap.get(PROPERTIES).put(key, value)
-    }
+    override def accept(key: String, value: AnyRef): Unit =
+      if (options.relationshipMetadata.source.nodeKeys.contains(key)) {
+        sourceNodeMap.get(KEYS).put(key, value)
+      }
+      else if (options.relationshipMetadata.source.nodeProps.contains(key)) {
+        sourceNodeMap.get(PROPERTIES).put(key, value)
+      }
+      else if (options.relationshipMetadata.target.nodeKeys.contains(key)) {
+        targetNodeMap.get(KEYS).put(key, value)
+      }
+      else if (options.relationshipMetadata.target.nodeProps.contains(key)) {
+        targetNodeMap.get(PROPERTIES).put(key, value)
+      }
+      else if (options.relationshipMetadata.properties.contains(key)) {
+        relMap.get(PROPERTIES).put(key, value)
+      }
   }
 
   override def relationship(row: InternalRow, schema: StructType): java.util.Map[String, AnyRef] = {

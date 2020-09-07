@@ -81,24 +81,24 @@ class Neo4jOptions(private val parameters: java.util.Map[String, String]) extend
 
   val nodeMetadata = initNeo4jNodeMetadata()
 
+  def mapPropsString(str: String): Map[String, String] = str.split(",")
+    .map(_.trim)
+    .filter(!_.isEmpty)
+    .map(s => {
+      val keys = s.split(":")
+      if (keys.length == 2) {
+        (keys(0), keys(1))
+      } else {
+        (keys(0), keys(0))
+      }
+    })
+    .toMap
+
   private def initNeo4jNodeMetadata(nodeKeysString: String = getParameter(NODE_KEYS, ""),
                                     labelsString: String = query.value,
                                     nodePropsString: String = ""): Neo4jNodeMetadata = {
-    def mapPropsString(str: String) = str.split(",")
-      .map(_.trim)
-      .filter(!_.isEmpty)
-      .map(s => {
-        val keys = s.split(":")
-        if (keys.length == 2) {
-          (keys(0), keys(1))
-        } else {
-          (keys(0), keys(0))
-        }
-      })
-      .toMap
 
     val nodeKeys = mapPropsString(nodeKeysString)
-
     val nodeProps = mapPropsString(nodePropsString)
 
     val labels = labelsString
@@ -134,11 +134,13 @@ class Neo4jOptions(private val parameters: java.util.Map[String, String]) extend
 
     val nodeMap = getParameter(RELATIONSHIP_NODES_MAP, DEFAULT_RELATIONSHIP_NODES_MAP.toString).toBoolean
 
+    val relProps = mapPropsString(getParameter(RELATIONSHIP_PROPERTIES))
+
     val writeStrategy = RelationshipSaveStrategy.withCaseInsensitiveName(getParameter(RELATIONSHIP_SAVE_STRATEGY, DEFAULT_RELATIONSHIP_SAVE_STRATEGY.toString).toUpperCase)
     val sourceSaveMode = NodeSaveMode.withCaseInsensitiveName(getParameter(RELATIONSHIP_SOURCE_SAVE_MODE, DEFAULT_RELATIONSHIP_SOURCE_SAVE_MODE.toString))
     val targetSaveMode = NodeSaveMode.withCaseInsensitiveName(getParameter(RELATIONSHIP_TARGET_SAVE_MODE, DEFAULT_RELATIONSHIP_TARGET_SAVE_MODE.toString))
 
-    Neo4jRelationshipMetadata(source, target, sourceSaveMode, targetSaveMode, query.value, nodeMap, writeStrategy)
+    Neo4jRelationshipMetadata(source, target, sourceSaveMode, targetSaveMode, relProps, query.value, nodeMap, writeStrategy)
   }
 
   def initNeo4jQueryMetadata(): Neo4jQueryMetadata = Neo4jQueryMetadata(
@@ -164,6 +166,7 @@ case class Neo4jRelationshipMetadata(
                                       target: Neo4jNodeMetadata,
                                       sourceSaveMode: NodeSaveMode.Value,
                                       targetSaveMode: NodeSaveMode.Value,
+                                      properties: Map[String, String],
                                       relationshipType: String,
                                       nodeMap: Boolean,
                                       saveStrategy: RelationshipSaveStrategy.Value
@@ -298,6 +301,7 @@ object Neo4jOptions {
   val RELATIONSHIP_TARGET_NODE_KEYS = s"${QueryType.RELATIONSHIP.toString.toLowerCase}.target.$NODE_KEYS"
   val RELATIONSHIP_TARGET_NODE_PROPS = s"${QueryType.RELATIONSHIP.toString.toLowerCase}.target.$NODE_PROPS"
   val RELATIONSHIP_TARGET_SAVE_MODE = s"${QueryType.RELATIONSHIP.toString.toLowerCase}.target.$SAVE_MODE"
+  val RELATIONSHIP_PROPERTIES = s"${QueryType.RELATIONSHIP.toString.toLowerCase}.properties"
   val RELATIONSHIP_NODES_MAP = s"${QueryType.RELATIONSHIP.toString.toLowerCase}.nodes.map"
   val RELATIONSHIP_SAVE_STRATEGY = s"${QueryType.RELATIONSHIP.toString.toLowerCase}.save.strategy"
 
