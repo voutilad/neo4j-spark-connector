@@ -1,10 +1,10 @@
 package org.neo4j.spark.service
 
 import org.apache.spark.sql.SaveMode
-import org.apache.spark.sql.sources.{And, Filter, Or, EqualTo, Filter, IsNull, Not, Or}
+import org.apache.spark.sql.sources.{And, Filter, Or}
 import org.neo4j.cypherdsl.core.StatementBuilder.{BuildableStatement, TerminalExposesLimit}
-import org.neo4j.cypherdsl.core.renderer.Renderer
 import org.neo4j.cypherdsl.core._
+import org.neo4j.cypherdsl.core.renderer.Renderer
 import org.neo4j.spark.util.Neo4jImplicits._
 import org.neo4j.spark.util.Neo4jUtil
 import org.neo4j.spark.{Neo4jOptions, NodeSaveMode, QueryType}
