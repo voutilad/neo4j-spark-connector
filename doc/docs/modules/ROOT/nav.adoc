@@ -6,4 +6,5 @@
 * xref::writing.adoc[Writing to Neo4j]
 * xref::neo4j-cluster.adoc[Using with Neo4j Causal Cluster]
 * xref::aura.adoc[Using with Neo4j Aura]
+* xref::architecture.adoc[Architecture Guidance for Implementing]
 * xref::faq.adoc[Neo4j Spark Connector FAQ]
