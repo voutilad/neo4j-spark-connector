@@ -166,7 +166,7 @@ try to flatten it, so if you have the follwing Dataset:
 |Andrea Santurbano
 |{address: 'Times Square, 1', city: 'NY', state: 'NY'}
 
-|1
+|2
 |Davide Fantuzzi
 |{address: 'Statue of Liberty, 10', city: 'NY', state: 'NY'}
 
@@ -216,3 +216,107 @@ CREATE (n:Person{fullName: event.name + event.surname})
 ----
 
 Where `event` represents each Dataset row.
+
+=== Write data by Relationship Type
+
+You can write a dataframe to Neo4j by specifying source, target and relation.
+There are two strategies you can use to write relationships: *NATIVE* and *KEYS*
+
+==== Native Strategy
+
+This strategy is useful when you have a schema that conforms with the <<quickstart_reader.adoc#bookmark-rel-read-schema,Relationship Read Schema>>
+
+```scala
+df.write
+    .format("org.neo4j.spark.DataSource")
+    .option("url", "bolt://localhost:7687")
+    .option("relationship", "SOLD")
+    .option("relationship.source.labels", ":Person")
+    .option("relationship.source.save.mode", "Overwrite")
+    .option("relationship.target.labels", ":Product")
+    .option("relationship.target.save.mode", "Overwrite")
+    .save()
+```
+
+You just need to specify the source node labels, the target node labels, and the relationship you want between them.
+
+[NOTE]
+The default save mode for source and target nodes is `match`. This means that the relationship will be created only if the nodes are already in your DB. Look at <<node-save-modes,here>> for more info about node save modes.
+
+Using `Overwrite` or `Match` node save mode, you can speficy which keys should be used to write the nodes.
+
+```scala
+df.write
+    .format("org.neo4j.spark.DataSource")
+    .option("url", "bolt://localhost:7687")
+    .option("relationship", "SOLD")
+    .option("relationship.source.labels", ":Person")
+    .option("relationship.source.save.mode", "Overwrite")
+    .option("relationship.source.node.keys", "id:personId")
+    .option("relationship.target.labels", ":Product")
+    .option("relationship.target.save.mode", "ErrorIfExists")
+    .save()
+```
+
+This will use the `personId` column from the DataFrame to match the nodes in the query, producing a statement similar to this:
+
+```
+MERGE (source:Person {id: event.personId})
+```
+
+Same thing applies for additional properties to be written to the node:
+
+```scala
+df.write
+    ...
+    .option("relationship.source.save.mode", "Overwrite")
+    .option("relationship.source.node.properties", "name:firstname,age:age")
+    ...
+    .save()
+```
+
+[[keys-strategy]]
+==== Keys Strategy
+
+For all the other cases you can usee the *KEYS* strategy.
+Say you have a Dataframe like this:
+
+```scala
+val musicDf = Seq(
+        (12, "John Bonham", "Drums"),
+        (19, "John Mayer", "Guitar"),
+        (32, "John Scofield", "Guitar"),
+        (15, "John Butler", "Guitar")
+    ).toDF("experience", "name", "instrument")
+```
+
+To write it to Neo4j is enough to speficy a list of attributes and
+
+```scala
+musicDf.write
+    .format("org.neo4j.spark.DataSource")
+    .option("url", "bolt://localhost:7687")
+    .option("relationship", "PLAYS")
+    .option("relationship.save.strategy", "keys")
+    .option("relationship.source.labels", ":Musician")
+    .option("relationship.source.save.mode", "overwrite")
+    .option("relationship.source.node.keys", "name:name")
+    .option("relationship.target.labels", ":Instrument")
+    .option("relationship.target.node.keys", "instrument:name")
+    .option("relationship.target.save.mode", "overwrite")
+    .save()
+```
+
+[[node-keys]]
+Here you must speficy which keys of your Dataframe will be written in the source node and in the target node.
+All the remaining properties will be written as the relationship properties.
+You can do this with a comma-separated list of `key:value` paris, where the key is the node property name to be written, and the value is the dataframe column name.
+
+[[node-save-modes]]
+===== Node Save Modes
+
+You can specify 3 different modes to use for saving the nodes:
+
+* `Overwrite`: will perform a `MERGE` on that node
+* `ErrorIfExists`: will perform a `CREATE`
+* `Match`: will perform a `MATCH`

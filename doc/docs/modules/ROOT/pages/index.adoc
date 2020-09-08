@@ -13,7 +13,8 @@ This is the user guide for Neo4j Spark Connector version {docs-version}, authore
 The guide covers the following areas:
 
 * xref:overview.adoc[Project overview]
-* xref:quickstart.adoc[Get Started Fast with the most Common Scenarios]
+* xref::quickstart_reader.adoc[Getting Started with Reading]
+* xref::quickstart_writer.adoc[Getting Started with Writing]
 * xref:neo4j-cluster.adoc[Using with Neo4j Causal Cluster]
 * xref:cloud.adoc[Configuring a connection to a Confluent Cloud]
 * xref:faq.adoc[Neo4j Spark FAQ]

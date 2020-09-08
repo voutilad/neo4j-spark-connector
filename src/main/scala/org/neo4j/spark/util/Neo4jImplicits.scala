@@ -13,6 +13,17 @@ object Neo4jImplicits {
 
   implicit class CypherImplicits(str: String) {
     def quote(): String = if (!SourceVersion.isIdentifier(str) && !str.trim.startsWith("`") && !str.trim.endsWith("`")) s"`$str`" else str
+
+    def removeAlias(): String = {
+      val splatString = str.split('.')
+
+      if (splatString.size > 1) {
+        splatString.tail.mkString(".")
+      }
+      else {
+        str
+      }
+    }
   }
 
   implicit class EntityImplicits(entity: Entity) {
@@ -82,4 +93,5 @@ object Neo4jImplicits {
 
     def getAttributeWithoutEntityName: Option[String] = filter.getAttribute.map(_.split('.').tail.mkString("."))
   }
+
 }

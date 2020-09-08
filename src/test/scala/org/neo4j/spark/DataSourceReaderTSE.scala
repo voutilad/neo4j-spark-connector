@@ -38,11 +38,11 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
 
   @Test
   def testReadNodeHasUnusualLabelsField(): Unit = {
-    val df: DataFrame = initTest(s"CREATE (p:`Foo Bar`:Person {name: 'John'})")
+    val df: DataFrame = initTest(s"CREATE (p:`Foo Bar`:Person:`(╯°□°）╯︵ ┻━┻`  {name: 'John'})")
 
     val result = df.select("<labels>").collectAsList().get(0).getAs[Seq[String]](0)
 
-    assertEquals(Set("Person", "Foo Bar"), result.toSet[String])
+    assertEquals(Set("Person", "Foo Bar", "(╯°□°）╯︵ ┻━┻"), result.toSet[String])
   }
 
   @Test

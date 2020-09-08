@@ -1,6 +1,7 @@
 * xref::index.adoc[Neo4j Spark Connector User Guide]
 * xref::overview.adoc[Project overview]
-* xref::quickstart.adoc[Quick Start]
+* xref::quickstart_reader.adoc[Reading]
+* xref::quickstart_writer.adoc[Writing]
 * xref::neo4j-cluster.adoc[Using with Neo4j Causal Cluster]
 * xref::cloud.adoc[Using with Managed Cloud Spark]
 * xref::faq.adoc[Neo4j Spark Connector FAQ]

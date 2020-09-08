@@ -27,6 +27,22 @@ class Neo4jOptionsTest {
   }
 
   @Test
+  def testRelationshipNodeModesAreCaseInsensitive(): Unit = {
+    val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
+    options.put(Neo4jOptions.URL, "bolt://localhost")
+    options.put(QueryType.RELATIONSHIP.toString.toLowerCase, "KNOWS")
+    options.put(Neo4jOptions.RELATIONSHIP_SAVE_STRATEGY, "nAtIve")
+    options.put(Neo4jOptions.RELATIONSHIP_SOURCE_SAVE_MODE, "Errorifexists")
+    options.put(Neo4jOptions.RELATIONSHIP_TARGET_SAVE_MODE, "overwrite")
+
+    val neo4jOptions = new Neo4jOptions(options)
+
+    assertEquals(RelationshipSaveStrategy.NATIVE, neo4jOptions.relationshipMetadata.saveStrategy)
+    assertEquals(NodeSaveMode.ErrorIfExists, neo4jOptions.relationshipMetadata.sourceSaveMode)
+    assertEquals(NodeSaveMode.Overwrite, neo4jOptions.relationshipMetadata.targetSaveMode)
+  }
+
+  @Test
   def testQueryAndNodeShouldThrowError(): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
@@ -61,6 +77,19 @@ class Neo4jOptionsTest {
 
     _expectedException.expect(classOf[IllegalArgumentException])
     _expectedException.expectMessage("You need to specify just one of these options: 'labels', 'query', 'relationship'")
+
+    new Neo4jOptions(options)
+  }
+
+  @Test
+  def testRelationshipWriteStrategyIsNotPresentShouldThrowException(): Unit = {
+    val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
+    options.put(Neo4jOptions.URL, "bolt://localhost")
+    options.put(QueryType.LABELS.toString.toLowerCase, "PERSON")
+    options.put("relationship.save.strategy", "nope")
+
+    _expectedException.expect(classOf[NoSuchElementException])
+    _expectedException.expectMessage("No value found for 'NOPE'")
 
     new Neo4jOptions(options)
   }
@@ -133,6 +162,7 @@ class Neo4jOptionsTest {
     assertEquals(-1, neo4jOptions.connection.acquisitionTimeout)
     assertEquals(-1, neo4jOptions.connection.connectionTimeout)
     assertEquals(-1, neo4jOptions.connection.livenessCheckTimeout)
+    assertEquals(RelationshipSaveStrategy.NATIVE, neo4jOptions.relationshipMetadata.saveStrategy)
 
     assertTrue(neo4jOptions.pushdownFiltersEnabled)
   }

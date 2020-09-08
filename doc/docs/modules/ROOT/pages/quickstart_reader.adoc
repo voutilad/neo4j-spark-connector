@@ -1,11 +1,6 @@
 
 = Quick Start
 
-[abstract]
---
-Get started fast for common scenarios, using Neo4j Streams plugin or Kafka Connect plugin
---
-
 == Neo4j Spark Connector Plugin
 
 === Overview
@@ -21,6 +16,17 @@ val df = spark.read.format("org.neo4j.spark.DataSource")
         .option("url", "bolt://localhost:7687")
         .option("labels", "Person")
         .load()
+        .show()
+```
+
+The above code will produce something similar to this:
+
+```
++----+--------+----+---+
+|<id>|<labels>|name|age|
++----+--------+----+---+
+|   0|[Person]|John| 32|
++----+--------+----+---+
 ```
 
 === Neo4j Options
@@ -37,7 +43,7 @@ val df = spark.read.format("org.neo4j.spark.DataSource")
         .load()
 ```
 
-.Most Common Needed Configuration Settings
+.List of available options
 |===
 |Setting Name |Description |Default Value |Required 
 
@@ -55,32 +61,32 @@ val df = spark.read.format("org.neo4j.spark.DataSource")
 
 |`authentication.basic.username`
 |Username to use for basic authentication type
-|``
+|_(none)_
 |No
 
 |`authentication.basic.password`
 |Username to use for basic authentication type
-|``
+|_(none)_
 |No
 
 |`authentication.kerberos.ticket`
 |Kerberos Auth Ticket
-|``
+|_(none)_
 |No
 
 |`authentication.custom.principal`
 |This used to identify who this token represents
-|``
+|_(none)_
 |No
 
 |`authentication.custom.credentials`
 |This are the credentials authenticating the principal
-|``
+|_(none)_
 |No
 
 |`authentication.custom.realm`
-|This is the "realm:"", specifying the authentication provider
-|``
+|This is the "realm:" string, specifying the authentication provider
+|_(none)_
 |No
 
 |`encryption.enabled`
@@ -89,35 +95,34 @@ val df = spark.read.format("org.neo4j.spark.DataSource")
 |No
 
 |`encryption.trust.strategy`
-|Set cerificate trust strategy, is ignored in case the connection URI uses `+s` or `+ssc` as suffix.
+|Set certificate trust strategy, is ignored in case the connection URI uses `+s` or `+ssc` as suffix.
 |`TRUST_SYSTEM_CA_SIGNED_CERTIFICATES`
 |No
 
 |`encryption.ca.certificate.path`
 |Set certificate path for `TRUST_CUSTOM_CA_SIGNED_CERTIFICATES` trust strategy
-|``
+|_(Neo4j Driver default)_
 |No
 
 |`connection.max.lifetime.msecs`
 |Connection lifetime in milliseconds
-|(Neo4j Driver default)
+|_(Neo4j Driver default)_
 |No
 
 |`connection.liveness.timeout.msec`
 |Liveness check timeout
-|(Neo4j Driver default)
+|_(Neo4j Driver default)_
 |No
 
 |`connection.acquisition.timeout.msecs`
 |Connection acquisition timeout in milliseconds
-|(Neo4j Driver default)
+|_(Neo4j Driver default)_
 |No
 
 |`connection.timeout.msecs`
 |Connection timeout in milliseconds
-|(Neo4j Driver default)
+|_(Neo4j Driver default)_
 |No
-
 
 4+|*Session Options*
 
@@ -128,7 +133,9 @@ in case you set this option will have the priority compared to the one defined i
 |No
 
 |`access.mode`
-|Used only while you're pulling data from Neo4j. In case is `read` the connector, in a cluster environment
+|Possible values are: `read`, `write`.
+Used only while you're pulling data from Neo4j.
+In case of `read` the connector, in a cluster environment,
 will route the requests to the followers, otherwise to the leader.
 |`read`
 |No
@@ -137,7 +144,7 @@ will route the requests to the followers, otherwise to the leader.
 
 |`query`
 |Specify a query to read the data
-|``
+|_(none)_
 |Yes^*^
 
 |`query.count`
@@ -157,12 +164,12 @@ use it carefully.
 
 |`labels`
 |List of labels separated by `:`. First label is the primary label
-|``
+|_(none)_
 |Yes^*^
 
 |`relationship`
-|List of labels separated by `:` (first label is the primary label)
-|``
+|Name of a relationship
+|_(none)_
 |Yes^*^
 
 |`relationship.nodes.map`
@@ -195,6 +202,58 @@ every single node property as column prefixed by `source` or `target`
 |`pushdown.filters.enabled`
 |Enable or disable the Push Down Filters support
 |`true`
+|No
+
+4+|*Data Write Options*
+
+|`batch.size`
+|Number of records to be passed to the transaction
+|`5000`
+|No
+
+|`relationship.save.strategy`
+|<<quickstart_writer.adoc#node-keys,Docs here>>
+|``
+|Yes for <<quickstart_writer.adoc#keys-strategy,KEYS>> strategy
+
+|`relationship.source.labels`
+|List of source node Labels separated by `:`
+|``
+|Yes^*^
+
+|`relationship.source.node.keys`
+|<<quickstart_writer.adoc#node-keys,Docs here>>
+|``
+|No
+
+|`relationship.source.save.mode`
+|<<quickstart_writer.adoc#node-save-modes,Node Save Mode>>
+|`Match`
+|No
+
+|`relationship.source.node.props`
+|<<quickstart_writer.adoc#node-keys,Docs here>>
+|``
+|No
+
+|`relationship.target.labels`
+|List of target node Labels separated by `:`
+|``
+|Yes^*^
+
+|`relationship.target.node.keys`
+|<<quickstart_writer.adoc#node-keys,Docs here>>
+|``
+|No
+
+|`relationship.target.save.mode`
+|<<quickstart_writer.adoc#node-save-modes,Node Save Mode>>
+|`Match`
+|No
+
+|`relationship.target.node.props`
+|<<quickstart_writer.adoc#node-keys,Docs here>>
+|``
 |No
 
 |`partitions`
@@ -279,7 +338,7 @@ TK list of supported data types
 
 === Consideration on the filters
 
-The Neo4j Spark Connector implements the SupportPushDownFilters interface, that allows you to push the Spark filters down to the Neo4j layer. In this way the data that Spark will receive will be already filtered by Neo4j.
+The Neo4j Spark Connector implements the `SupportPushDownFilters` interface, that allows you to push the Spark filters down to the Neo4j layer. In this way the data that Spark will receive will be already filtered by Neo4j.
 
 You can manually disable the Push Down Filters support using the `pushdown.filters.enabled` option and set it to `false` (default is `true`).
 
@@ -314,7 +373,7 @@ value provided via `.option("schema.flatten.limit", "100")`
 
 ===== Extract schema for Relationships
 
-In case you're extracting nodes from Neo4j we try as first step to invoke the `apoc.meta.relTypeProperties` procedure,
+In case you're extracting a relationship from Neo4j we try as first step to invoke the `apoc.meta.relTypeProperties` procedure,
 in case the procedure is not installed we'll execute the following Cypher query:
 
 ```cypher
@@ -437,10 +496,11 @@ Will create this schema
 You can specify a Cypher Path in this way:
 ```scala
 val df = spark.read.format("org.neo4j.spark.DataSource")
-      .option("relationship", "BOUGHT")
-      .option("relationship.source.labels", "Person")
-      .option("relationship.target.labels", "Product")
-      .load()
+        .option("url", "bolt://localhost:7687")
+        .option("relationship", "BOUGHT")
+        .option("relationship.source.labels", "Person")
+        .option("relationship.target.labels", "Product")
+        .load()
 
 df.show()
 ```
@@ -462,12 +522,16 @@ and depending on the value of `relationship.node.map` option, if `true`:
 * `source` the Map<String, String> of source node
 * `target` the Map<String, String> of target node
 
-otherwise if `false`:
+otherwise, if `false`:
 
+[[bookmark-rel-read-schema]]
 * `<sourceId>` the internal Neo4j id of source node
 * `<sourceLabels>` a list of labels for source node
 * `<targetId>` the internal Neo4j id of target node
 * `<targetLabels>` a list of labels for target node
+* `source.[property name]` source node property
+* `target.[property name]` target node property
+* `rel.[property name]` relationship property
 
 ==== Filter
 
@@ -500,7 +564,7 @@ df.where("source.name = 'John Doe' AND target.price >= 33")
 
 ==== Schema
 
-If APOC are available, the schema will be created with `apoc.meta.relTypeProperties`. 
+If APOC are available, the schema will be created with `apoc.meta.relTypeProperties`.
 Otherwise the first 10 (or any number specified by the `schema.flatten.limit` option) results will be flattened and the schema will be create from those properties.
 
 === Read data by custom Cypher Query
@@ -516,7 +580,7 @@ df.show()
 
 [NOTE]
 We recommend that individual property fields be returned, rather than returning  graph entity (node, relationship, and path) types.
-This best maps to spark's type system and yields best results.
+This best maps to Spark's type system and yields best results.
 So instead writing this `MATCH (p:Person) RETURN p` please write this: `MATCH (p:Person) RETURN id(p) as id, p.name as name`.
 If your query returns a graph entity please use the `labels` or `relationship`.
 
@@ -544,4 +608,4 @@ and sometimes be a `string`.
 
 ==== Schema
 
-If APOC are installed, schema will be created with `apoc.meta.relTypeProperties`. Otherwise the first 10 (or any number specified by the `schema.flatten.limit` option) results will be flattened and the schema will be create from those properties.
+The first 10 (or any number specified by the `schema.flatten.limit` option) results will be flattened and the schema will be created from those properties.

@@ -13,9 +13,8 @@ import org.neo4j.driver.exceptions.{Neo4jException, ServiceUnavailableException,
 import org.neo4j.driver.{Session, Transaction, Values}
 import org.neo4j.spark.service.{MappingService, Neo4jQueryService, Neo4jQueryWriteStrategy, Neo4jWriteMappingStrategy}
 import org.neo4j.spark.util.Neo4jUtil._
-import org.neo4j.spark.util.Neo4jImplicits._
 import org.neo4j.spark.util.Neo4jUtil
-import org.neo4j.spark.{DriverCache, Neo4jOptions}
+import org.neo4j.spark.{DriverCache, Neo4jOptions, NodeSaveMode}
 
 class Neo4jDataWriter(jobId: String,
                       partitionId: Int,
@@ -51,10 +50,11 @@ class Neo4jDataWriter(jobId: String,
       transaction = session.beginTransaction()
     }
     try {
-      log.info(s"Writing a batch of ${batch.size()} elements to Neo4j, for jobId=$jobId and partitionId=$partitionId")
-      if (log.isDebugEnabled) {
-        log.debug(s"Writing batch into Neo4j with query: $query")
-      }
+      log.info(
+        s"""Writing a batch of ${batch.size()} elements to Neo4j,
+           |for jobId=$jobId and partitionId=$partitionId
+           |with query: $query
+           |""".stripMargin)
       val result = transaction.run(query,
         Values.value(Collections.singletonMap[String, Object]("events", batch)))
       if (log.isDebugEnabled) {
@@ -78,8 +78,8 @@ class Neo4jDataWriter(jobId: String,
       case neo4jTransientException: Neo4jException => {
         val code = neo4jTransientException.code()
         if ((neo4jTransientException.isInstanceOf[SessionExpiredException] || neo4jTransientException.isInstanceOf[ServiceUnavailableException])
-            && !(Neo4jUtil.unsupportedTransientCodes ++ options.transactionMetadata.failOnTransactionCodes).contains(code)
-            && retries.getCount > 0) {
+          && !(Neo4jUtil.unsupportedTransientCodes ++ options.transactionMetadata.failOnTransactionCodes).contains(code)
+          && retries.getCount > 0) {
           retries.countDown()
           log.info(s"Matched Neo4j transient exception next retry is ${options.transactionMetadata.retries - retries.getCount}")
           close

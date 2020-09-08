@@ -9,20 +9,23 @@ import org.apache.spark.sql.types.StructType
 import org.neo4j.driver.internal.value.MapValue
 import org.neo4j.driver.types.Node
 import org.neo4j.driver.{Record, Value, Values}
+import org.neo4j.spark.service.Neo4jWriteMappingStrategy.{KEYS, PROPERTIES}
 import org.neo4j.spark.util.Neo4jUtil
-import org.neo4j.spark.{Neo4jOptions, QueryType}
+import org.neo4j.spark.{Neo4jOptions, QueryType, RelationshipSaveStrategy}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
+import org.neo4j.spark.util.Neo4jImplicits._
 
 class Neo4jWriteMappingStrategy(private val options: Neo4jOptions)
-    extends Neo4jMappingStrategy[InternalRow, java.util.Map[String, AnyRef]] {
+  extends Neo4jMappingStrategy[InternalRow, java.util.Map[String, AnyRef]] {
+
   override def node(row: InternalRow, schema: StructType): java.util.Map[String, AnyRef] = {
     val rowMap: java.util.Map[String, Object] = new java.util.HashMap[String, Object]
     val keys: java.util.Map[String, Object] = new java.util.HashMap[String, Object]
     val properties: java.util.Map[String, Object] = new java.util.HashMap[String, Object]
-    rowMap.put("keys", keys)
-    rowMap.put("properties", properties)
+    rowMap.put(KEYS, keys)
+    rowMap.put(PROPERTIES, properties)
 
     query(row, schema)
       .forEach(new BiConsumer[String, AnyRef] {
@@ -36,7 +39,75 @@ class Neo4jWriteMappingStrategy(private val options: Neo4jOptions)
     rowMap
   }
 
-  override def relationship(elem: InternalRow, schema: StructType): java.util.Map[String, AnyRef] = ???
+  private def nativeStrategyConsumer(): MappingBiConsumer = new MappingBiConsumer {
+    override def accept(key: String, value: AnyRef): Unit = {
+      if (key.startsWith(Neo4jUtil.RELATIONSHIP_ALIAS.concat("."))) {
+        relMap.get(PROPERTIES).put(key.removeAlias(), value)
+      }
+      else if (key.startsWith(Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS.concat("."))) {
+        if (options.relationshipMetadata.source.nodeKeys.contains(key)) {
+          sourceNodeMap.get(KEYS).put(key.removeAlias(), value)
+        }
+        else {
+          sourceNodeMap.get(PROPERTIES).put(key.removeAlias(), value)
+        }
+      }
+      else if (key.startsWith(Neo4jUtil.RELATIONSHIP_TARGET_ALIAS.concat("."))) {
+        if (options.relationshipMetadata.target.nodeKeys.contains(key)) {
+          targetNodeMap.get(KEYS).put(key.removeAlias(), value)
+        }
+        else {
+          targetNodeMap.get(PROPERTIES).put(key.removeAlias(), value)
+        }
+      }
+    }
+  }
+
+  private def keysStrategyConsumer(): MappingBiConsumer = new MappingBiConsumer {
+    override def accept(key: String, value: AnyRef): Unit =
+      if (options.relationshipMetadata.source.nodeKeys.contains(key)) {
+        sourceNodeMap.get(KEYS).put(key, value)
+      }
+      else if (options.relationshipMetadata.source.nodeProps.contains(key)) {
+        sourceNodeMap.get(PROPERTIES).put(key, value)
+      }
+      else if (options.relationshipMetadata.target.nodeKeys.contains(key)) {
+        targetNodeMap.get(KEYS).put(key, value)
+      }
+      else if (options.relationshipMetadata.target.nodeProps.contains(key)) {
+        targetNodeMap.get(PROPERTIES).put(key, value)
+      }
+      else if (options.relationshipMetadata.properties.contains(key)) {
+        relMap.get(PROPERTIES).put(key, value)
+      }
+  }
+
+  override def relationship(row: InternalRow, schema: StructType): java.util.Map[String, AnyRef] = {
+    val rowMap: java.util.Map[String, AnyRef] = new java.util.HashMap[String, AnyRef]
+
+    val consumer = options.relationshipMetadata.saveStrategy match {
+      case RelationshipSaveStrategy.NATIVE => nativeStrategyConsumer()
+      case RelationshipSaveStrategy.KEYS => keysStrategyConsumer()
+    }
+
+    query(row, schema).forEach(consumer)
+
+    if (
+      options.relationshipMetadata.saveStrategy.equals(RelationshipSaveStrategy.NATIVE)
+        && consumer.relMap.get(PROPERTIES).isEmpty
+        && consumer.sourceNodeMap.get(PROPERTIES).isEmpty && consumer.sourceNodeMap.get(KEYS).isEmpty
+        && consumer.targetNodeMap.get(PROPERTIES).isEmpty && consumer.targetNodeMap.get(KEYS).isEmpty
+    ) {
+      throw new IllegalArgumentException("NATIVE write strategy requires a schema like: rel.[props], source.[props], target.[props]. " +
+        "All of this columns are empty in the current schema.")
+    }
+
+    rowMap.put(Neo4jUtil.RELATIONSHIP_ALIAS, consumer.relMap)
+    rowMap.put(Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS, consumer.sourceNodeMap)
+    rowMap.put(Neo4jUtil.RELATIONSHIP_TARGET_ALIAS, consumer.targetNodeMap)
+
+    rowMap
+  }
 
   override def query(row: InternalRow, schema: StructType): java.util.Map[String, AnyRef] = {
     val seq = row.toSeq(schema)
@@ -75,11 +146,15 @@ class Neo4jReadMappingStrategy(private val options: Neo4jOptions) extends Neo4jM
   private def flatRelNodeMapping(node: Node, alias: String): mutable.Map[String, Any] = {
     val nodeMap: mutable.Map[String, Any] = node.asMap().asScala
       .map(t => (s"$alias.${t._1}", t._2))
-    nodeMap.put(s"<$alias.${Neo4jUtil.INTERNAL_ID_FIELD
-      .replaceAll("[<|>]", "")}>",
+    nodeMap.put(s"<$alias.${
+      Neo4jUtil.INTERNAL_ID_FIELD
+        .replaceAll("[<|>]", "")
+    }>",
       node.id())
-    nodeMap.put(s"<$alias.${Neo4jUtil.INTERNAL_LABELS_FIELD
-      .replaceAll("[<|>]", "")}>",
+    nodeMap.put(s"<$alias.${
+      Neo4jUtil.INTERNAL_LABELS_FIELD
+        .replaceAll("[<|>]", "")
+    }>",
       node.labels())
     nodeMap
   }
@@ -141,4 +216,22 @@ class MappingService[IN, OUT](private val strategy: Neo4jMappingStrategy[IN, OUT
     case QueryType.QUERY => strategy.query(record, schema)
   }
 
+}
+
+object Neo4jWriteMappingStrategy {
+  val KEYS = "keys"
+  val PROPERTIES = "properties"
+}
+
+private abstract class MappingBiConsumer extends BiConsumer[String, AnyRef] {
+
+  val relMap = new util.HashMap[String, util.Map[String, AnyRef]]()
+  val sourceNodeMap = new util.HashMap[String, util.Map[String, AnyRef]]()
+  val targetNodeMap = new util.HashMap[String, util.Map[String, AnyRef]]()
+
+  relMap.put(PROPERTIES, new util.HashMap[String, AnyRef]())
+  sourceNodeMap.put(PROPERTIES, new util.HashMap[String, AnyRef]())
+  sourceNodeMap.put(KEYS, new util.HashMap[String, AnyRef]())
+  targetNodeMap.put(PROPERTIES, new util.HashMap[String, AnyRef]())
+  targetNodeMap.put(KEYS, new util.HashMap[String, AnyRef]())
 }
