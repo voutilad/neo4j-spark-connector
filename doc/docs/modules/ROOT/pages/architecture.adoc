@@ -187,3 +187,27 @@ on the other hand will tend to expect a fixed schema.  For this reason, the conn
 inference techniques that help ease this mapping.  Paying close attention to how these features work can help 
 explain different scenarios.
 
+The two core techniques are:
+* `CALL apoc.meta.(node|rel)TypeProperties()`
+* Sampling
+
+=== APOC
+
+If your Neo4j installation has APOC installed, this approach will be used by default.  These stored procedures within APOC allow inspection of the
+metadata in your graph, and provide information such as the type of properties, and the universe of possible properties attached to a given node label.
+
+You may try these calls yourself on your Neo4j database if you wish: simply execute:
+
+```cypher
+CALL apoc.meta.nodeTypeProperties()
+```
+
+And inspect the results.  These results are how the Neo4j Connector for Apache Spark represents the metadata of nodes & relationships read into DataFrames.
+
+=== Automatic Sampling
+
+In some installations and environments, the key APOC calls above will not be available.  In these cases, the connector will automatically sample the first few
+records and infer the right data type from the examples that it sees.
+
+[NOTE]
+**Automatic sampling may be error prone, and may produce incorrect results, particularly in cases where a single Neo4j property exists with several different data types.  Consistent typing of properties is strongly recommended**
