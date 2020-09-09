@@ -81,14 +81,14 @@ The DataSource Writer has several options in order to connect and persist data i
 
 |`transaction.codes.fail`
 |Comma separated list of Neo4j codes that will cause the transaction to fail
-|_(none)_
+|_(none)_  See link:graphkeys.html[Graph Keys] for information on how to specify this.
 |No
 
 4+|*Node Specific Options*
 
 |`node.keys`
 |Comma separated list of properties considered as node keys in case of you're using
-`SaveMode.Overwrite`
+`SaveMode.Overwrite`.  See link:graphkeys.html[Graph Keys] for information on how to specify this.
 |_(none)_
 |No
 
@@ -111,7 +111,7 @@ The DataSource Writer has several options in order to connect and persist data i
 
 |`relationship.source.node.keys`
 |Map used as keys for matching the *source* node
-|_(empty)_
+|_(empty)_ See link:graphkeys.html[Graph Keys] for information on how to specify this.
 |No
 
 |`relationship.source.save.mode`
@@ -131,7 +131,7 @@ The DataSource Writer has several options in order to connect and persist data i
 
 |`relationship.target.node.keys`
 |Map used as keys for matching the *target* node
-|_(empty)_
+|_(empty)_ See link:graphkeys.html[Graph Keys] for information on how to specify this.
 |No
 
 |`relationship.target.save.mode`
@@ -276,7 +276,8 @@ SET n += event.properties
 
 Here you must specify which columns of your Dataframe will be used as keys to match the nodes.
 You control this with the option `node.keys`, specifying a comma-separated list of `key:value` pairs,
-where the key is the dataframe column name, and the value is the node property name.
+where the key is the dataframe column name, and the value is the node property name.  
+See link:graphkeys.html[Graph Keys] for information on how to specify this.
 
 [NOTE]
 If `key` and `value` are the same field you can just specify one without the colon.
