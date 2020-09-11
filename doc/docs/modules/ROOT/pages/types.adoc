@@ -1,0 +1,79 @@
+= Neo4j / Spark Data Types Reference
+
+[abstract]
+--
+This chapter provides a reference to type compatibility issues between Neo4j and Spark
+--
+
+== Background
+
+Neo4j and Cypher provide a link:https://neo4j.com/docs/java-reference/current/extending-neo4j/procedures-and-functions/values-and-types/[type system]
+that describes how values are stored in the database, but these types do not always exactly match what Spark provides.
+
+In some cases there are types that Neo4j provides that Spark does not have an equivalent for, and vice versa.  
+
+.List of available write options
+|===
+|Neo4j Type |Spark Type |Notes
+
+|String
+|string
+|
+
+|Integer
+|long
+|
+
+|Float
+|double
+|
+
+|Boolean
+|boolean
+|
+
+|Point
+|struct { type: string, srid: integer, x: double, y: double, z: double }
+|For more information on spatial types in Neo4j, see link:https://neo4j.com/docs/cypher-manual/current/syntax/spatial/[Spatial values]
+
+|Date
+|date
+|
+
+|Time
+|struct { type: string, value: string }
+|Example: `[offset-time, 12:14:08.209Z]`
+
+|LocalTime
+|struct { type: string, value: string }
+|
+
+|DateTime
+|timestamp
+|
+
+|LocalDateTime
+|timestamp
+|Example: `2020-09-11 12:14:49.081`
+
+|Duration
+|struct { type: string, months: long, days: long, seconds: long, nanonseconds: integer, value: string }
+|See link:https://neo4j.com/docs/cypher-manual/current/functions/temporal/duration/[Temporal functions: duration]
+
+|Node
+|struct { <id>: long, <labels>: array[string], (PROPERTIES) }
+|Nodes in Neo4j are represented as property containers; that is they appear as structs with properties corresponding to whatever properties were in the node.  _For ease of use it is usually better to return individual properties than a node from a query_
+
+|Relationship
+|struct { <rel.id>: long, <rel.type>: string, <source.id>: long, <target.id>: long, (PROPERTIES) }
+|Relationships are returned as maps, identifying the source and target of the relationship, its type, along with properties (if any) of the relationship.  _For ease of use it is usually better to return individual properties than a relationship from a query_
+
+|Path
+|string
+|Example: `path[(322)<-[20280:AIRLINE]-(33510)]`.  _For ease of use it is recommended to use link:https://neo4j.com/docs/cypher-manual/current/functions/list/[path functions] to return individual properties/aspects of a path from a query.
+
+|[Array of Same Type]
+|array[element]
+|In Neo4j, arrays must be consistently typed (i.e. an array of all Float values).  The inner spark type matches the type mapping above.
+
+|===
