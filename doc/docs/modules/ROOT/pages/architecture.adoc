@@ -52,7 +52,7 @@ Once these simple data frames represent a normalized view of "tables for labels"
 no additional cypher needed.  Additionally -- if these frames are made unique by identifier, then the data is already
 prepared for maximum parallelism.  (See paralellism notes in sections below).
 
-=== Pros
+==== Pros
 
 * Shifts most of the data transform work to spark itself (in terms of splitting, uniquing, partitioning the data).  Any
 data transform/cleanup work should be done in spark if possible
@@ -60,7 +60,7 @@ data transform/cleanup work should be done in spark if possible
 a label and a key
 * Allows for parallelism (discussed in sections below)
 
-=== Cons
+==== Cons
 
 * More SQL work before data is loaded into Neo4j
 * Requires identifying graph schema before beginning, as opposed to loading data into Neo4j and using cypher to manipulate it
@@ -91,12 +91,12 @@ MERGE (c)-[:BOUGHT { quantity: event.quantity }]->(p);
 Notice that in this case the entire job can be done by a single cypher statement.  As data frames get complex,
 these cypher statements too can get quite complex.  
 
-=== Pros
+==== Pros
 
 * Extremely flexible: you can do anything that Cypher provides for
 * Easy for Neo4j pros to get started with.
 
-=== Cons
+==== Cons
 
 * Tends to shift transform work to Neo4j, which is not a good idea as it does not have the same infrastructure to support that as Spark.
 * Tends to create heavy locking behavior, which will harm parallelism and possibly performance

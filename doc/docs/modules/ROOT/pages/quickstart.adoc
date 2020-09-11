@@ -59,6 +59,8 @@ Before diving into the advanced stuff, we need to address you to some preliminar
 
 Spark doesn't support all Neo4j data types (ie: Point, Time, Duration). Such types are transformed into Struct types containing all the useful data.
 
+For complete details on type handling, consult the xref::types.adoc[Neo4j-Spark Data Types Reference]
+
 .Complex data type conversion
 |===
 |Type |Struct
