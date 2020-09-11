@@ -18,19 +18,19 @@ In some cases there are types that Neo4j provides that Spark does not have an eq
 
 |String
 |string
-|
+|Example: ``"Hello"`
 
 |Integer
 |long
-|
+|Example:  `12345`
 
 |Float
 |double
-|
+|Example: `3.141592`
 
 |Boolean
 |boolean
-|
+|Example:  `true`
 
 |Point
 |struct { type: string, srid: integer, x: double, y: double, z: double }
@@ -38,7 +38,7 @@ In some cases there are types that Neo4j provides that Spark does not have an eq
 
 |Date
 |date
-|
+|Example: `2020-09-11`
 
 |Time
 |struct { type: string, value: string }
@@ -46,11 +46,11 @@ In some cases there are types that Neo4j provides that Spark does not have an eq
 
 |LocalTime
 |struct { type: string, value: string }
-|
+|Example: `[local-time, 12:18:11.628]`
 
 |DateTime
 |timestamp
-|
+|Example: `2020-09-11 12:17:39.192`
 
 |LocalDateTime
 |timestamp
