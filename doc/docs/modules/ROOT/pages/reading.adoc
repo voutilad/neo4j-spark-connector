@@ -193,7 +193,7 @@ spark.read.format("org.neo4j.spark.DataSource")
 ----
 
 [NOTE]
-Label list can be speficied both with starting color or without it:
+Label list can be specified both with starting colon or without it:
 `Person:Customer` and `:Person:Customer` are considered the same thing.
 
 ==== Columns
