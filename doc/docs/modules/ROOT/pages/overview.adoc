@@ -8,7 +8,7 @@ This chapter provides an introduction to the Neo4j Connector for Apache Spark
 
 == Overview
 
-The Neo4j Spark Connector is intended to make integrating graphs together with spark easy.  There are effectively two ways of using the connector:
+The Neo4j Connector for Apache Spark is intended to make integrating graphs together with spark easy.  There are effectively two ways of using the connector:
 
 - **As a data source**:  read any set of nodes or relationships as a DataFrame in Spark
 - **As a sink**: write any DataFrame to Neo4j as a collection of nodes or relationships, or alternatively; use a

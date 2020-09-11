@@ -130,7 +130,7 @@ will route the requests to the followers, otherwise to the leader.
 
 == Multiple connections
 
-Neo4j Spark Connector allows you to use more connections in a single Spark Session.
+Neo4j Connector for Apache Spark allows you to use more connections in a single Spark Session.
 For example, you can read data from a database and write them in another database in the same session.
 
 .Reading from a database and writing to a different one

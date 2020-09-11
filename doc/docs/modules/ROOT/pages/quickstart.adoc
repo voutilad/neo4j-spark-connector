@@ -1,7 +1,7 @@
 
 = Quickstart
 
-*Neo4j Spark Connector* allows you to read from and write to Neo4j databases.
+*Neo4j Connector for Apache Spark* allows you to read from and write to Neo4j databases.
 
 It's fairly easy to use, although it can be highly customized.
 
@@ -100,7 +100,7 @@ Struct(Array(
 
 === Filters
 
-The Neo4j Spark Connector implements the `SupportPushDownFilters` interface, that allows you to push the Spark filters down to the Neo4j layer.
+The Neo4j Connector for Apache Spark implements the `SupportPushDownFilters` interface, that allows you to push the Spark filters down to the Neo4j layer.
 In this way the data that Spark will receive will be already filtered by Neo4j,
 decreasing the amount of data transferred from Neo4j to Spark.
 

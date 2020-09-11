@@ -1,4 +1,4 @@
-* xref::index.adoc[Neo4j Spark Connector User Guide]
+* xref::index.adoc[Neo4j Connector for Apache Spark User Guide]
 * xref::overview.adoc[Project overview]
 * xref::quickstart.adoc[Quick Start]
 * xref::configuration.adoc[Neo4j Driver Configuration]
@@ -8,4 +8,4 @@
 * xref::neo4j-cluster.adoc[Using with Neo4j Causal Cluster]
 * xref::aura.adoc[Using with Neo4j Aura]
 * xref::architecture.adoc[Architecture Guidance for Implementing]
-* xref::faq.adoc[Neo4j Spark Connector FAQ]
+* xref::faq.adoc[Neo4j Connector for Apache Spark FAQ]

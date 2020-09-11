@@ -4,7 +4,7 @@
 
 [abstract]
 --
-This chapter describes considerations around using Neo4j Spark Connector with link:https://neo4j.com/cloud/aura/[Neo4j Aura].
+This chapter describes considerations around using Neo4j Connector for Apache Spark with link:https://neo4j.com/cloud/aura/[Neo4j Aura].
 --
 
 == Overview

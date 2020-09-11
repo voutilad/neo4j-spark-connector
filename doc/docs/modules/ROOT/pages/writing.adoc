@@ -147,7 +147,7 @@ The DataSource Writer has several options in order to connect and persist data i
 |===
 
 [NOTE]
-As the Neo4j Spark Connector provide batch writes in order to speed-up the ingestion process
+As the Neo4j Connector for Apache Spark provide batch writes in order to speed-up the ingestion process
 so if in the process at some point fails all the previous data is already persisted.
 
 == Write Data
@@ -302,7 +302,7 @@ Let's say you have the following Dataset:
 
 |===
 
-Neo4j Spark connector will flatten the maps and each map value will be in it's own property.
+Neo4j Connector for Apache Spark will flatten the maps and each map value will be in it's own property.
 
 |===
 |id |name |lives_in.address |lives_in.city |lives_in.state

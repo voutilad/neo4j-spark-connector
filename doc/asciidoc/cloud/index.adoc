@@ -1,0 +1,12 @@
+[#cloud]
+== Using with Managed Cloud Spark
+
+
+ifdef::env-docs[]
+[abstract]
+--
+This chapter provides an introduction to the Neo4j Connector for Apache Spark with cloud managed sparks
+--
+endif::env-docs[]
+
+(Notes here)

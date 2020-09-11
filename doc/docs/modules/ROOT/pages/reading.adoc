@@ -1,7 +1,7 @@
 
 = Reading from Neo4j
 
-Neo4j Spark Connector allows you to read data from Neo4j in 3 different ways:
+Neo4j Connector for Apache Spark allows you to read data from Neo4j in 3 different ways:
 by node labels, by relationship name, and by direct Cypher query.
 
 == Getting Started

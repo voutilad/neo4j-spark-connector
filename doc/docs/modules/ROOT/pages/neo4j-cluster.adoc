@@ -4,7 +4,7 @@
 
 [abstract]
 --
-This chapter describes considerations around using Neo4j Spark Connector with Neo4j Enterprise Causal Cluster.
+This chapter describes considerations around using Neo4j Connector for Apache Spark with Neo4j Enterprise Causal Cluster.
 --
 
 == Overview
