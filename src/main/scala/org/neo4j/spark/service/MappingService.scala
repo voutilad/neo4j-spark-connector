@@ -10,7 +10,7 @@ import org.neo4j.driver.internal.value.MapValue
 import org.neo4j.driver.types.Node
 import org.neo4j.driver.{Record, Value, Values}
 import org.neo4j.spark.service.Neo4jWriteMappingStrategy.{KEYS, PROPERTIES}
-import org.neo4j.spark.util.Neo4jUtil
+import org.neo4j.spark.util.{Neo4jUtil, Validations}
 import org.neo4j.spark.{Neo4jOptions, QueryType, RelationshipSaveStrategy}
 
 import scala.collection.JavaConverters._
@@ -21,6 +21,8 @@ class Neo4jWriteMappingStrategy(private val options: Neo4jOptions)
   extends Neo4jMappingStrategy[InternalRow, java.util.Map[String, AnyRef]] {
 
   override def node(row: InternalRow, schema: StructType): java.util.Map[String, AnyRef] = {
+    Validations.schemaOptions(options, schema)
+
     val rowMap: java.util.Map[String, Object] = new java.util.HashMap[String, Object]
     val keys: java.util.Map[String, Object] = new java.util.HashMap[String, Object]
     val properties: java.util.Map[String, Object] = new java.util.HashMap[String, Object]
@@ -63,8 +65,8 @@ class Neo4jWriteMappingStrategy(private val options: Neo4jOptions)
     }
   }
 
-  private def keysStrategyConsumer(): MappingBiConsumer = new MappingBiConsumer {
-    override def accept(key: String, value: AnyRef): Unit =
+  private def keysStrategyConsumer(schema: StructType): MappingBiConsumer = new MappingBiConsumer {
+    override def accept(key: String, value: AnyRef): Unit = {
       if (options.relationshipMetadata.source.nodeKeys.contains(key)) {
         sourceNodeMap.get(KEYS).put(key, value)
       }
@@ -80,14 +82,17 @@ class Neo4jWriteMappingStrategy(private val options: Neo4jOptions)
       else if (options.relationshipMetadata.properties.contains(key)) {
         relMap.get(PROPERTIES).put(key, value)
       }
+    }
   }
 
   override def relationship(row: InternalRow, schema: StructType): java.util.Map[String, AnyRef] = {
     val rowMap: java.util.Map[String, AnyRef] = new java.util.HashMap[String, AnyRef]
 
+    Validations.schemaOptions(options, schema)
+
     val consumer = options.relationshipMetadata.saveStrategy match {
       case RelationshipSaveStrategy.NATIVE => nativeStrategyConsumer()
-      case RelationshipSaveStrategy.KEYS => keysStrategyConsumer()
+      case RelationshipSaveStrategy.KEYS => keysStrategyConsumer(schema)
     }
 
     query(row, schema).forEach(consumer)

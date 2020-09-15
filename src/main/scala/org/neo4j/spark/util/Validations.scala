@@ -1,9 +1,13 @@
 package org.neo4j.spark.util
 
 import org.apache.spark.sql.SaveMode
+import org.apache.spark.sql.types.StructType
 import org.neo4j.driver.AccessMode
 import org.neo4j.spark.service.SchemaService
 import org.neo4j.spark.{DriverCache, Neo4jOptions, QueryType}
+import org.neo4j.spark.util.Neo4jImplicits.StructTypeImplicit
+
+import scala.collection.mutable
 
 object Validations {
 
@@ -38,6 +42,47 @@ object Validations {
     } finally {
       schemaService.close()
       cache.close()
+    }
+  }
+
+  val schemaOptions: (Neo4jOptions, StructType) => Unit = { (neo4jOptions, schema) =>
+    val missingFieldsMap: mutable.Map[String, Set[String]] = mutable.HashMap.empty
+
+    missingFieldsMap.put(
+      Neo4jOptions.NODE_KEYS,
+      schema.missingFields(neo4jOptions.nodeMetadata.nodeKeys.keySet)
+    )
+    missingFieldsMap.put(
+      Neo4jOptions.NODE_PROPS,
+      schema.missingFields(neo4jOptions.nodeMetadata.nodeProps.keySet)
+    )
+    missingFieldsMap.put(
+      Neo4jOptions.RELATIONSHIP_PROPERTIES,
+      schema.missingFields(neo4jOptions.relationshipMetadata.properties.keySet)
+    )
+    missingFieldsMap.put(
+      Neo4jOptions.RELATIONSHIP_SOURCE_NODE_PROPS,
+      schema.missingFields(neo4jOptions.relationshipMetadata.source.nodeProps.keySet)
+    )
+    missingFieldsMap.put(
+      Neo4jOptions.RELATIONSHIP_SOURCE_NODE_KEYS,
+      schema.missingFields(neo4jOptions.relationshipMetadata.source.nodeKeys.keySet)
+    )
+    missingFieldsMap.put(
+      Neo4jOptions.RELATIONSHIP_TARGET_NODE_PROPS,
+      schema.missingFields(neo4jOptions.relationshipMetadata.target.nodeProps.keySet)
+    )
+    missingFieldsMap.put(
+      Neo4jOptions.RELATIONSHIP_TARGET_NODE_KEYS,
+      schema.missingFields(neo4jOptions.relationshipMetadata.target.nodeKeys.keySet)
+    )
+
+    val optionsWithMissingFields = missingFieldsMap.filter(_._2.nonEmpty)
+
+    if (optionsWithMissingFields.nonEmpty) {
+      throw new IllegalArgumentException("Write failed due to the following errors.\n" +
+        optionsWithMissingFields.map(field => s" - Schema is missing ${field._2.mkString(", ")} from option `${field._1}`").mkString("\n") +
+        "\n\nOption's key:value might be inverted.")
     }
   }
 

@@ -1,6 +1,7 @@
 package org.neo4j.spark.util
 
 import org.apache.spark.sql.sources.{And, EqualTo, Not}
+import org.apache.spark.sql.types.{DataTypes, StructField, StructType}
 import org.junit.Test
 import org.junit.Assert._
 import org.neo4j.spark.util.Neo4jImplicits._
@@ -77,5 +78,19 @@ class Neo4jImplicitsTest {
 
     // then
     assertEquals("address.coords", attribute.get)
+  }
+
+  @Test
+  def `struct should return true if contains fields`: Unit = {
+    val struct = StructType(Seq(StructField("is_hero", DataTypes.BooleanType), StructField("name", DataTypes.StringType)))
+
+    assertEquals(0, struct.missingFields(Set("is_hero", "name")).size)
+  }
+
+  @Test
+  def `struct should return false if not contains fields`: Unit = {
+    val struct = StructType(Seq(StructField("is_hero", DataTypes.BooleanType), StructField("name", DataTypes.StringType)))
+
+    assertEquals(Set[String]("hero_name"), struct.missingFields(Set("is_hero", "hero_name")))
   }
 }
