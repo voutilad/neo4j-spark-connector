@@ -47,10 +47,10 @@ class Neo4jQueryWriteStrategy(private val saveMode: SaveMode) extends Neo4jQuery
       .mkString(":")
 
     val sourceKeys = options.relationshipMetadata.source.nodeKeys.map(key => {
-      s"${key._2.quote()}:$BATCH_VARIABLE.source.${Neo4jWriteMappingStrategy.KEYS}.${key._1.removeAlias().quote()}"
+      s"${key._2.quote()}: $BATCH_VARIABLE.source.${Neo4jWriteMappingStrategy.KEYS}.${key._1.removeAlias().quote()}"
     }).mkString(", ")
     val targetKeys = options.relationshipMetadata.target.nodeKeys.map(key => {
-      s"${key._2.quote()}:$BATCH_VARIABLE.target.${Neo4jWriteMappingStrategy.KEYS}.${key._1.removeAlias().quote()}"
+      s"${key._2.quote()}: $BATCH_VARIABLE.target.${Neo4jWriteMappingStrategy.KEYS}.${key._1.removeAlias().quote()}"
     }).mkString(", ")
 
     val sourceQueryPart = createQueryPart(sourceKeyword, sourceLabels, sourceKeys, Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS)
@@ -70,10 +70,10 @@ class Neo4jQueryWriteStrategy(private val saveMode: SaveMode) extends Neo4jQuery
     val labels = options.nodeMetadata.labels
       .map(_.quote)
       .mkString(":")
-    val keys = options.nodeMetadata.nodeKeys.keys
-      .map(_.quote)
-      .map(k => s"$k: $BATCH_VARIABLE.${Neo4jWriteMappingStrategy.KEYS}.$k")
-      .mkString(", ")
+    val keys = options.nodeMetadata.nodeKeys
+      .map(key => {
+        s"${key._2.quote()}: $BATCH_VARIABLE.${Neo4jWriteMappingStrategy.KEYS}.${key._1.removeAlias().quote()}"
+      }).mkString(", ")
 
     s"""UNWIND ${"$"}events AS $BATCH_VARIABLE
        |$keyword (node${if (labels.isEmpty) "" else s":$labels"} ${if (keys.isEmpty) "" else s"{$keys}"})

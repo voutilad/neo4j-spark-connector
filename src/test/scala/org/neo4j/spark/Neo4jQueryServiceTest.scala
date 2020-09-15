@@ -1,9 +1,10 @@
 package org.neo4j.spark
 
+import org.apache.spark.sql.SaveMode
 import org.apache.spark.sql.sources.{And, EqualNullSafe, EqualTo, Filter, GreaterThanOrEqual, LessThan, Not, Or, StringEndsWith, StringStartsWith}
 import org.junit.Assert._
 import org.junit.Test
-import org.neo4j.spark.service.{Neo4jQueryReadStrategy, Neo4jQueryService}
+import org.neo4j.spark.service.{Neo4jQueryReadStrategy, Neo4jQueryService, Neo4jQueryWriteStrategy}
 
 class Neo4jQueryServiceTest {
 
@@ -215,5 +216,22 @@ class Neo4jQueryServiceTest {
       "AND (target.age = 34 OR target.age = 18) " +
       "AND rel.score = 12) " +
       "RETURN source, rel, target", query)
+  }
+
+  @Test
+  def testCompoundKeys() = {
+    val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
+    options.put(Neo4jOptions.URL, "bolt://localhost")
+    options.put("labels", "Location")
+    options.put("node.keys", "LocationName:name,LocationType:type,FeatureID:featureId")
+    val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
+
+    val query: String = new Neo4jQueryService(neo4jOptions, new Neo4jQueryWriteStrategy(SaveMode.Overwrite)).createQuery()
+
+    assertEquals(
+      """UNWIND $events AS event
+        |MERGE (node:Location {name: event.keys.LocationName, type: event.keys.LocationType, featureId: event.keys.FeatureID})
+        |SET node += event.properties
+        |""".stripMargin, query)
   }
 }
