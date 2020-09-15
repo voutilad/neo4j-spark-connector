@@ -1165,10 +1165,10 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       case sparkException: SparkException => {
         val clientException = ExceptionUtils.getRootCause(sparkException)
         assertTrue(clientException.getMessage.equals(
-          """Write failed due to the following errors.
+          """Write failed due to the following errors:
             | - Schema is missing musician_name from option `relationship.source.node.keys`
             |
-            |Option's key:value might be inverted.""".stripMargin))
+            |The option key and value might be inverted.""".stripMargin))
       }
       case generic => fail(s"should be thrown a ${classOf[SparkException].getName}, got ${generic.getClass} instead")
     }
@@ -1201,11 +1201,11 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       case sparkException: SparkException => {
         val clientException = ExceptionUtils.getRootCause(sparkException)
         assertTrue(clientException.getMessage.equals(
-          """Write failed due to the following errors.
+          """Write failed due to the following errors:
             | - Schema is missing instrument_name from option `relationship.target.node.keys`
             | - Schema is missing musician_name, another_name from option `relationship.source.node.keys`
             |
-            |Option's key:value might be inverted.""".stripMargin))
+            |The option key and value might be inverted.""".stripMargin))
       }
       case generic => fail(s"should be thrown a ${classOf[SparkException].getName}, got ${generic.getClass} instead")
     }
@@ -1232,10 +1232,10 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       case sparkException: SparkException => {
         val clientException = ExceptionUtils.getRootCause(sparkException)
         assertTrue(clientException.getMessage.equals(
-          """Write failed due to the following errors.
+          """Write failed due to the following errors:
             | - Schema is missing instrument_name from option `node.properties`
             |
-            |Option's key:value might be inverted.""".stripMargin))
+            |The option key and value might be inverted.""".stripMargin))
       }
       case generic => fail(s"should be thrown a ${classOf[SparkException].getName}, got ${generic.getClass} instead")
     }

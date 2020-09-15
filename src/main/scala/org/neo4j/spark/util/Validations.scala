@@ -80,9 +80,9 @@ object Validations {
     val optionsWithMissingFields = missingFieldsMap.filter(_._2.nonEmpty)
 
     if (optionsWithMissingFields.nonEmpty) {
-      throw new IllegalArgumentException("Write failed due to the following errors.\n" +
+      throw new IllegalArgumentException("Write failed due to the following errors:\n" +
         optionsWithMissingFields.map(field => s" - Schema is missing ${field._2.mkString(", ")} from option `${field._1}`").mkString("\n") +
-        "\n\nOption's key:value might be inverted.")
+        "\n\nThe option key and value might be inverted.")
     }
   }
 
