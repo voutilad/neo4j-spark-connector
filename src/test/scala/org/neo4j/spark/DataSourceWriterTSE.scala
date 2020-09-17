@@ -993,6 +993,8 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .option("relationship.target.labels", ":Instrument")
       .load()
 
+    df2.show()
+
     assertEquals(4, df2.count())
 
     val result = df2.select("`source.name`").orderBy("`source.name`").collectAsList()
@@ -1029,6 +1031,8 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .option("relationship.source.labels", ":Musician")
       .option("relationship.target.labels", ":Instrument")
       .load()
+
+    df2.show()
 
     assertEquals(4, df2.count())
 
