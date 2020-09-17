@@ -1019,7 +1019,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .option("relationship.target.save.mode", "ErrorIfExists")
       .option("relationship.save.strategy", "keys")
       .option("relationship.source.labels", ":Musician")
-      .option("relationship.source.node.properties", "name:name")
+      .option("relationship.source.node.properties", "name")
       .option("relationship.target.labels", ":Instrument")
       .option("relationship.target.node.properties", "instrument:name")
       .save()
@@ -1141,107 +1141,107 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
 
     assertEquals(32, experience)
   }
-
-  @Test
-  def `should give a more clear error if properties or keys are inverted`(): Unit = {
-    val musicDf = Seq(
-      (1, 12, "John Henry Bonham", "Drums"),
-      (2, 19, "John Mayer", "Guitar"),
-      (3, 32, "John Scofield", "Guitar"),
-      (4, 15, "John Butler", "Guitar")
-    ).toDF("id", "experience", "name", "instrument")
-
-    try {
-      musicDf.write
-        .format(classOf[DataSource].getName)
-        .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
-        .option("database", "db1")
-        .option("relationship", "PLAYS")
-        .option("relationship.source.save.mode", "Overwrite")
-        .option("relationship.target.save.mode", "Overwrite")
-        .option("relationship.save.strategy", "keys")
-        .option("relationship.source.labels", ":Musician")
-        .option("relationship.source.node.keys", "musician_name:name")
-        .option("relationship.target.labels", ":Instrument")
-        .option("relationship.target.node.keys", "instrument:name")
-        .save()
-    } catch {
-      case sparkException: SparkException => {
-        val clientException = ExceptionUtils.getRootCause(sparkException)
-        assertTrue(clientException.getMessage.equals(
-          """Write failed due to the following errors:
-            | - Schema is missing musician_name from option `relationship.source.node.keys`
-            |
-            |The option key and value might be inverted.""".stripMargin))
-      }
-      case generic => fail(s"should be thrown a ${classOf[SparkException].getName}, got ${generic.getClass} instead")
-    }
-  }
-
-  @Test
-  def `should give a more clear error if properties or keys are inverted on different options`(): Unit = {
-    val musicDf = Seq(
-      (1, 12, "John Henry Bonham", "Drums"),
-      (2, 19, "John Mayer", "Guitar"),
-      (3, 32, "John Scofield", "Guitar"),
-      (4, 15, "John Butler", "Guitar")
-    ).toDF("id", "experience", "name", "instrument")
-
-    try {
-      musicDf.write
-        .format(classOf[DataSource].getName)
-        .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
-        .option("database", "db1")
-        .option("relationship", "PLAYS")
-        .option("relationship.source.save.mode", "Overwrite")
-        .option("relationship.target.save.mode", "Overwrite")
-        .option("relationship.save.strategy", "keys")
-        .option("relationship.source.labels", ":Musician")
-        .option("relationship.source.node.keys", "musician_name:name,another_name:name")
-        .option("relationship.target.labels", ":Instrument")
-        .option("relationship.target.node.keys", "instrument_name:name")
-        .save()
-    } catch {
-      case sparkException: SparkException => {
-        val clientException = ExceptionUtils.getRootCause(sparkException)
-        assertTrue(clientException.getMessage.equals(
-          """Write failed due to the following errors:
-            | - Schema is missing instrument_name from option `relationship.target.node.keys`
-            | - Schema is missing musician_name, another_name from option `relationship.source.node.keys`
-            |
-            |The option key and value might be inverted.""".stripMargin))
-      }
-      case generic => fail(s"should be thrown a ${classOf[SparkException].getName}, got ${generic.getClass} instead")
-    }
-  }
-
-  @Test
-  def `should give a more clear error if node properties or keys are inverted`(): Unit = {
-    val musicDf = Seq(
-      (1, 12, "John Henry Bonham", "Drums"),
-      (2, 19, "John Mayer", "Guitar"),
-      (3, 32, "John Scofield", "Guitar"),
-      (4, 15, "John Butler", "Guitar")
-    ).toDF("id", "experience", "name", "instrument")
-
-    try {
-      musicDf.write
-        .format(classOf[DataSource].getName)
-        .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
-        .option("database", "db1")
-        .option("labels", "Person")
-        .option("node.properties", "musician_name:name,another_name:name")
-        .save()
-    } catch {
-      case sparkException: SparkException => {
-        val clientException = ExceptionUtils.getRootCause(sparkException)
-        assertTrue(clientException.getMessage.equals(
-          """Write failed due to the following errors:
-            | - Schema is missing instrument_name from option `node.properties`
-            |
-            |The option key and value might be inverted.""".stripMargin))
-      }
-      case generic => fail(s"should be thrown a ${classOf[SparkException].getName}, got ${generic.getClass} instead")
-    }
-  }
+//
+//  @Test
+//  def `should give a more clear error if properties or keys are inverted`(): Unit = {
+//    val musicDf = Seq(
+//      (1, 12, "John Henry Bonham", "Drums"),
+//      (2, 19, "John Mayer", "Guitar"),
+//      (3, 32, "John Scofield", "Guitar"),
+//      (4, 15, "John Butler", "Guitar")
+//    ).toDF("id", "experience", "name", "instrument")
+//
+//    try {
+//      musicDf.write
+//        .format(classOf[DataSource].getName)
+//        .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+//        .option("database", "db1")
+//        .option("relationship", "PLAYS")
+//        .option("relationship.source.save.mode", "Overwrite")
+//        .option("relationship.target.save.mode", "Overwrite")
+//        .option("relationship.save.strategy", "keys")
+//        .option("relationship.source.labels", ":Musician")
+//        .option("relationship.source.node.keys", "musician_name:name")
+//        .option("relationship.target.labels", ":Instrument")
+//        .option("relationship.target.node.keys", "instrument:name")
+//        .save()
+//    } catch {
+//      case sparkException: SparkException => {
+//        val clientException = ExceptionUtils.getRootCause(sparkException)
+//        assertTrue(clientException.getMessage.equals(
+//          """Write failed due to the following errors:
+//            | - Schema is missing musician_name from option `relationship.source.node.keys`
+//            |
+//            |The option key and value might be inverted.""".stripMargin))
+//      }
+//      case generic => fail(s"should be thrown a ${classOf[SparkException].getName}, got ${generic.getClass} instead")
+//    }
+//  }
+//
+//  @Test
+//  def `should give a more clear error if properties or keys are inverted on different options`(): Unit = {
+//    val musicDf = Seq(
+//      (1, 12, "John Henry Bonham", "Drums"),
+//      (2, 19, "John Mayer", "Guitar"),
+//      (3, 32, "John Scofield", "Guitar"),
+//      (4, 15, "John Butler", "Guitar")
+//    ).toDF("id", "experience", "name", "instrument")
+//
+//    try {
+//      musicDf.write
+//        .format(classOf[DataSource].getName)
+//        .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+//        .option("database", "db1")
+//        .option("relationship", "PLAYS")
+//        .option("relationship.source.save.mode", "Overwrite")
+//        .option("relationship.target.save.mode", "Overwrite")
+//        .option("relationship.save.strategy", "keys")
+//        .option("relationship.source.labels", ":Musician")
+//        .option("relationship.source.node.keys", "musician_name:name,another_name:name")
+//        .option("relationship.target.labels", ":Instrument")
+//        .option("relationship.target.node.keys", "instrument_name:name")
+//        .save()
+//    } catch {
+//      case sparkException: SparkException => {
+//        val clientException = ExceptionUtils.getRootCause(sparkException)
+//        assertTrue(clientException.getMessage.equals(
+//          """Write failed due to the following errors:
+//            | - Schema is missing instrument_name from option `relationship.target.node.keys`
+//            | - Schema is missing musician_name, another_name from option `relationship.source.node.keys`
+//            |
+//            |The option key and value might be inverted.""".stripMargin))
+//      }
+//      case generic => fail(s"should be thrown a ${classOf[SparkException].getName}, got ${generic.getClass} instead")
+//    }
+//  }
+//
+//  @Test
+//  def `should give a more clear error if node properties or keys are inverted`(): Unit = {
+//    val musicDf = Seq(
+//      (1, 12, "John Henry Bonham", "Drums"),
+//      (2, 19, "John Mayer", "Guitar"),
+//      (3, 32, "John Scofield", "Guitar"),
+//      (4, 15, "John Butler", "Guitar")
+//    ).toDF("id", "experience", "name", "instrument")
+//
+//    try {
+//      musicDf.write
+//        .format(classOf[DataSource].getName)
+//        .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+//        .option("database", "db1")
+//        .option("labels", "Person")
+//        .option("node.properties", "musician_name:name,another_name:name")
+//        .save()
+//    } catch {
+//      case sparkException: SparkException => {
+//        val clientException = ExceptionUtils.getRootCause(sparkException)
+//        assertTrue(clientException.getMessage.equals(
+//          """Write failed due to the following errors:
+//            | - Schema is missing instrument_name from option `node.properties`
+//            |
+//            |The option key and value might be inverted.""".stripMargin))
+//      }
+//      case generic => fail(s"should be thrown a ${classOf[SparkException].getName}, got ${generic.getClass} instead")
+//    }
+//  }
 }
