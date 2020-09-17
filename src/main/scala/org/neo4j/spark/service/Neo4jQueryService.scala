@@ -18,9 +18,11 @@ class Neo4jQueryWriteStrategy(private val saveMode: SaveMode) extends Neo4jQuery
        |""".stripMargin
 
   private def createPropsList(props: Map[String, String], prefix: String): String = {
-    props.map(key => {
-      s"${key._2.quote()}: $BATCH_VARIABLE.$prefix.${key._1.removeAlias().quote()}"
-    }).mkString(", ")
+    props
+      .map(key => Neo4jSparkFieldMapping(key._2.quote(), key._1.removeAlias().quote()))
+      .map(fieldMapping => {
+        s"${fieldMapping.neo4jFieldName}: $BATCH_VARIABLE.$prefix.${fieldMapping.sparkFieldName}"
+      }).mkString(", ")
   }
 
   private def keywordFromSaveMode(saveMode: Any): String = {
@@ -228,6 +230,14 @@ abstract class Neo4jQueryStrategy {
 
   def createStatementForNodes(options: Neo4jOptions): String
 
+  protected def createQueryPart(keyword: String, labels: String, keys: String, alias: String, additionalAliases: Seq[String] = Seq[String]()): String = {
+    val withAliases = additionalAliases ++ Seq(BATCH_VARIABLE, alias)
+
+    val setStatement = if (!keyword.equals("MATCH")) s" SET $alias += $BATCH_VARIABLE.$alias.${Neo4jWriteMappingStrategy.PROPERTIES}" else ""
+
+    s"""$keyword ($alias${if (labels.isEmpty) "" else s":$labels"} ${if (keys.isEmpty) "" else s"{$keys}"})$setStatement
+    |WITH ${withAliases.mkString(", ")}""".stripMargin
+  }
 }
 
 class Neo4jQueryService(private val options: Neo4jOptions,
@@ -242,3 +252,5 @@ class Neo4jQueryService(private val options: Neo4jOptions,
          |supported types: ${QueryType.values.mkString(",")}""".stripMargin)
   }
 }
+
+case class Neo4jSparkFieldMapping(neo4jFieldName: String, sparkFieldName: String)

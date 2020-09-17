@@ -219,7 +219,7 @@ class Neo4jQueryServiceTest {
   }
 
   @Test
-  def testCompoundKeys() = {
+  def testCompoundKeysForNodes() = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
     options.put("labels", "Location")
@@ -233,5 +233,30 @@ class Neo4jQueryServiceTest {
         |MERGE (node:Location {name: event.keys.LocationName, type: event.keys.LocationType, featureId: event.keys.FeatureID})
         |SET node += event.properties
         |""".stripMargin, query)
+  }
+
+  @Test
+  def testCompoundKeysForRelationship() = {
+    val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
+    options.put(Neo4jOptions.URL, "bolt://localhost")
+    options.put("relationship", "BOUGHT")
+    options.put("relationship.source.labels", "Person")
+    options.put("relationship.source.node.keys", "FirstName:name")
+    options.put("relationship.target.labels", "Product")
+    options.put("relationship.target.node.keys", "ProductPrice:price")
+
+    val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
+
+    val query: String = new Neo4jQueryService(neo4jOptions, new Neo4jQueryWriteStrategy(SaveMode.Overwrite)).createQuery()
+
+    assertEquals(
+      """UNWIND $events AS event
+        |MATCH (source:Person {name: event.source.keys.FirstName})
+        |WITH event, source
+        |MATCH (target:Product {price: event.target.keys.ProductPrice})
+        |WITH source, event, target
+        |MERGE (source)-[rel:BOUGHT]->(target)
+        |SET rel += event.rel.properties
+        |""".stripMargin, query.stripMargin)
   }
 }
