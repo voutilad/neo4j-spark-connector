@@ -65,7 +65,7 @@ class Neo4jWriteMappingStrategy(private val options: Neo4jOptions)
     }
   }
 
-  private def keysStrategyConsumer(schema: StructType): MappingBiConsumer = new MappingBiConsumer {
+  private val keysStrategyConsumer: MappingBiConsumer = new MappingBiConsumer {
     override def accept(key: String, value: AnyRef): Unit = {
       if (options.relationshipMetadata.source.nodeKeys.contains(key)) {
         sourceNodeMap.get(KEYS).put(key, value)
@@ -92,7 +92,7 @@ class Neo4jWriteMappingStrategy(private val options: Neo4jOptions)
 
     val consumer = options.relationshipMetadata.saveStrategy match {
       case RelationshipSaveStrategy.NATIVE => nativeStrategyConsumer()
-      case RelationshipSaveStrategy.KEYS => keysStrategyConsumer(schema)
+      case RelationshipSaveStrategy.KEYS => keysStrategyConsumer
     }
 
     query(row, schema).forEach(consumer)

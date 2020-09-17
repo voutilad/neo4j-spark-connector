@@ -101,9 +101,9 @@ object Neo4jImplicits {
       structType.map(structField => structField.name)
     }
 
-    def missingFields(fields: Set[String]): Set[String] = {
+    def getMissingFields(fields: Set[String]): Set[String] = {
       val structFieldsNames = structType.getFieldsName
-      fields.filter(!structFieldsNames.contains(_))
+      fields.filterNot(structFieldsNames.contains(_))
     }
   }
 

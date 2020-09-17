@@ -84,13 +84,13 @@ class Neo4jImplicitsTest {
   def `struct should return true if contains fields`: Unit = {
     val struct = StructType(Seq(StructField("is_hero", DataTypes.BooleanType), StructField("name", DataTypes.StringType)))
 
-    assertEquals(0, struct.missingFields(Set("is_hero", "name")).size)
+    assertEquals(0, struct.getMissingFields(Set("is_hero", "name")).size)
   }
 
   @Test
   def `struct should return false if not contains fields`: Unit = {
     val struct = StructType(Seq(StructField("is_hero", DataTypes.BooleanType), StructField("name", DataTypes.StringType)))
 
-    assertEquals(Set[String]("hero_name"), struct.missingFields(Set("is_hero", "hero_name")))
+    assertEquals(Set[String]("hero_name"), struct.getMissingFields(Set("is_hero", "hero_name")))
   }
 }
