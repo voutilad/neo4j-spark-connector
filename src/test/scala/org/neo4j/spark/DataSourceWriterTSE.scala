@@ -1373,7 +1373,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
   }
 
   @Test
-  def `should insert constraint while insert nodes`(): Unit = {
+  def `should create constraint when insert nodes`(): Unit = {
     val total = 10
     val ds = (1 to total)
       .map(i => i.toString)
@@ -1385,7 +1385,46 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
       .option("labels", ":Person:Customer")
       .option("node.keys", "surname")
-      .option("schema.optimization.type", "CONSTRAINT")
+      .option("schema.optimization.type", "NODE_CONSTRAINTS")
+      .save()
+
+    val records = SparkConnectorScalaSuiteIT.session().run(
+      """MATCH (p:Person:Customer)
+        |RETURN p.surname AS surname
+        |""".stripMargin).list().asScala
+      .map(r => r.asMap().asScala)
+      .toSet
+    val expected = ds.collect().map(row => Map("surname" -> row.getAs[String]("surname")))
+      .toSet
+    assertEquals(expected, records)
+
+    val constraintCount = SparkConnectorScalaSuiteIT.session().run(
+      """CALL db.indexes() YIELD labelsOrTypes, properties, uniqueness
+        |WHERE labelsOrTypes = ['Person'] AND properties = ['surname'] AND uniqueness = 'UNIQUE'
+        |RETURN count(*) AS count
+        |""".stripMargin)
+      .single()
+      .get("count")
+      .asLong()
+    assertEquals(1, constraintCount)
+    SparkConnectorScalaSuiteIT.session().run("DROP CONSTRAINT ON (p:Person) ASSERT (p.surname) IS UNIQUE")
+  }
+
+  @Test
+  def `should not create constraint when insert nodes because they already exist`(): Unit = {
+    SparkConnectorScalaSuiteIT.session().run("CREATE CONSTRAINT ON (p:Person) ASSERT (p.surname) IS UNIQUE")
+    val total = 10
+    val ds = (1 to total)
+      .map(i => i.toString)
+      .toDF("surname")
+
+    ds.write
+      .format(classOf[DataSource].getName)
+      .mode(SaveMode.Overwrite)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("labels", ":Person:Customer")
+      .option("node.keys", "surname")
+      .option("schema.optimization.type", "NODE_CONSTRAINTS")
       .save()
 
     val records = SparkConnectorScalaSuiteIT.session().run(

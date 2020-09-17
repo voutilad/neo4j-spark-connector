@@ -335,7 +335,7 @@ that will be executed *before* the import process will start in order to speed-u
 You can set the optimization via `schema.optimization.type` option that takes three values:
 
 * `INDEX`: it creates only indexes on provided nodes
-* `CONSTRAINTS`: it creates only indexes on provided nodes
+* `NODE_CONSTRAINTS`: it creates only indexes on provided nodes
 * `QUERY`: it perform a series of schema queries separated by `;`
 
 and it works only when you're merging nodes.
@@ -375,7 +375,7 @@ ds.write
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
       .option("labels", ":Person:Customer")
       .option("node.keys", "surname")
-      .option("schema.optimization.type", "CONSTRAINT")
+      .option("schema.optimization.type", "NODE_CONSTRAINTS")
       .save()
 ----
 

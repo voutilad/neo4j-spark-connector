@@ -364,28 +364,52 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
     } else {
       val quotedLabel = label.quote()
       val quotedProps = props.map(prop => s"${Neo4jUtil.NODE_ALIAS}.${prop.quote()}").mkString(", ")
-      val actionName = s"spark_${action}_$label".quote()
-      val queryPrefix = s"CREATE ${action.toString} $actionName"
-      val querySuffix = action match {
-        case OptimizationType.INDEX => s"FOR (${Neo4jUtil.NODE_ALIAS}:$quotedLabel) ON ($quotedProps)"
-        case OptimizationType.CONSTRAINT => {
+      val (querySuffix, creationType, uniqueness) = action match {
+        case OptimizationType.INDEX => (s"FOR (${Neo4jUtil.NODE_ALIAS}:$quotedLabel) ON ($quotedProps)", "INDEX", "NONUNIQUE")
+        case OptimizationType.NODE_CONSTRAINTS => {
           val assertType = if (props.size > 1) "NODE KEY" else "UNIQUE"
-          s"ON (${Neo4jUtil.NODE_ALIAS}:$quotedLabel) ASSERT ($quotedProps) IS $assertType"
+          (s"ON (${Neo4jUtil.NODE_ALIAS}:$quotedLabel) ASSERT ($quotedProps) IS $assertType", "CONSTRAINT", "UNIQUE")
         }
       }
-      val status = try {
-        session.run(s"$queryPrefix $querySuffix")
-        "CREATED"
-      } catch {
-        case _: Throwable => "KEPT"
+      val actionName = s"spark_${creationType}_$label".quote()
+      val queryPrefix = s"CREATE $creationType $actionName"
+
+      val queryCheck = """CALL db.indexes() YIELD labelsOrTypes, properties, uniqueness
+          |WHERE labelsOrTypes = $labels AND properties = $properties AND uniqueness = $uniqueness
+          |RETURN count(*) > 0 AS isPresent""".stripMargin
+
+      val isPresent = session.run(queryCheck, Map("labels" -> Seq(label).asJava,
+          "properties" -> props.asJava,
+          "uniqueness" -> uniqueness).asJava)
+        .single()
+        .get("isPresent")
+        .asBoolean()
+
+      val status = if (isPresent) {
+        "KEPT"
+      } else {
+        val query = s"$queryPrefix $querySuffix"
+        log.info(s"Performing the following schema query: $query")
+        try {
+          session.run(query)
+          "CREATED"
+        } catch {
+          case e: Throwable => {
+            log.info("Cannot perform the optimization query because of the following exception:", e)
+            "ERROR"
+          }
+        }
       }
-      log.info(s"Status for $action named $actionName with label $quotedLabel and props $quotedProps is: $status")
+
+      if (status != "ERROR") {
+        log.info(s"Status for $action named $actionName with label $quotedLabel and props $quotedProps is: $status")
+      }
     }
   }
 
   def createOptimizationsForNode(): Unit = options.schemaMetadata.optimizationType match {
     case OptimizationType.QUERY => createOptimizationsForQuery()
-    case OptimizationType.INDEX | OptimizationType.CONSTRAINT => {
+    case OptimizationType.INDEX | OptimizationType.NODE_CONSTRAINTS => {
       createIndexOrConstraint(options.schemaMetadata.optimizationType,
         options.nodeMetadata.labels.head,
         options.nodeMetadata.nodeKeys.values.toSeq)
@@ -413,7 +437,7 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
         session.run(query).consume()
       } catch {
         case e: Throwable => {
-          log.error("Cannot perform the optimization query because of the following exception:", e)
+          log.error(s"Cannot perform the optimization query $query because of the following exception:", e)
         }
       }
     })

@@ -35,7 +35,7 @@ class Neo4jOptions(private val parameters: java.util.Map[String, String]) extend
 
   val schemaMetadata = Neo4jSchemaMetadata(getParameter(SCHEMA_FLATTEN_LIMIT, DEFAULT_SCHEMA_FLATTEN_LIMIT.toString).toInt,
     SchemaStrategy.withCaseInsensitiveName(getParameter(SCHEMA_STRATEGY, DEFAULT_SCHEMA_STRATEGY.toString).toUpperCase),
-    OptimizationType.withName(getParameter(SCHEMA_OPTIMIZATION_TYPE, DEFAULT_OPTIMIZATION_TYPE.toString).toUpperCase),
+    OptimizationType.withCaseInsensitiveName(getParameter(SCHEMA_OPTIMIZATION_TYPE, DEFAULT_OPTIMIZATION_TYPE.toString).toUpperCase),
     getParameter(SCHEMA_OPTIMIZATION_QUERY)
       .split(";")
       .map(_.trim)
@@ -371,6 +371,6 @@ object SchemaStrategy extends CaseInsensitiveEnumeration {
   val STRING, SAMPLE = Value
 }
 
-object OptimizationType extends Enumeration {
-  val INDEX, CONSTRAINT, QUERY, NONE = Value
+object OptimizationType extends CaseInsensitiveEnumeration {
+  val INDEX, NODE_CONSTRAINTS, QUERY, NONE = Value
 }
