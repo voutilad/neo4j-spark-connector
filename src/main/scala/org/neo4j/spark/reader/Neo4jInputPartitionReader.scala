@@ -39,11 +39,7 @@ class Neo4jInputPartitionReader(private val options: Neo4jOptions,
       session = driverCache.getOrCreate().session(options.session.toNeo4jSession)
       transaction = session.beginTransaction()
       log.info(s"Running the following query on Neo4j: $query")
-      val skipLimitParams: java.util.Map[String, AnyRef] = Map[String, AnyRef](
-          "skip" -> partitionSkipLimit.skip.asInstanceOf[AnyRef],
-          "limit" -> partitionSkipLimit.limit.asInstanceOf[AnyRef])
-        .asJava
-      result = transaction.run(query, skipLimitParams).asScala
+      result = transaction.run(query).asScala
     }
 
     result.hasNext
