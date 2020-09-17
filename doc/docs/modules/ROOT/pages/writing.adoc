@@ -84,6 +84,11 @@ The DataSource Writer has several options in order to connect and persist data i
 |_(none)_
 |No
 
+|`transaction.retries`
+|Number of retries in case of failure
+|3
+|No
+
 4+|*Node Specific Options*
 
 |`node.keys`
