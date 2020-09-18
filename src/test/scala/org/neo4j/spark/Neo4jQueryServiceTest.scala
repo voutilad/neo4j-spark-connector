@@ -241,9 +241,9 @@ class Neo4jQueryServiceTest {
     options.put(Neo4jOptions.URL, "bolt://localhost")
     options.put("relationship", "BOUGHT")
     options.put("relationship.source.labels", "Person")
-    options.put("relationship.source.node.keys", "FirstName:name")
+    options.put("relationship.source.node.keys", "FirstName:name,LastName:lastName")
     options.put("relationship.target.labels", "Product")
-    options.put("relationship.target.node.keys", "ProductPrice:price")
+    options.put("relationship.target.node.keys", "ProductPrice:price,ProductId:id")
 
     val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
 
@@ -251,9 +251,9 @@ class Neo4jQueryServiceTest {
 
     assertEquals(
       """UNWIND $events AS event
-        |MATCH (source:Person {name: event.source.keys.FirstName})
+        |MATCH (source:Person {name: event.source.keys.FirstName, lastName: event.source.keys.LastName})
         |WITH event, source
-        |MATCH (target:Product {price: event.target.keys.ProductPrice})
+        |MATCH (target:Product {price: event.target.keys.ProductPrice, id: event.target.keys.ProductId})
         |WITH source, event, target
         |MERGE (source)-[rel:BOUGHT]->(target)
         |SET rel += event.rel.properties
