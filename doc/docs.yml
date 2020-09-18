@@ -1,5 +1,5 @@
 site:
-  title: Neo4j Spark Connector User Guide
+  title: Neo4j Connector for Apache Spark User Guide
   url: /neo4j-spark-docs
 content:
   sources:

@@ -7,7 +7,7 @@
     <version>4.0.0-alpha</version>
     <artifactId>neo4j-spark-connector</artifactId>
     <name>neo4j-spark-connector</name>
-    <description>Neo4j Spark Connector using the binary Bolt Driver</description>
+    <description>Neo4j Connector for Apache Spark using the binary Bolt Driver</description>
 
     <organization>
         <name>Neo4j, Inc.</name>

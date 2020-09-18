@@ -1,6 +1,6 @@
-# Neo4j Spark Connector
+# Neo4j Connector for Apache Spark
 
-This repository contains the Neo4j Spark Connector.
+This repository contains the Neo4j Connector for Apache Spark.
 
 ## License
 
