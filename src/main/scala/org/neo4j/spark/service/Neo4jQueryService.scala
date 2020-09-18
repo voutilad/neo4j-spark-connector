@@ -26,6 +26,11 @@ class Neo4jQueryWriteStrategy(private val saveMode: SaveMode) extends Neo4jQuery
     }
   }
 
+  private def createQueryPart(keyword: String, labels: String, keys: String, alias: String): String = {
+    val setStatement = if (!keyword.equals("MATCH")) s"SET $alias += $BATCH_VARIABLE.$alias.${Neo4jWriteMappingStrategy.PROPERTIES}" else ""
+    s"""$keyword ($alias${if (labels.isEmpty) "" else s":$labels"} ${if (keys.isEmpty) "" else s"{$keys}"}) $setStatement""".stripMargin
+  }
+
   override def createStatementForRelationships(options: Neo4jOptions): String = {
     val relationshipKeyword = keywordFromSaveMode(saveMode)
     val sourceKeyword = keywordFromSaveMode(options.relationshipMetadata.sourceSaveMode)
@@ -49,7 +54,7 @@ class Neo4jQueryWriteStrategy(private val saveMode: SaveMode) extends Neo4jQuery
     }).mkString(", ")
 
     val sourceQueryPart = createQueryPart(sourceKeyword, sourceLabels, sourceKeys, Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS)
-    val targetQueryPart = createQueryPart(targetKeyword, targetLabels, targetKeys, Neo4jUtil.RELATIONSHIP_TARGET_ALIAS, Seq(Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS))
+    val targetQueryPart = createQueryPart(targetKeyword, targetLabels, targetKeys, Neo4jUtil.RELATIONSHIP_TARGET_ALIAS)
 
     s"""UNWIND ${"$"}events AS $BATCH_VARIABLE
        |$sourceQueryPart
@@ -206,14 +211,6 @@ abstract class Neo4jQueryStrategy {
 
   def createStatementForNodes(options: Neo4jOptions): String
 
-  protected def createQueryPart(keyword: String, labels: String, keys: String, alias: String, additionalAliases: Seq[String] = Seq[String]()): String = {
-    val withAliases = additionalAliases ++ Seq(BATCH_VARIABLE, alias)
-
-    val setStatement = if (!keyword.equals("MATCH")) s"SET $alias += $BATCH_VARIABLE.$alias.${Neo4jWriteMappingStrategy.PROPERTIES}" else ""
-
-    s"""$keyword ($alias${if (labels.isEmpty) "" else s":$labels"} ${if (keys.isEmpty) "" else s"{$keys}"}) $setStatement
-    |WITH ${withAliases.mkString(", ")}""".stripMargin
-  }
 }
 
 class Neo4jQueryService(private val options: Neo4jOptions,

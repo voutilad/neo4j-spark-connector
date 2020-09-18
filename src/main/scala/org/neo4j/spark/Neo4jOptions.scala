@@ -130,7 +130,7 @@ class Neo4jOptions(private val parameters: java.util.Map[String, String]) extend
 
     val target = initNeo4jNodeMetadata(getParameter(RELATIONSHIP_TARGET_NODE_KEYS, ""),
       getParameter(RELATIONSHIP_TARGET_LABELS, ""),
-      getParameter(RELATIONSHIP_SOURCE_NODE_PROPS, ""))
+      getParameter(RELATIONSHIP_TARGET_NODE_PROPS, ""))
 
     val nodeMap = getParameter(RELATIONSHIP_NODES_MAP, DEFAULT_RELATIONSHIP_NODES_MAP.toString).toBoolean
 

@@ -1034,6 +1034,23 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
 
     df2.show()
 
+    SparkConnectorScalaSuiteIT.driver.session().run(
+      """MATCH (source:`Musician`)
+        |MATCH (target:`Instrument`)
+        |MATCH (source)-[rel:`PLAYS`]->(target)
+        |RETURN source, rel, target""".stripMargin)
+      .list()
+      .asScala
+      .foreach(r => {
+        val source = r.get("source").asNode()
+        val target = r.get("target").asNode()
+        val rel = r.get("rel").asRelationship()
+        println(
+          s"${source.id()} | ${source.labels()} | ${source.asMap()} |" +
+          s"${rel.id()} | ${rel.`type`()} | ${rel.asMap()} |" +
+          s"${target.id()} | ${target.labels()} | ${target.asMap()}")
+      })
+
     assertEquals(4, df2.count())
 
     val result = df2.select("`source.name`").orderBy("`source.name`").collectAsList()
