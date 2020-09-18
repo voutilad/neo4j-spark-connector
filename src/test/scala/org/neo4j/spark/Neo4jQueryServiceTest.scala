@@ -230,7 +230,7 @@ class Neo4jQueryServiceTest {
 
     assertEquals(
       """UNWIND $events AS event
-        |MERGE (node:Location {name: event.keys.LocationName, type: event.keys.LocationType, featureId: event.keys.FeatureID})
+        |MERGE (node:Location {name: event.keys.name, type: event.keys.type, featureId: event.keys.featureId})
         |SET node += event.properties
         |""".stripMargin, query)
   }
@@ -251,8 +251,8 @@ class Neo4jQueryServiceTest {
 
     assertEquals(
       """UNWIND $events AS event
-        |MATCH (source:Person {name: event.source.keys.FirstName, lastName: event.source.keys.LastName})
-        |MATCH (target:Product {price: event.target.keys.ProductPrice, id: event.target.keys.ProductId})
+        |MATCH (source:Person {name: event.source.keys.name, lastName: event.source.keys.lastName})
+        |MATCH (target:Product {price: event.target.keys.price, id: event.target.keys.id})
         |MERGE (source)-[rel:BOUGHT]->(target)
         |SET rel += event.rel.properties
         |""".stripMargin, query.stripMargin)

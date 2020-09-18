@@ -19,9 +19,8 @@ class Neo4jQueryWriteStrategy(private val saveMode: SaveMode) extends Neo4jQuery
 
   private def createPropsList(props: Map[String, String], prefix: String): String = {
     props
-      .map(key => Neo4jSparkFieldMapping(key._2.quote(), key._1.removeAlias().quote()))
-      .map(fieldMapping => {
-        s"${fieldMapping.neo4jFieldName}: $BATCH_VARIABLE.$prefix.${fieldMapping.sparkFieldName}"
+      .map(key => {
+        s"${key._2.quote()}: $BATCH_VARIABLE.$prefix.${key._2.quote()}"
       }).mkString(", ")
   }
 
@@ -35,7 +34,7 @@ class Neo4jQueryWriteStrategy(private val saveMode: SaveMode) extends Neo4jQuery
   }
 
   private def createQueryPart(keyword: String, labels: String, keys: String, alias: String): String = {
-    val setStatement = if (!keyword.equals("MATCH")) s"SET $alias += $BATCH_VARIABLE.$alias.${Neo4jWriteMappingStrategy.PROPERTIES}" else ""
+    val setStatement = if (!keyword.equals("MATCH")) s" SET $alias += $BATCH_VARIABLE.$alias.${Neo4jWriteMappingStrategy.PROPERTIES}" else ""
     s"""$keyword ($alias${if (labels.isEmpty) "" else s":$labels"} ${if (keys.isEmpty) "" else s"{$keys}"})$setStatement""".stripMargin
   }
 

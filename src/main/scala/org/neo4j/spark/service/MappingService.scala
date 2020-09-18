@@ -68,19 +68,19 @@ class Neo4jWriteMappingStrategy(private val options: Neo4jOptions)
   private def keysStrategyConsumer(): MappingBiConsumer = new MappingBiConsumer {
     override def accept(key: String, value: AnyRef): Unit = {
       if (options.relationshipMetadata.source.nodeKeys.contains(key)) {
-        sourceNodeMap.get(KEYS).put(key, value)
+        sourceNodeMap.get(KEYS).put(options.relationshipMetadata.source.nodeKeys.getOrElse(key, key), value)
       }
       else if (options.relationshipMetadata.source.nodeProps.contains(key)) {
-        sourceNodeMap.get(PROPERTIES).put(key, value)
+        sourceNodeMap.get(PROPERTIES).put(options.relationshipMetadata.source.nodeProps.getOrElse(key, key), value)
       }
       else if (options.relationshipMetadata.target.nodeKeys.contains(key)) {
-        targetNodeMap.get(KEYS).put(key, value)
+        targetNodeMap.get(KEYS).put(options.relationshipMetadata.target.nodeKeys.getOrElse(key, key), value)
       }
       else if (options.relationshipMetadata.target.nodeProps.contains(key)) {
-        targetNodeMap.get(PROPERTIES).put(key, value)
+        targetNodeMap.get(PROPERTIES).put(options.relationshipMetadata.target.nodeProps.getOrElse(key, key), value)
       }
       else if (options.relationshipMetadata.properties.contains(key)) {
-        relMap.get(PROPERTIES).put(key, value)
+        relMap.get(PROPERTIES).put(options.relationshipMetadata.properties.getOrElse(key, key), value)
       }
     }
   }
