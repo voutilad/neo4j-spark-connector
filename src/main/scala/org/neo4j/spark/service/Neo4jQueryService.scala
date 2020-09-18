@@ -36,7 +36,7 @@ class Neo4jQueryWriteStrategy(private val saveMode: SaveMode) extends Neo4jQuery
 
   private def createQueryPart(keyword: String, labels: String, keys: String, alias: String): String = {
     val setStatement = if (!keyword.equals("MATCH")) s"SET $alias += $BATCH_VARIABLE.$alias.${Neo4jWriteMappingStrategy.PROPERTIES}" else ""
-    s"""$keyword ($alias${if (labels.isEmpty) "" else s":$labels"} ${if (keys.isEmpty) "" else s"{$keys}"}) $setStatement""".stripMargin
+    s"""$keyword ($alias${if (labels.isEmpty) "" else s":$labels"} ${if (keys.isEmpty) "" else s"{$keys}"})$setStatement""".stripMargin
   }
 
   override def createStatementForRelationships(options: Neo4jOptions): String = {
@@ -229,15 +229,6 @@ abstract class Neo4jQueryStrategy {
   def createStatementForRelationships(options: Neo4jOptions): String
 
   def createStatementForNodes(options: Neo4jOptions): String
-
-  protected def createQueryPart(keyword: String, labels: String, keys: String, alias: String, additionalAliases: Seq[String] = Seq[String]()): String = {
-    val withAliases = additionalAliases ++ Seq(BATCH_VARIABLE, alias)
-
-    val setStatement = if (!keyword.equals("MATCH")) s" SET $alias += $BATCH_VARIABLE.$alias.${Neo4jWriteMappingStrategy.PROPERTIES}" else ""
-
-    s"""$keyword ($alias${if (labels.isEmpty) "" else s":$labels"} ${if (keys.isEmpty) "" else s"{$keys}"})$setStatement
-    |WITH ${withAliases.mkString(", ")}""".stripMargin
-  }
 }
 
 class Neo4jQueryService(private val options: Neo4jOptions,
