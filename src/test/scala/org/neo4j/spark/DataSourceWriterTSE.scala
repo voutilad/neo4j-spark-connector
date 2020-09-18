@@ -45,11 +45,6 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
 
   import sparkSession.implicits._
 
-  val _expectedException: ExpectedException = ExpectedException.none
-
-  @Rule
-  def exceptionRule: ExpectedException = _expectedException
-
   private def testType[T](ds: DataFrame, neo4jType: Type): Unit = {
     ds.write
       .format(classOf[DataSource].getName)
@@ -585,13 +580,41 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .option("relationship", "PLAYS")
       .option("relationship.save.strategy", "keys")
       .option("relationship.source.labels", ":Musician")
-      .option("relationship.properties", "field")
       .option("relationship.source.save.mode", "Overwrite")
       .option("relationship.source.node.keys", "name:name")
+      .option("relationship.source.node.properties", "fi``(╯°□°)╯︵ ┻━┻eld:field")
       .option("relationship.target.labels", ":Instrument")
       .option("relationship.target.node.keys", "instrument:name")
       .option("relationship.target.save.mode", "Overwrite")
       .save()
+
+    val musicDfCheck = ss.read.format(classOf[DataSource].getName)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("relationship", "PLAYS")
+      .option("relationship.nodes.map", "false")
+      .option("relationship.source.labels", ":Musician")
+      .option("relationship.target.labels", ":Instrument")
+      .load()
+
+    assertEquals(4, musicDfCheck.count())
+
+    val res = musicDfCheck.orderBy("`source.name`").collectAsList()
+
+    assertEquals("John Bonham", res.get(0).getString(4))
+    assertEquals("f``````oo", res.get(0).getString(5))
+    assertEquals("Drums", res.get(0).getString(8))
+
+    assertEquals("John Butler", res.get(1).getString(4))
+    assertEquals("qu   ux", res.get(1).getString(5))
+    assertEquals("Guitar", res.get(1).getString(8))
+
+    assertEquals("John Mayer", res.get(2).getString(4))
+    assertEquals("bar", res.get(2).getString(5))
+    assertEquals("Guitar", res.get(2).getString(8))
+
+    assertEquals("John Scofield", res.get(3).getString(4))
+    assertEquals("ba` z", res.get(3).getString(5))
+    assertEquals("Guitar", res.get(3).getString(8))
   }
 
   @Test(expected = classOf[SparkException])
@@ -999,11 +1022,23 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .option("relationship.target.labels", ":Instrument")
       .load()
 
+    df2.show()
+
     assertEquals(4, df2.count())
 
-    val result = df2.select("`source.name`").orderBy("`source.name`").collectAsList()
+    val res = df2.orderBy("`source.name`").collectAsList()
 
-    assertEquals("John Bonham", result.get(0).getString(0))
+    assertEquals("John Bonham", res.get(0).getString(4))
+    assertEquals("Drums", res.get(0).getString(7))
+
+    assertEquals("John Butler", res.get(1).getString(4))
+    assertEquals("Guitar", res.get(1).getString(7))
+
+    assertEquals("John Mayer", res.get(2).getString(4))
+    assertEquals("Guitar", res.get(2).getString(7))
+
+    assertEquals("John Scofield", res.get(3).getString(4))
+    assertEquals("Guitar", res.get(3).getString(7))
   }
 
   @Test
@@ -1019,11 +1054,12 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
       .option("relationship", "PLAYS")
+      .option("relationship.properties", "experience")
       .option("relationship.source.save.mode", "ErrorIfExists")
       .option("relationship.target.save.mode", "ErrorIfExists")
       .option("relationship.save.strategy", "keys")
       .option("relationship.source.labels", ":Musician")
-      .option("relationship.source.node.properties", "name:name")
+      .option("relationship.source.node.properties", "name")
       .option("relationship.target.labels", ":Instrument")
       .option("relationship.target.node.properties", "instrument:name")
       .save()
@@ -1036,11 +1072,46 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .option("relationship.target.labels", ":Instrument")
       .load()
 
+    df2.show()
+
+    SparkConnectorScalaSuiteIT.driver.session().run(
+      """MATCH (source:`Musician`)
+        |MATCH (target:`Instrument`)
+        |MATCH (source)-[rel:`PLAYS`]->(target)
+        |RETURN source, rel, target""".stripMargin)
+      .list()
+      .asScala
+      .foreach(r => {
+        val source = r.get("source").asNode()
+        val target = r.get("target").asNode()
+        val rel = r.get("rel").asRelationship()
+        println(
+          s"${source.id()} | ${source.labels()} | ${source.asMap()} |" +
+            s"${rel.id()} | ${rel.`type`()} | ${rel.asMap()} |" +
+            s"${target.id()} | ${target.labels()} | ${target.asMap()}")
+      })
+
     assertEquals(4, df2.count())
 
-    val result = df2.select("`source.name`").orderBy("`source.name`").collectAsList()
+    df2.show()
 
-    assertEquals("John Bonham", result.get(0).getString(0))
+    val res = df2.orderBy("`source.name`").collectAsList()
+
+    assertEquals("John Bonham", res.get(0).getString(4))
+    assertEquals("Drums", res.get(0).getString(7))
+    assertEquals(12, res.get(0).getLong(8))
+
+    assertEquals("John Butler", res.get(1).getString(4))
+    assertEquals("Guitar", res.get(1).getString(7))
+    assertEquals(15, res.get(1).getLong(8))
+
+    assertEquals("John Mayer", res.get(2).getString(4))
+    assertEquals("Guitar", res.get(2).getString(7))
+    assertEquals(19, res.get(2).getLong(8))
+
+    assertEquals("John Scofield", res.get(3).getString(4))
+    assertEquals("Guitar", res.get(3).getString(7))
+    assertEquals(32, res.get(3).getLong(8))
   }
 
   @Test
@@ -1144,4 +1215,106 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
     assertEquals(32, experience)
   }
 
+  @Test
+  def `should give a more clear error if properties or keys are inverted`(): Unit = {
+    val musicDf = Seq(
+      (1, 12, "John Henry Bonham", "Drums"),
+      (2, 19, "John Mayer", "Guitar"),
+      (3, 32, "John Scofield", "Guitar"),
+      (4, 15, "John Butler", "Guitar")
+    ).toDF("id", "experience", "name", "instrument")
+
+    try {
+      musicDf.write
+        .format(classOf[DataSource].getName)
+        .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+        .option("database", "db1")
+        .option("relationship", "PLAYS")
+        .option("relationship.source.save.mode", "Overwrite")
+        .option("relationship.target.save.mode", "Overwrite")
+        .option("relationship.save.strategy", "keys")
+        .option("relationship.source.labels", ":Musician")
+        .option("relationship.source.node.keys", "musician_name:name")
+        .option("relationship.target.labels", ":Instrument")
+        .option("relationship.target.node.keys", "instrument:name")
+        .save()
+    } catch {
+      case sparkException: SparkException => {
+        val clientException = ExceptionUtils.getRootCause(sparkException)
+        assertTrue(clientException.getMessage.equals(
+          """Write failed due to the following errors:
+            | - Schema is missing musician_name from option `relationship.source.node.keys`
+            |
+            |The option key and value might be inverted.""".stripMargin))
+      }
+      case generic => fail(s"should be thrown a ${classOf[SparkException].getName}, got ${generic.getClass} instead")
+    }
+  }
+
+  @Test
+  def `should give a more clear error if properties or keys are inverted on different options`(): Unit = {
+    val musicDf = Seq(
+      (1, 12, "John Henry Bonham", "Drums"),
+      (2, 19, "John Mayer", "Guitar"),
+      (3, 32, "John Scofield", "Guitar"),
+      (4, 15, "John Butler", "Guitar")
+    ).toDF("id", "experience", "name", "instrument")
+
+    try {
+      musicDf.write
+        .format(classOf[DataSource].getName)
+        .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+        .option("database", "db1")
+        .option("relationship", "PLAYS")
+        .option("relationship.source.save.mode", "Overwrite")
+        .option("relationship.target.save.mode", "Overwrite")
+        .option("relationship.save.strategy", "keys")
+        .option("relationship.source.labels", ":Musician")
+        .option("relationship.source.node.keys", "musician_name:name,another_name:name")
+        .option("relationship.target.labels", ":Instrument")
+        .option("relationship.target.node.keys", "instrument_name:name")
+        .save()
+    } catch {
+      case sparkException: SparkException => {
+        val clientException = ExceptionUtils.getRootCause(sparkException)
+        assertTrue(clientException.getMessage.equals(
+          """Write failed due to the following errors:
+            | - Schema is missing instrument_name from option `relationship.target.node.keys`
+            | - Schema is missing musician_name, another_name from option `relationship.source.node.keys`
+            |
+            |The option key and value might be inverted.""".stripMargin))
+      }
+      case generic => fail(s"should be thrown a ${classOf[SparkException].getName}, got ${generic.getClass} instead")
+    }
+  }
+
+  @Test
+  def `should give a more clear error if node properties or keys are inverted`(): Unit = {
+    val musicDf = Seq(
+      (1, 12, "John Henry Bonham", "Drums"),
+      (2, 19, "John Mayer", "Guitar"),
+      (3, 32, "John Scofield", "Guitar"),
+      (4, 15, "John Butler", "Guitar")
+    ).toDF("id", "experience", "name", "instrument")
+
+    try {
+      musicDf.write
+        .format(classOf[DataSource].getName)
+        .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+        .option("database", "db1")
+        .option("labels", "Person")
+        .option("node.properties", "musician_name:name,another_name:name")
+        .save()
+    } catch {
+      case sparkException: SparkException => {
+        val clientException = ExceptionUtils.getRootCause(sparkException)
+        assertTrue(clientException.getMessage.equals(
+          """Write failed due to the following errors:
+            | - Schema is missing instrument_name from option `node.properties`
+            |
+            |The option key and value might be inverted.""".stripMargin))
+      }
+      case generic => fail(s"should be thrown a ${classOf[SparkException].getName}, got ${generic.getClass} instead")
+    }
+  }
 }

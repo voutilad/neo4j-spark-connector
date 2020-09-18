@@ -94,4 +94,17 @@ object Neo4jImplicits {
     def getAttributeWithoutEntityName: Option[String] = filter.getAttribute.map(_.split('.').tail.mkString("."))
   }
 
+  implicit class StructTypeImplicit(structType: StructType) {
+    def getFieldsName: Seq[String] = if (structType == null) {
+      Seq.empty
+    } else {
+      structType.map(structField => structField.name)
+    }
+
+    def getMissingFields(fields: Set[String]): Set[String] = {
+      val structFieldsNames = structType.getFieldsName
+      fields.filterNot(structFieldsNames.contains(_))
+    }
+  }
+
 }

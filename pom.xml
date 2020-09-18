@@ -150,7 +150,7 @@
                     <descriptorRefs>
                         <descriptorRef>jar-with-dependencies</descriptorRef>
                     </descriptorRefs>
-                    <finalName>${project.artifactId}-${scala.version.binary}-${project.version}</finalName>
+                    <finalName>${project.artifactId}-${scala.binary.version}-${project.version}</finalName>
                     <appendAssemblyId>false</appendAssemblyId>
                 </configuration>
             </plugin>
