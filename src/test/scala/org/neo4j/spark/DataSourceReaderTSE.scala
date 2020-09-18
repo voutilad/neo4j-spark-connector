@@ -744,6 +744,7 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
 
     assertEquals(5, partitionedDf.rdd.getNumPartitions)
     assertEquals(100, partitionedDf.collect().map(_.getAs[Long]("id")).toSet.size)
+    assertEquals(100, partitionedDf.collect().map(_.getAs[Long]("id")).size)
   }
 
   @Test
@@ -770,6 +771,7 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
     assertEquals(5, partitionedDf.rdd.getNumPartitions)
     partitionedDf.show()
     assertEquals(100, partitionedDf.collect().map(_.getAs[Long]("<rel.id>")).toSet.size)
+    assertEquals(100, partitionedDf.collect().map(_.getAs[Long]("<rel.id>")).size)
   }
 
   @Test
@@ -810,8 +812,10 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
       .load()
 
     assertEquals(5, partitionedDf.rdd.getNumPartitions)
-    assertEquals(150, partitionedDf.collect()
-      .map(row => s"${row.getAs[String]("person")}-${row.getAs[String]("product")}").toSet.size)
+    val rows = partitionedDf.collect()
+      .map(row => s"${row.getAs[String]("person")}-${row.getAs[String]("product")}")
+    assertEquals(150, rows.size)
+    assertEquals(150, rows.toSet.size)
 
     val partitionedQueryCountDf = ss.read.format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
@@ -827,6 +831,7 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
 
     assertEquals(6, partitionedQueryCountDf.rdd.getNumPartitions)
     assertEquals(50, partitionedQueryCountDf.collect().map(_.getAs[String]("person")).toSet.size)
+    assertEquals(50, partitionedQueryCountDf.collect().map(_.getAs[String]("person")).size)
 
     val partitionedQueryCountLiteralDf = ss.read.format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
@@ -840,6 +845,7 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
 
     assertEquals(6, partitionedQueryCountLiteralDf.rdd.getNumPartitions)
     assertEquals(50, partitionedQueryCountLiteralDf.collect().map(_.getAs[String]("person")).toSet.size)
+    assertEquals(50, partitionedQueryCountLiteralDf.collect().map(_.getAs[String]("person")).size)
   }
 
   @Test
@@ -1081,6 +1087,23 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
       }
       case _ => fail(s"should be thrown a ${classOf[IllegalArgumentException].getName}")
     }
+  }
+
+  @Test
+  def testShouldCreateTheCorrectDataframeWithTwoPartitions(): Unit = {
+    SparkConnectorScalaSuiteIT.session()
+      .writeTransaction(
+        new TransactionWork[ResultSummary] {
+          override def execute(tx: Transaction): ResultSummary = tx.run("CREATE (i1:Instrument{name: 'Drums'}), (i2:Instrument{name: 'Guitar'})").consume()
+        })
+    val df = ss.read
+      .format(classOf[DataSource].getName)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("labels", "Instrument")
+      .option("partitions", "2")
+      .load
+
+    assertEquals(2, df.count())
   }
 
   private def initTest(query: String): DataFrame = {

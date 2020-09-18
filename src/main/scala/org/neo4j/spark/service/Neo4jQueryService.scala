@@ -86,7 +86,14 @@ class Neo4jQueryReadStrategy(filters: Array[Filter] = Array.empty[Filter],
                              partitionSkipLimit: PartitionSkipLimit = PartitionSkipLimit(0, -1, -1)) extends Neo4jQueryStrategy {
   private val renderer: Renderer = Renderer.getDefaultRenderer
 
-  override def createStatementForQuery(options: Neo4jOptions): String = options.query.value
+  override def createStatementForQuery(options: Neo4jOptions): String =
+    if (partitionSkipLimit.skip != -1 && partitionSkipLimit.limit != -1) {
+      s"""${options.query.value}
+        |SKIP ${partitionSkipLimit.skip} LIMIT ${partitionSkipLimit.limit}
+        |""".stripMargin
+    } else {
+      options.query.value
+    }
 
   override def createStatementForRelationships(options: Neo4jOptions): String = {
     val sourceNode = createNode(Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS, options.relationshipMetadata.source.labels)
@@ -101,13 +108,14 @@ class Neo4jQueryReadStrategy(filters: Array[Filter] = Array.empty[Filter],
     renderer.render(buildStatement(returning))
   }
 
-  private def buildStatement(returning: StatementBuilder.OngoingReadingAndReturn) = {
+  private def buildStatement(returning: StatementBuilder.OngoingReadingAndReturn) =
     if (partitionSkipLimit.skip != -1 && partitionSkipLimit.limit != -1) {
-      returning.skip[TerminalExposesLimit with BuildableStatement](partitionSkipLimit.skip).limit(partitionSkipLimit.limit).build()
+      returning.skip[TerminalExposesLimit with BuildableStatement](partitionSkipLimit.skip)
+        .limit(partitionSkipLimit.limit)
+        .build()
     } else {
       returning.build()
     }
-  }
 
   private def filterRelationship(sourceNode: Node, targetNode: Node, relationship: Relationship) = {
     val matchQuery = Cypher.`match`(sourceNode).`match`(targetNode).`match`(relationship)
@@ -146,7 +154,8 @@ class Neo4jQueryReadStrategy(filters: Array[Filter] = Array.empty[Filter],
   override def createStatementForNodes(options: Neo4jOptions): String = {
     val node = createNode(Neo4jUtil.NODE_ALIAS, options.nodeMetadata.labels)
     val matchQuery = filterNode(node)
-    renderer.render(matchQuery.returning(node).build())
+    val returning = matchQuery.returning(node)
+    renderer.render(buildStatement(returning))
   }
 
   private def filterNode(node: Node) = {
