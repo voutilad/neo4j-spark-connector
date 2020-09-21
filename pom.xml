@@ -39,10 +39,9 @@
     <properties>
         <scala.version>2.11.12</scala.version>
         <scala.binary.version>2.11</scala.binary.version>
-        <neo4j.version>4.0.4</neo4j.version>
-        <driver.version>4.1.0</driver.version>
+        <neo4j.version>4.0.8</neo4j.version>
+        <driver.version>4.1.1</driver.version>
         <spark.version>2.4.5</spark.version>
-        <graphframes.version>0.8.0-spark3.0-s_2.12</graphframes.version>
         <testcontainers.version>1.12.5</testcontainers.version>
         <xbean.version>4.10</xbean.version>
         <cypherdsl.version>2020.0.0</cypherdsl.version>
@@ -62,6 +61,27 @@
             </activation>
         </profile>
         <profile>
+            <id>neo4j-4.0</id>
+            <properties>
+                <neo4j.version>4.0.8</neo4j.version>
+            </properties>
+            <activation>
+                <activeByDefault>true</activeByDefault>
+            </activation>
+        </profile>
+        <profile>
+            <id>neo4j-3.5</id>
+            <properties>
+                <neo4j.version>3.5.22</neo4j.version>
+            </properties>
+        </profile>
+        <profile>
+            <id>neo4j-4.1</id>
+            <properties>
+                <neo4j.version>4.1.1</neo4j.version>
+            </properties>
+        </profile>
+        <profile>
             <id>scala-2.12</id>
             <properties>
                 <scala.version>2.12.12</scala.version>
@@ -77,6 +97,12 @@
                 <filtering>true</filtering>
             </resource>
         </resources>
+        <testResources>
+            <testResource>
+                <directory>src/test/resources</directory>
+                <filtering>true</filtering>
+            </testResource>
+        </testResources>
         <plugins>
             <plugin>
                 <artifactId>maven-surefire-plugin</artifactId>

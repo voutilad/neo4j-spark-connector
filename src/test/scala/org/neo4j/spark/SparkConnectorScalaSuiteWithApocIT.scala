@@ -9,12 +9,12 @@ import org.neo4j.Neo4jContainerExtension
 import org.neo4j.driver.summary.ResultSummary
 import org.neo4j.driver._
 import org.neo4j.spark.SparkConnectorScalaSuiteIT.ss
-import org.neo4j.spark.service.SchemaServiceWithApocTSE
+import org.neo4j.spark.service.{SchemaServiceTSE, SchemaServiceWithApocTSE}
 import org.neo4j.spark.util.Neo4jUtil
 
 
 object SparkConnectorScalaSuiteWithApocIT {
-  val server: Neo4jContainerExtension = new Neo4jContainerExtension("neo4j:4.0.8-enterprise")
+  val server: Neo4jContainerExtension = new Neo4jContainerExtension(s"neo4j:${TestUtil.neo4jVersion()}-enterprise")
     .withNeo4jConfig("dbms.security.auth_enabled", "false")
     .withEnv("NEO4J_ACCEPT_LICENSE_AGREEMENT", "yes")
     .withEnv("NEO4JLABS_PLUGINS", "[\"apoc\"]")
@@ -40,7 +40,9 @@ object SparkConnectorScalaSuiteWithApocIT {
       conf = new SparkConf().setAppName("neoTest")
         .setMaster("local[*]")
       ss = SparkSession.builder.config(conf).getOrCreate()
-      ss.sparkContext.setLogLevel("ERROR")
+      if (TestUtil.isTravis()) {
+        ss.sparkContext.setLogLevel("ERROR")
+      }
       driver = GraphDatabase.driver(server.getBoltUrl, AuthTokens.none())
       session()
         .readTransaction(new TransactionWork[ResultSummary] {
@@ -83,6 +85,7 @@ object SparkConnectorScalaSuiteWithApocIT {
 @RunWith(classOf[Suite])
 @Suite.SuiteClasses(Array(
   classOf[SchemaServiceWithApocTSE],
-  classOf[DataSourceReaderWithApocTSE]
+  classOf[DataSourceReaderWithApocTSE],
+  classOf[DataSourceReader4xTSE]
 ))
 class SparkConnectorScalaSuiteWithApocIT {}

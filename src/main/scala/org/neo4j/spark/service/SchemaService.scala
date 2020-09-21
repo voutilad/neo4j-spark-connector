@@ -22,6 +22,7 @@ object PartitionSkipLimit {
   val EMPTY = PartitionSkipLimit(0, -1, -1)
 }
 case class PartitionSkipLimit(partitionNumber: Int, skip: Long, limit: Long)
+case class Neo4jVersion(name: String, versions: Seq[String], edition: String)
 
 class SchemaService(private val options: Neo4jOptions, private val driverCache: DriverCache, private val filters: Array[Filter] = Array.empty)
   extends AutoCloseable with Logging {
@@ -343,26 +344,58 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
     }
   }
 
+  def neo4jVersion() = session
+    .run("CALL dbms.components()")
+    .single()
+    .asMap()
+    .asScala
+    .mapResult[Neo4jVersion](m => Neo4jVersion(m("name").asInstanceOf[String],
+      m("versions").asInstanceOf[util.List[String]].asScala,
+      m("edition").asInstanceOf[String]))
+    .result()
+
+
   private def createIndexOrConstraint(action: OptimizationType.Value, label: String, props: Seq[String]): Unit = action match {
     case OptimizationType.NONE => log.info("No optimization type provided")
     case _ => {
-      val quotedLabel = label.quote()
-      val quotedProps = props.map(prop => s"${Neo4jUtil.NODE_ALIAS}.${prop.quote()}").mkString(", ")
-      val (querySuffix, creationType, uniqueness) = action match {
-        case OptimizationType.INDEX => (s"FOR (${Neo4jUtil.NODE_ALIAS}:$quotedLabel) ON ($quotedProps)", "INDEX", "NONUNIQUE")
-        case OptimizationType.NODE_CONSTRAINTS => {
-          val assertType = if (props.size > 1) "NODE KEY" else "UNIQUE"
-          (s"ON (${Neo4jUtil.NODE_ALIAS}:$quotedLabel) ASSERT ($quotedProps) IS $assertType", "CONSTRAINT", "UNIQUE")
+      try {
+        val isNeo4j35 = neo4jVersion().versions(0).startsWith("3.5")
+        val quotedLabel = label.quote()
+        val quotedProps = props
+          .map(prop => s"${Neo4jUtil.NODE_ALIAS}.${prop.quote()}")
+          .mkString(", ")
+        val (querySuffix, uniqueness) = action match {
+          case OptimizationType.INDEX => {
+            if (isNeo4j35) {
+              (s"ON :$quotedLabel(${props.map(_.quote()).mkString(",")})", "node_label_property")
+            } else {
+              (s"FOR (${Neo4jUtil.NODE_ALIAS}:$quotedLabel) ON ($quotedProps)", "NONUNIQUE")
+            }
+          }
+          case OptimizationType.NODE_CONSTRAINTS => {
+            val assertType = if (props.size > 1) "NODE KEY" else "UNIQUE"
+            val uniquenessValue = if (isNeo4j35) {
+              "node_unique_property"
+            } else {
+              "UNIQUE"
+            }
+            (s"ON (${Neo4jUtil.NODE_ALIAS}:$quotedLabel) ASSERT ($quotedProps) IS $assertType", uniquenessValue)
+          }
         }
-      }
-      val actionName = s"spark_${creationType}_$label".quote()
-      val queryPrefix = s"CREATE $creationType $actionName"
-
-      val status = try {
-        val queryCheck = """CALL db.indexes() YIELD labelsOrTypes, properties, uniqueness
-                           |WHERE labelsOrTypes = $labels AND properties = $properties AND uniqueness = $uniqueness
+        val (labelIndexFieldName, uniqueFieldName, actionName) = if (isNeo4j35) {
+          ("tokenNames", "type", "")
+        } else {
+          ("labelsOrTypes", "uniqueness", s"spark_${action.toString}_$label".quote())
+        }
+        val queryPrefix = action match {
+          case OptimizationType.INDEX => s"CREATE INDEX $actionName"
+          case OptimizationType.NODE_CONSTRAINTS => s"CREATE CONSTRAINT $actionName"
+        }
+        val queryCheck = s"""CALL db.indexes() YIELD $labelIndexFieldName, properties, $uniqueFieldName
+                           |WHERE $labelIndexFieldName = ${'$'}labels
+                           |AND properties = ${'$'}properties
+                           |AND $uniqueFieldName = ${'$'}uniqueness
                            |RETURN count(*) > 0 AS isPresent""".stripMargin
-
         val isPresent = session.run(queryCheck, Map("labels" -> Seq(label).asJava,
           "properties" -> props.asJava,
           "uniqueness" -> uniqueness).asJava)
@@ -370,7 +403,7 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
           .get("isPresent")
           .asBoolean()
 
-        if (isPresent) {
+        val status = if (isPresent) {
           "KEPT"
         } else {
           val query = s"$queryPrefix $querySuffix"
@@ -378,14 +411,9 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
           session.run(query)
           "CREATED"
         }
+        log.info(s"Status for $action named with label $quotedLabel and props $quotedProps is: $status")
       } catch {
-        case e: Throwable => {
-          log.info("Cannot perform the optimization query because of the following exception:", e)
-          "ERROR"
-        }
-      }
-      if (status != "ERROR") {
-        log.info(s"Status for $action named $actionName with label $quotedLabel and props $quotedProps is: $status")
+        case e: Throwable => log.info("Cannot perform the optimization query because of the following exception:", e)
       }
     }
   }
@@ -419,28 +447,43 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
     }
   }
 
-  def execute(queries: Seq[String]): util.List[util.Map[String, AnyRef]] = session
-    .writeTransaction(new TransactionWork[util.List[java.util.Map[String, AnyRef]]]{
-      override def execute(transaction: Transaction): util.List[util.Map[String, AnyRef]] = {
-        queries.size match {
-          case 0 => Collections.emptyList()
-          case 1 => transaction.run(queries(0)).list()
-            .asScala
-            .map(_.asMap())
-            .asJava
-          case _ => {
-            queries
-              .slice(0, queries.size - 1)
-              .foreach(transaction.run(_))
-            val result = transaction.run(queries.last).list()
+  def execute(queries: Seq[String]): util.List[util.Map[String, AnyRef]] = {
+    val queryMap = queries
+      .map(query => {
+        (session.run(s"EXPLAIN $query").consume().queryType(), query)
+      })
+      .groupBy(_._1)
+      .mapValues(_.map(_._2))
+    val schemaQueries = queryMap.getOrElse(org.neo4j.driver.summary.QueryType.SCHEMA_WRITE, Seq.empty[String])
+    schemaQueries.foreach(session.run(_))
+    val others = queryMap
+      .filterKeys(key => key != org.neo4j.driver.summary.QueryType.SCHEMA_WRITE)
+      .values
+      .flatten
+      .toSeq
+    session
+      .writeTransaction(new TransactionWork[util.List[java.util.Map[String, AnyRef]]]{
+        override def execute(transaction: Transaction): util.List[util.Map[String, AnyRef]] = {
+          others.size match {
+            case 0 => Collections.emptyList()
+            case 1 => transaction.run(others(0)).list()
               .asScala
               .map(_.asMap())
               .asJava
-            result
+            case _ => {
+              others
+                .slice(0, queries.size - 1)
+                .foreach(transaction.run(_))
+              val result = transaction.run(others.last).list()
+                .asScala
+                .map(_.asMap())
+                .asJava
+              result
+            }
           }
         }
-      }
-    })
+      })
+  }
 
   override def close(): Unit = {
     Neo4jUtil.closeSafety(session)

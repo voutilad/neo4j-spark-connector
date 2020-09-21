@@ -106,7 +106,13 @@ class Neo4jDataWriter(jobId: String,
   }
 
   override def abort(): Unit = {
-    transaction.rollback()
+    if (transaction != null && transaction.isOpen) {
+      try {
+        transaction.rollback()
+      } catch {
+        case e: Throwable => log.warn("Cannot rollback the transaction because of the following exception", e)
+      }
+    }
     close
     Unit
   }

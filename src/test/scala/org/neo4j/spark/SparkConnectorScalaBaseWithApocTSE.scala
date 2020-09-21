@@ -51,7 +51,7 @@ class SparkConnectorScalaBaseWithApocTSE {
 
   @After
   def after() {
-    if (!Option(System.getenv("TRAVIS")).getOrElse("false").toBoolean) {
+    if (!TestUtil.isTravis()) {
       try {
         utils.Assert.assertEventually(new utils.Assert.ThrowingSupplier[Boolean, Exception] {
           override def get(): Boolean = {
