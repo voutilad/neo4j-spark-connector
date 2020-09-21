@@ -39,7 +39,7 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
         retrieveSchemaFromApoc(query, params)
       } catch {
         case e: ClientException =>
-          log.warn("Switching to query schema resolution because of the following exception:", e)
+          log.warn("Switching to query schema resolution because of the following exception:", e.getMessage)
           // TODO get back to Cypher DSL when rand function will be available
           val query = s"""MATCH (${Neo4jUtil.NODE_ALIAS}:${labels.map(_.quote()).mkString(":")})
             |RETURN ${Neo4jUtil.NODE_ALIAS}
@@ -127,7 +127,7 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
         retrieveSchemaFromApoc(query, params)
       } catch {
         case e: ClientException =>
-          log.warn("Switching to query schema resolution because of the following exception:", e)
+          log.warn("Switching to query schema resolution because of the following exception:", e.getMessage)
           // TODO get back to Cypher DSL when rand function will be available
           val query = s"""MATCH (${Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS}:${options.relationshipMetadata.source.labels.map(_.quote()).mkString(":")})
             |MATCH (${Neo4jUtil.RELATIONSHIP_TARGET_ALIAS}:${options.relationshipMetadata.target.labels.map(_.quote()).mkString(":")})
@@ -264,14 +264,14 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
     }
   } catch {
     case e: ClientException => {
-      log.warn("Switching to query count resolution because of the following exception:", e)
+      log.warn("Switching to query count resolution because of the following exception:", e.getMessage)
       countForRelationshipWithQuery(filters)
     }
     case e: Throwable => logExceptionForCount(e)
   }
 
   private def logExceptionForCount(e: Throwable): Long = {
-    log.error("Cannot compute the count because the following exception:", e)
+    log.error("Cannot compute the count because the following exception:", e.getMessage)
     -1
   }
 
