@@ -36,7 +36,6 @@ object Validations {
             s"${Neo4jOptions.RELATIONSHIP_SOURCE_LABELS} is required when Save Mode is Overwrite")
           ValidationUtil.isNotEmpty(neo4jOptions.relationshipMetadata.target.labels,
             s"${Neo4jOptions.RELATIONSHIP_TARGET_LABELS} is required when Save Mode is Overwrite")
-          schemaService.structForRelationship()
         }
       }
     } finally {
