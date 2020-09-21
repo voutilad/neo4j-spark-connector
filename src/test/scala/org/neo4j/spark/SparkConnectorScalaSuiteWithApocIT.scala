@@ -8,6 +8,7 @@ import org.junit.{AfterClass, Assume, BeforeClass}
 import org.neo4j.Neo4jContainerExtension
 import org.neo4j.driver.summary.ResultSummary
 import org.neo4j.driver._
+import org.neo4j.spark.SparkConnectorScalaSuiteIT.ss
 import org.neo4j.spark.service.SchemaServiceWithApocTSE
 import org.neo4j.spark.util.Neo4jUtil
 
@@ -39,6 +40,7 @@ object SparkConnectorScalaSuiteWithApocIT {
       conf = new SparkConf().setAppName("neoTest")
         .setMaster("local[*]")
       ss = SparkSession.builder.config(conf).getOrCreate()
+      ss.sparkContext.setLogLevel("ERROR")
       driver = GraphDatabase.driver(server.getBoltUrl, AuthTokens.none())
       session()
         .readTransaction(new TransactionWork[ResultSummary] {
