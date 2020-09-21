@@ -11,7 +11,7 @@ import org.neo4j.driver.types.Node
 import org.neo4j.driver.{Record, Value, Values}
 import org.neo4j.spark.service.Neo4jWriteMappingStrategy.{KEYS, PROPERTIES}
 import org.neo4j.spark.util.{Neo4jUtil, Validations}
-import org.neo4j.spark.{Neo4jOptions, QueryType, RelationshipSaveStrategy}
+import org.neo4j.spark.{Neo4jNodeMetadata, Neo4jOptions, QueryType, RelationshipSaveStrategy}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -65,23 +65,23 @@ class Neo4jWriteMappingStrategy(private val options: Neo4jOptions)
     }
   }
 
+  private def addToNodeMap(nodeMap: util.Map[String, util.Map[String, AnyRef]], nodeMetadata: Neo4jNodeMetadata, key: String, value: AnyRef): Unit = {
+    if (nodeMetadata.nodeKeys.contains(key)) {
+      nodeMap.get(KEYS).put(nodeMetadata.nodeKeys.getOrElse(key, key), value)
+    }
+    if (nodeMetadata.nodeProps.contains(key)) {
+      nodeMap.get(PROPERTIES).put(nodeMetadata.nodeProps.getOrElse(key, key), value)
+    }
+  }
+
   private def keysStrategyConsumer(): MappingBiConsumer = new MappingBiConsumer {
     override def accept(key: String, value: AnyRef): Unit = {
       val source = options.relationshipMetadata.source
       val target = options.relationshipMetadata.target
 
-      if (source.nodeKeys.contains(key)) {
-        sourceNodeMap.get(KEYS).put(source.nodeKeys.getOrElse(key, key), value)
-      }
-      if (source.nodeProps.contains(key)) {
-        sourceNodeMap.get(PROPERTIES).put(source.nodeProps.getOrElse(key, key), value)
-      }
-      if (target.nodeKeys.contains(key)) {
-        targetNodeMap.get(KEYS).put(target.nodeKeys.getOrElse(key, key), value)
-      }
-      if (target.nodeProps.contains(key)) {
-        targetNodeMap.get(PROPERTIES).put(target.nodeProps.getOrElse(key, key), value)
-      }
+      addToNodeMap(sourceNodeMap, source, key, value)
+      addToNodeMap(targetNodeMap, target, key, value)
+
       if (options.relationshipMetadata.properties.contains(key)) {
         relMap.get(PROPERTIES).put(options.relationshipMetadata.properties.getOrElse(key, key), value)
       }
