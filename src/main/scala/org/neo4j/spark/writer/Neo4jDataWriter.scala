@@ -54,7 +54,6 @@ class Neo4jDataWriter(jobId: String,
         s"""Writing a batch of ${batch.size()} elements to Neo4j,
            |for jobId=$jobId and partitionId=$partitionId
            |with query: $query
-           |and params: $batch
            |""".stripMargin)
       val result = transaction.run(query,
         Values.value(Collections.singletonMap[String, Object]("events", batch)))

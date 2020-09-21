@@ -662,11 +662,6 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
 
   @Test
   def `should read and write relations with append mode`(): Unit = {
-    SparkConnectorScalaSuiteIT.session()
-      .writeTransaction(new TransactionWork[Result] {
-        override def execute(transaction: Transaction): Result = transaction.run("CREATE CONSTRAINT ON (i:Instrument) ASSERT i.name IS UNIQUE")
-      })
-
     val total = 100
     val fixtureQuery: String =
       s"""UNWIND range(1, $total) as id
@@ -762,20 +757,10 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       2,
       dfCopy.where("`source.id` = 1").count()
     )
-
-    SparkConnectorScalaSuiteIT.session()
-      .writeTransaction(new TransactionWork[Result] {
-        override def execute(transaction: Transaction): Result = transaction.run("DROP CONSTRAINT ON (i:Instrument) ASSERT i.name IS UNIQUE")
-      })
   }
 
   @Test
   def `should read and write relations with overwrite mode`(): Unit = {
-    SparkConnectorScalaSuiteIT.session()
-      .writeTransaction(new TransactionWork[Result] {
-        override def execute(transaction: Transaction): Result = transaction.run("CREATE CONSTRAINT ON (i:Instrument) ASSERT i.name IS UNIQUE")
-      })
-
     val total = 100
     val fixtureQuery: String =
       s"""UNWIND range(1, $total) as id
@@ -868,11 +853,6 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       1,
       dfCopy.where("`source.id` = 1").count()
     )
-
-    SparkConnectorScalaSuiteIT.session()
-      .writeTransaction(new TransactionWork[Result] {
-        override def execute(transaction: Transaction): Result = transaction.run("DROP CONSTRAINT ON (i:Instrument) ASSERT i.name IS UNIQUE")
-      })
   }
 
   @Test
