@@ -818,7 +818,6 @@ class DataSourceReaderWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
       .load()
 
     assertEquals(5, partitionedDf.rdd.getNumPartitions)
-    partitionedDf.show()
     assertEquals(100, partitionedDf.collect().map(_.getAs[Long]("<rel.id>")).toSet.size)
   }
 

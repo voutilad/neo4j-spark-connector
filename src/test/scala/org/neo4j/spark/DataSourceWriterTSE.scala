@@ -567,6 +567,11 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
 
   @Test
   def `should handle unusual column names`(): Unit = {
+    SparkConnectorScalaSuiteIT.session()
+      .writeTransaction(new TransactionWork[Result] {
+        override def execute(transaction: Transaction): Result = transaction.run("CREATE CONSTRAINT ON (i:Instrument) ASSERT i.name IS UNIQUE")
+      })
+
     val musicDf = Seq(
       (12, "John Bonham", "Drums", "f``````oo"),
       (19, "John Mayer", "Guitar", "bar"),
@@ -581,12 +586,17 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .option("relationship.save.strategy", "keys")
       .option("relationship.source.labels", ":Musician")
       .option("relationship.source.save.mode", "Overwrite")
-      .option("relationship.source.node.keys", "name:name")
+      .option("relationship.source.node.keys", "name")
       .option("relationship.source.node.properties", "fi``(╯°□°)╯︵ ┻━┻eld:field")
       .option("relationship.target.labels", ":Instrument")
       .option("relationship.target.node.keys", "instrument:name")
       .option("relationship.target.save.mode", "Overwrite")
       .save()
+
+    SparkConnectorScalaSuiteIT.session()
+      .writeTransaction(new TransactionWork[Result] {
+        override def execute(transaction: Transaction): Result = transaction.run("DROP CONSTRAINT ON (i:Instrument) ASSERT i.name IS UNIQUE")
+      })
 
     val musicDfCheck = ss.read.format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
@@ -596,7 +606,8 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .option("relationship.target.labels", ":Instrument")
       .load()
 
-    assertEquals(4, musicDfCheck.count())
+    val size = musicDfCheck.count
+    assertEquals(4, size)
 
     val res = musicDfCheck.orderBy("`source.name`").collectAsList()
 
@@ -651,6 +662,11 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
 
   @Test
   def `should read and write relations with append mode`(): Unit = {
+    SparkConnectorScalaSuiteIT.session()
+      .writeTransaction(new TransactionWork[Result] {
+        override def execute(transaction: Transaction): Result = transaction.run("CREATE CONSTRAINT ON (i:Instrument) ASSERT i.name IS UNIQUE")
+      })
+
     val total = 100
     val fixtureQuery: String =
       s"""UNWIND range(1, $total) as id
@@ -746,10 +762,20 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       2,
       dfCopy.where("`source.id` = 1").count()
     )
+
+    SparkConnectorScalaSuiteIT.session()
+      .writeTransaction(new TransactionWork[Result] {
+        override def execute(transaction: Transaction): Result = transaction.run("DROP CONSTRAINT ON (i:Instrument) ASSERT i.name IS UNIQUE")
+      })
   }
 
   @Test
   def `should read and write relations with overwrite mode`(): Unit = {
+    SparkConnectorScalaSuiteIT.session()
+      .writeTransaction(new TransactionWork[Result] {
+        override def execute(transaction: Transaction): Result = transaction.run("CREATE CONSTRAINT ON (i:Instrument) ASSERT i.name IS UNIQUE")
+      })
+
     val total = 100
     val fixtureQuery: String =
       s"""UNWIND range(1, $total) as id
@@ -842,6 +868,11 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       1,
       dfCopy.where("`source.id` = 1").count()
     )
+
+    SparkConnectorScalaSuiteIT.session()
+      .writeTransaction(new TransactionWork[Result] {
+        override def execute(transaction: Transaction): Result = transaction.run("DROP CONSTRAINT ON (i:Instrument) ASSERT i.name IS UNIQUE")
+      })
   }
 
   @Test
@@ -922,6 +953,11 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
 
   @Test
   def `should read and write relations with MERGE and node keys`(): Unit = {
+    SparkConnectorScalaSuiteIT.session()
+      .writeTransaction(new TransactionWork[Result] {
+        override def execute(transaction: Transaction): Result = transaction.run("CREATE CONSTRAINT ON (i:Instrument) ASSERT i.name IS UNIQUE")
+      })
+
     val total = 100
     val fixtureQuery: String =
       s"""UNWIND range(1, $total) as id
@@ -990,6 +1026,11 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
         dfCopy.select("`target.id`").collectAsList().get(i).getLong(0)
       )
     }
+
+    SparkConnectorScalaSuiteIT.session()
+      .writeTransaction(new TransactionWork[Result] {
+        override def execute(transaction: Transaction): Result = transaction.run("DROP CONSTRAINT ON (i:Instrument) ASSERT i.name IS UNIQUE")
+      })
   }
 
   @Test
@@ -1021,8 +1062,6 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .option("relationship.source.labels", ":Musician")
       .option("relationship.target.labels", ":Instrument")
       .load()
-
-    df2.show()
 
     assertEquals(4, df2.count())
 
@@ -1072,8 +1111,6 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .option("relationship.target.labels", ":Instrument")
       .load()
 
-    df2.show()
-
     SparkConnectorScalaSuiteIT.driver.session().run(
       """MATCH (source:`Musician`)
         |MATCH (target:`Instrument`)
@@ -1092,8 +1129,6 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       })
 
     assertEquals(4, df2.count())
-
-    df2.show()
 
     val res = df2.orderBy("`source.name`").collectAsList()
 
@@ -1195,7 +1230,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .option("relationship.target.save.mode", "Match")
       .option("relationship.save.strategy", "keys")
       .option("relationship.source.labels", ":Musician")
-      .option("relationship.source.node.keys", "name:name,age:age")
+      .option("relationship.source.node.keys", "name,age")
       .option("relationship.target.labels", ":Instrument")
       .option("relationship.target.node.keys", "instrument:name")
       .save()
