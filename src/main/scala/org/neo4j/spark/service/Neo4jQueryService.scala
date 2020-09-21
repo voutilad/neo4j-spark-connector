@@ -13,14 +13,15 @@ import scala.collection.JavaConverters._
 
 class Neo4jQueryWriteStrategy(private val saveMode: SaveMode) extends Neo4jQueryStrategy {
   override def createStatementForQuery(options: Neo4jOptions): String =
-    s"""UNWIND ${"$"}events AS $BATCH_VARIABLE
+    s"""WITH ${"$"}scriptResult AS ${Neo4jQueryStrategy.VARIABLE_SCRIPT_RESULT}
+       |UNWIND ${"$"}events AS ${Neo4jQueryStrategy.VARIABLE_EVENT}
        |${options.query.value}
        |""".stripMargin
 
   private def createPropsList(props: Map[String, String], prefix: String): String = {
     props
       .map(key => {
-        s"${key._2.quote()}: $BATCH_VARIABLE.$prefix.${key._2.quote()}"
+        s"${key._2.quote()}: ${Neo4jQueryStrategy.VARIABLE_EVENT}.$prefix.${key._2.quote()}"
       }).mkString(", ")
   }
 
@@ -34,7 +35,7 @@ class Neo4jQueryWriteStrategy(private val saveMode: SaveMode) extends Neo4jQuery
   }
 
   private def createQueryPart(keyword: String, labels: String, keys: String, alias: String): String = {
-    val setStatement = if (!keyword.equals("MATCH")) s" SET $alias += $BATCH_VARIABLE.$alias.${Neo4jWriteMappingStrategy.PROPERTIES}" else ""
+    val setStatement = if (!keyword.equals("MATCH")) s" SET $alias += ${Neo4jQueryStrategy.VARIABLE_EVENT}.$alias.${Neo4jWriteMappingStrategy.PROPERTIES}" else ""
     s"""$keyword ($alias${if (labels.isEmpty) "" else s":$labels"} ${if (keys.isEmpty) "" else s"{$keys}"})$setStatement""".stripMargin
   }
 
@@ -53,6 +54,7 @@ class Neo4jQueryWriteStrategy(private val saveMode: SaveMode) extends Neo4jQuery
       .map(_.quote())
       .mkString(":")
 
+
     val sourceKeys = createPropsList(
       options.relationshipMetadata.source.nodeKeys,
       s"source.${Neo4jWriteMappingStrategy.KEYS}"
@@ -64,11 +66,11 @@ class Neo4jQueryWriteStrategy(private val saveMode: SaveMode) extends Neo4jQuery
     val sourceQueryPart = createQueryPart(sourceKeyword, sourceLabels, sourceKeys, Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS)
     val targetQueryPart = createQueryPart(targetKeyword, targetLabels, targetKeys, Neo4jUtil.RELATIONSHIP_TARGET_ALIAS)
 
-    s"""UNWIND ${"$"}events AS $BATCH_VARIABLE
+    s"""UNWIND ${"$"}events AS ${Neo4jQueryStrategy.VARIABLE_EVENT}
        |$sourceQueryPart
        |$targetQueryPart
        |$relationshipKeyword (${Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS})-[${Neo4jUtil.RELATIONSHIP_ALIAS}:${relationship}]->(${Neo4jUtil.RELATIONSHIP_TARGET_ALIAS})
-       |SET ${Neo4jUtil.RELATIONSHIP_ALIAS} += $BATCH_VARIABLE.${Neo4jUtil.RELATIONSHIP_ALIAS}.${Neo4jWriteMappingStrategy.PROPERTIES}
+       |SET ${Neo4jUtil.RELATIONSHIP_ALIAS} += ${Neo4jQueryStrategy.VARIABLE_EVENT}.${Neo4jUtil.RELATIONSHIP_ALIAS}.${Neo4jWriteMappingStrategy.PROPERTIES}
        |""".stripMargin
   }
 
@@ -79,14 +81,14 @@ class Neo4jQueryWriteStrategy(private val saveMode: SaveMode) extends Neo4jQuery
       .map(_.quote())
       .mkString(":")
 
-    val keys =  createPropsList(
+    val keys = createPropsList(
       options.nodeMetadata.nodeKeys,
       Neo4jWriteMappingStrategy.KEYS
     )
 
-    s"""UNWIND ${"$"}events AS $BATCH_VARIABLE
+    s"""UNWIND ${"$"}events AS ${Neo4jQueryStrategy.VARIABLE_EVENT}
        |$keyword (node${if (labels.isEmpty) "" else s":$labels"} ${if (keys.isEmpty) "" else s"{$keys}"})
-       |SET node += $BATCH_VARIABLE.${Neo4jWriteMappingStrategy.PROPERTIES}
+       |SET node += ${Neo4jQueryStrategy.VARIABLE_EVENT}.${Neo4jWriteMappingStrategy.PROPERTIES}
        |""".stripMargin
   }
 }
@@ -220,8 +222,13 @@ class Neo4jQueryReadStrategy(filters: Array[Filter] = Array.empty[Filter],
   }
 }
 
+object Neo4jQueryStrategy {
+  val VARIABLE_EVENT = "event"
+  val VARIABLE_EVENTS = "events"
+  val VARIABLE_SCRIPT_RESULT = "scriptResult"
+}
+
 abstract class Neo4jQueryStrategy {
-  val BATCH_VARIABLE = "event"
 
   def createStatementForQuery(options: Neo4jOptions): String
 

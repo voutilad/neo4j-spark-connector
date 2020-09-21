@@ -6,10 +6,9 @@ import java.util.Collections
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.types.{DataType, DataTypes, StructField, StructType}
-import org.neo4j.cypherdsl.core.Cypher
 import org.neo4j.driver.exceptions.ClientException
 import org.neo4j.driver.types.Entity
-import org.neo4j.driver.{Record, Session}
+import org.neo4j.driver.{Record, Session, Transaction, TransactionWork}
 import org.neo4j.spark.service.SchemaService.{cypherToSparkType, normalizedClassName, normalizedClassNameFromGraphEntity}
 import org.neo4j.spark.util.Neo4jImplicits.{CypherImplicits, EntityImplicits}
 import org.neo4j.spark.util.{Neo4jUtil, ValidationUtil}
@@ -331,9 +330,9 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
     }
   }
 
-  def isQueryType(query: String, expectedQueryTypes: org.neo4j.driver.summary.QueryType*): Boolean = try {
+  def isValidQuery(query: String, expectedQueryTypes: org.neo4j.driver.summary.QueryType*): Boolean = try {
     val queryType = session.run(s"EXPLAIN $query").consume().queryType()
-    expectedQueryTypes.contains(queryType)
+    expectedQueryTypes.size == 0 || expectedQueryTypes.contains(queryType)
   } catch {
     case e: Throwable => {
       log.error("Query not compiled because of the following exception:", e)
@@ -407,51 +406,57 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
     }
   }
 
-  def createOptimizationsForNode(): Unit = options.schemaMetadata.optimizationType match {
-    case OptimizationType.QUERY => createOptimizationsForQuery()
+  private def createOptimizationsForNode(): Unit = options.schemaMetadata.optimizationType match {
     case OptimizationType.INDEX | OptimizationType.NODE_CONSTRAINTS => {
       createIndexOrConstraint(options.schemaMetadata.optimizationType,
         options.nodeMetadata.labels.head,
         options.nodeMetadata.nodeKeys.values.toSeq)
     }
+    case _ => // do nothing
   }
 
-  def createOptimizationsForRelationship(): Unit = {
-    options.schemaMetadata.optimizationType match {
-      case OptimizationType.QUERY => createOptimizationsForQuery()
-      case _ => {
-        createIndexOrConstraint(options.schemaMetadata.optimizationType,
-          options.relationshipMetadata.source.labels.head,
-          options.relationshipMetadata.source.nodeKeys.values.toSeq)
-        createIndexOrConstraint(options.schemaMetadata.optimizationType,
-          options.relationshipMetadata.target.labels.head,
-          options.relationshipMetadata.target.nodeKeys.values.toSeq)
-      }
+  private def createOptimizationsForRelationship(): Unit = options.schemaMetadata.optimizationType match {
+    case OptimizationType.INDEX | OptimizationType.NODE_CONSTRAINTS => {
+      createIndexOrConstraint(options.schemaMetadata.optimizationType,
+        options.relationshipMetadata.source.labels.head,
+        options.relationshipMetadata.source.nodeKeys.values.toSeq)
+      createIndexOrConstraint(options.schemaMetadata.optimizationType,
+        options.relationshipMetadata.target.labels.head,
+        options.relationshipMetadata.target.nodeKeys.values.toSeq)
     }
+    case _ => // do nothing
   }
-
-  def createOptimizationsForQuery(): Unit = options.schemaMetadata.optimizationQuery
-    .foreach(query => {
-      try {
-        log.info(s"Executing the following optimization query on Neo4j: $query")
-        session.run(query).consume()
-      } catch {
-        case e: Throwable => {
-          log.error(s"Cannot perform the optimization query $query because of the following exception:", e)
-        }
-      }
-    })
 
   def createOptimizations(): Unit = {
-    if (options.schemaMetadata.optimizationType == OptimizationType.NONE) {
-      return Unit
-    }
     options.query.queryType match {
       case QueryType.LABELS => createOptimizationsForNode()
       case QueryType.RELATIONSHIP => createOptimizationsForRelationship()
-      case QueryType.QUERY => createOptimizationsForQuery()
+      case _ => // do nothing
     }
   }
+
+  def execute(queries: Seq[String]): util.List[util.Map[String, AnyRef]] = session
+    .writeTransaction(new TransactionWork[util.List[java.util.Map[String, AnyRef]]]{
+      override def execute(transaction: Transaction): util.List[util.Map[String, AnyRef]] = {
+        queries.size match {
+          case 0 => Collections.emptyList()
+          case 1 => transaction.run(queries(0)).list()
+            .asScala
+            .map(_.asMap())
+            .asJava
+          case _ => {
+            queries
+              .slice(0, queries.size - 1)
+              .foreach(transaction.run(_))
+            val result = transaction.run(queries.last).list()
+              .asScala
+              .map(_.asMap())
+              .asJava
+            result
+          }
+        }
+      }
+    })
 
   override def close(): Unit = {
     Neo4jUtil.closeSafety(session)

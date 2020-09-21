@@ -26,8 +26,9 @@ class Neo4jDataSourceWriter(jobId: String,
   override def createWriterFactory(): DataWriterFactory[InternalRow] = {
     val schemaService = new SchemaService(neo4jOptions, driverCache)
     schemaService.createOptimizations()
+    val scriptResult = schemaService.execute(neo4jOptions.script)
     schemaService.close()
-    new Neo4jDataWriterFactory(jobId, structType, saveMode, neo4jOptions)
+    new Neo4jDataWriterFactory(jobId, structType, saveMode, neo4jOptions, scriptResult)
   }
 
   override def commit(messages: Array[WriterCommitMessage]): Unit = {

@@ -1,7 +1,6 @@
 package org.neo4j.spark.writer
 
 import java.util
-import java.util.Collections
 import java.util.concurrent.CountDownLatch
 
 import org.apache.spark.internal.Logging
@@ -11,16 +10,19 @@ import org.apache.spark.sql.sources.v2.writer.{DataWriter, WriterCommitMessage}
 import org.apache.spark.sql.types.StructType
 import org.neo4j.driver.exceptions.{Neo4jException, ServiceUnavailableException, SessionExpiredException}
 import org.neo4j.driver.{Session, Transaction, Values}
-import org.neo4j.spark.service.{MappingService, Neo4jQueryService, Neo4jQueryWriteStrategy, Neo4jWriteMappingStrategy}
-import org.neo4j.spark.util.Neo4jUtil._
+import org.neo4j.spark.service.{MappingService, Neo4jQueryService, Neo4jQueryStrategy, Neo4jQueryWriteStrategy, Neo4jWriteMappingStrategy}
 import org.neo4j.spark.util.Neo4jUtil
-import org.neo4j.spark.{DriverCache, Neo4jOptions, NodeSaveMode}
+import org.neo4j.spark.util.Neo4jUtil._
+import org.neo4j.spark.{DriverCache, Neo4jOptions}
+
+import scala.collection.JavaConverters._
 
 class Neo4jDataWriter(jobId: String,
                       partitionId: Int,
                       structType: StructType,
                       saveMode: SaveMode,
-                      options: Neo4jOptions) extends DataWriter[InternalRow] with Logging {
+                      options: Neo4jOptions,
+                      scriptResult: java.util.List[java.util.Map[String, AnyRef]]) extends DataWriter[InternalRow] with Logging {
 
   private val driverCache: DriverCache = new DriverCache(options.connection, jobId)
 
@@ -56,7 +58,8 @@ class Neo4jDataWriter(jobId: String,
            |with query: $query
            |""".stripMargin)
       val result = transaction.run(query,
-        Values.value(Collections.singletonMap[String, Object]("events", batch)))
+        Values.value(Map[String, AnyRef](Neo4jQueryStrategy.VARIABLE_EVENTS -> batch,
+          Neo4jQueryStrategy.VARIABLE_SCRIPT_RESULT -> scriptResult).asJava))
       if (log.isDebugEnabled) {
         val summary = result.consume()
         val counters = summary.counters()

@@ -387,21 +387,39 @@ CREATE CONSTRAINT ON (p:Person) ASSERT (p.surname) IS UNIQUE
 
 *So please into consideration that the first label is used for the index creation*
 
-==== Index/Constraint Creation via schema query
+=== Script Option
 
-Following an example of how to create indexes while you're creating nodes
+The script option allow you to execute a series of preparation script before Spark
+Job execution, the result of the last query can be reused in combination with the
+`query` ingestion mode as it follows
 
 ----
+val ds = Seq(SimplePerson("Andrea", "Santurbano")).toDS()
+
 ds.write
-      .format(classOf[DataSource].getName)
-      .mode(SaveMode.Overwrite)
-      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
-      .option("labels", ":Person:Customer")
-      .option("node.keys", "surname")
-      .option("schema.optimization.type", "QUERY")
-      .option("schema.optimization.query", "CREATE INDEX ON :Person(surname); CREATE CONSTRAINT ON (p:Product) ASSERT (p.name, p.sku) IS NODE KEY")
-      .save()
+  .format(classOf[DataSource].getName)
+  .mode(SaveMode.ErrorIfExists)
+  .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+  .option("query", "CREATE (n:Person{fullName: event.name + ' ' + event.surname, age: scriptResult[0].age})")
+  .option("script",
+    """CREATE INDEX ON :Person(surname);
+      |CREATE CONSTRAINT ON (p:Product)
+      | ASSERT (p.name, p.sku)
+      | IS NODE KEY;
+      |RETURN 36 AS age;
+      |""".stripMargin)
+  .save()
 ----
 
-Before the import starts, the connector will use the schema query that you provided into the
-`schema.optimization.query` option.
+Before the import starts, the connector will run the content of the `script` option
+and the result of the last query will be injected into the `query`; in the end the full
+query executed by the connector while is ingesting the data will be
+
+----
+WITH $scriptResult AS scriptResult
+UNWIND $events AS event
+CREATE (n:Person{fullName: event.name + ' ' + event.surname, age: scriptResult[0].age})
+----
+
+where `scriptResult` is the result from the last query contained into the `script` options
+that is `RETURN 36 AS age;`

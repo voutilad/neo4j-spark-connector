@@ -35,11 +35,7 @@ class Neo4jOptions(private val parameters: java.util.Map[String, String]) extend
 
   val schemaMetadata = Neo4jSchemaMetadata(getParameter(SCHEMA_FLATTEN_LIMIT, DEFAULT_SCHEMA_FLATTEN_LIMIT.toString).toInt,
     SchemaStrategy.withCaseInsensitiveName(getParameter(SCHEMA_STRATEGY, DEFAULT_SCHEMA_STRATEGY.toString).toUpperCase),
-    OptimizationType.withCaseInsensitiveName(getParameter(SCHEMA_OPTIMIZATION_TYPE, DEFAULT_OPTIMIZATION_TYPE.toString).toUpperCase),
-    getParameter(SCHEMA_OPTIMIZATION_QUERY)
-      .split(";")
-      .map(_.trim)
-      .filterNot(_.isEmpty))
+    OptimizationType.withCaseInsensitiveName(getParameter(SCHEMA_OPTIMIZATION_TYPE, DEFAULT_OPTIMIZATION_TYPE.toString).toUpperCase))
 
   val query: Neo4jQueryOptions = (
     getParameter(QUERY.toString.toLowerCase),
@@ -115,6 +111,11 @@ class Neo4jOptions(private val parameters: java.util.Map[String, String]) extend
 
   val transactionMetadata = initNeo4jTransactionMetadata()
 
+  val script = getParameter(SCRIPT)
+    .split(";")
+    .map(_.trim)
+    .filterNot(_.isEmpty)
+
   private def initNeo4jTransactionMetadata(): Neo4jTransactionMetadata = {
     val retries = getParameter(TRANSACTION_RETRIES, DEFAULT_TRANSACTION_RETRIES.toString).toInt
     val failOnTransactionCodes = getParameter(TRANSACTION_CODES_FAIL, DEFAULT_EMPTY)
@@ -162,7 +163,7 @@ class Neo4jOptions(private val parameters: java.util.Map[String, String]) extend
   }
 }
 
-case class Neo4jSchemaMetadata(flattenLimit: Int, strategy: SchemaStrategy.Value, optimizationType: OptimizationType.Value, optimizationQuery: Seq[String])
+case class Neo4jSchemaMetadata(flattenLimit: Int, strategy: SchemaStrategy.Value, optimizationType: OptimizationType.Value)
 case class Neo4jTransactionMetadata(retries: Int, failOnTransactionCodes: Set[String], batchSize: Int)
 
 case class Neo4jNodeMetadata(labels: Seq[String], nodeKeys: Map[String, String], nodeProps: Map[String, String])
@@ -288,7 +289,6 @@ object Neo4jOptions {
   val SCHEMA_STRATEGY = "schema.strategy"
   val SCHEMA_FLATTEN_LIMIT = "schema.flatten.limit"
   val SCHEMA_OPTIMIZATION_TYPE = "schema.optimization.type"
-  val SCHEMA_OPTIMIZATION_QUERY = "schema.optimization.query"
 
   // partitions
   val PARTITIONS = "partitions"
@@ -319,6 +319,8 @@ object Neo4jOptions {
   // Transaction Metadata
   val TRANSACTION_RETRIES = "transaction.retries"
   val TRANSACTION_CODES_FAIL = "transaction.codes.fail"
+
+  val SCRIPT = "script"
 
   // defaults
   val DEFAULT_EMPTY = ""
@@ -372,5 +374,5 @@ object SchemaStrategy extends CaseInsensitiveEnumeration {
 }
 
 object OptimizationType extends CaseInsensitiveEnumeration {
-  val INDEX, NODE_CONSTRAINTS, QUERY, NONE = Value
+  val INDEX, NODE_CONSTRAINTS, NONE = Value
 }
