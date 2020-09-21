@@ -823,7 +823,8 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
           |MATCH (p:Person)-[r:BOUGHT]->(pr:Product{name: 'Product 2'})
           |RETURN p.name AS person, pr.name AS product, r.quantity AS quantity""".stripMargin)
       .option("partitions", "5")
-      .option("query.count", """
+      .option("query.count",
+        """
           |MATCH (p:Person)-[r:BOUGHT]->(pr:Product{name: 'Product 2'})
           |RETURN count(p) AS count""".stripMargin)
       .load()
@@ -1086,6 +1087,16 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
       }
       case _ => fail(s"should be thrown a ${classOf[IllegalArgumentException].getName}")
     }
+  }
+
+  @Test()
+  def testCallShouldReturnCorrectSchema(): Unit = {
+    val callDf: DataFrame = ss.read.format(classOf[DataSource].getName)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("query", "CALL db.info() YIELD id, name, creationDate")
+      .load()
+
+    callDf.show()
   }
 
   @Test

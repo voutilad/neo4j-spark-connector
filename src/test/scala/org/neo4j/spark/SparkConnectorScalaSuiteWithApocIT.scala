@@ -13,7 +13,7 @@ import org.neo4j.spark.util.Neo4jUtil
 
 
 object SparkConnectorScalaSuiteWithApocIT {
-  val server: Neo4jContainerExtension = new Neo4jContainerExtension("neo4j:4.0.1-enterprise")
+  val server: Neo4jContainerExtension = new Neo4jContainerExtension("neo4j:4.0.8-enterprise")
     .withNeo4jConfig("dbms.security.auth_enabled", "false")
     .withEnv("NEO4J_ACCEPT_LICENSE_AGREEMENT", "yes")
     .withEnv("NEO4JLABS_PLUGINS", "[\"apoc\"]")
