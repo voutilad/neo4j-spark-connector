@@ -39,19 +39,15 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
         retrieveSchemaFromApoc(query, params)
       } catch {
         case e: ClientException =>
-          e.code match {
-            case "Neo.ClientError.Procedure.ProcedureNotFound" => {
-              log.warn("Switching to query schema resolution")
-              // TODO get back to Cypher DSL when rand function will be available
-              val query = s"""MATCH (${Neo4jUtil.NODE_ALIAS}:${labels.map(_.quote()).mkString(":")})
-                |RETURN ${Neo4jUtil.NODE_ALIAS}
-                |ORDER BY rand()
-                |LIMIT ${options.schemaMetadata.flattenLimit}
-                |""".stripMargin
-              val params = Collections.emptyMap[String, AnyRef]()
-              retrieveSchema(query, params, { record => record.get(Neo4jUtil.NODE_ALIAS).asNode.asMap.asScala.toMap })
-            }
-          }
+          log.warn("Switching to query schema resolution because of the following exception:", e)
+          // TODO get back to Cypher DSL when rand function will be available
+          val query = s"""MATCH (${Neo4jUtil.NODE_ALIAS}:${labels.map(_.quote()).mkString(":")})
+            |RETURN ${Neo4jUtil.NODE_ALIAS}
+            |ORDER BY rand()
+            |LIMIT ${options.schemaMetadata.flattenLimit}
+            |""".stripMargin
+          val params = Collections.emptyMap[String, AnyRef]()
+          retrieveSchema(query, params, { record => record.get(Neo4jUtil.NODE_ALIAS).asNode.asMap.asScala.toMap })
       })
       .sortBy(t => t.name)
 
@@ -131,7 +127,7 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
         retrieveSchemaFromApoc(query, params)
       } catch {
         case e: ClientException =>
-          log.warn("Switching to query schema resolution")
+          log.warn("Switching to query schema resolution because of the following exception:", e)
           // TODO get back to Cypher DSL when rand function will be available
           val query = s"""MATCH (${Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS}:${options.relationshipMetadata.source.labels.map(_.quote()).mkString(":")})
             |MATCH (${Neo4jUtil.RELATIONSHIP_TARGET_ALIAS}:${options.relationshipMetadata.target.labels.map(_.quote()).mkString(":")})
@@ -237,13 +233,10 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
       countForNodeWithQuery(filters)
     }
   } catch {
-    case e: ClientException =>
-      e.code match {
-        case "Neo.ClientError.Procedure.ProcedureNotFound" => {
-          countForNodeWithQuery(filters)
-        }
-        case _ => logExceptionForCount(e)
-      }
+    case e: ClientException => {
+      log.warn("Switching to query count resolution because of the following exception:", e)
+      countForNodeWithQuery(filters)
+    }
     case e: Throwable => logExceptionForCount(e)
   }
 
@@ -270,13 +263,10 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
       countForRelationshipWithQuery(filters)
     }
   } catch {
-    case e: ClientException =>
-      e.code match {
-        case "Neo.ClientError.Procedure.ProcedureNotFound" => {
-          countForRelationshipWithQuery(filters)
-        }
-        case _ => logExceptionForCount(e)
-      }
+    case e: ClientException => {
+      log.warn("Switching to query count resolution because of the following exception:", e)
+      countForRelationshipWithQuery(filters)
+    }
     case e: Throwable => logExceptionForCount(e)
   }
 
