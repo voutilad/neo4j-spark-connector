@@ -41,6 +41,7 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
         case e: ClientException =>
           e.code match {
             case "Neo.ClientError.Procedure.ProcedureNotFound" => {
+              log.warn("Switching to query schema resolution")
               // TODO get back to Cypher DSL when rand function will be available
               val query = s"""MATCH (${Neo4jUtil.NODE_ALIAS}:${labels.map(_.quote()).mkString(":")})
                 |RETURN ${Neo4jUtil.NODE_ALIAS}
@@ -130,6 +131,7 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
         retrieveSchemaFromApoc(query, params)
       } catch {
         case e: ClientException =>
+          log.warn("Switching to query schema resolution")
           // TODO get back to Cypher DSL when rand function will be available
           val query = s"""MATCH (${Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS}:${options.relationshipMetadata.source.labels.map(_.quote()).mkString(":")})
             |MATCH (${Neo4jUtil.RELATIONSHIP_TARGET_ALIAS}:${options.relationshipMetadata.target.labels.map(_.quote()).mkString(":")})
