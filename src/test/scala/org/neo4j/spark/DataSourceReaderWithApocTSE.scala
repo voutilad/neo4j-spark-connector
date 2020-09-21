@@ -825,7 +825,7 @@ class DataSourceReaderWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
   def testCallShouldReturnCorrectSchema(): Unit = {
     val callDf: DataFrame = ss.read.format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteWithApocIT.server.getBoltUrl)
-      .option("query", "CALL db.info() YIELD id, name")
+      .option("query", "CALL db.info() YIELD id, name RETURN *")
       .load()
 
     val res = callDf.select("name")

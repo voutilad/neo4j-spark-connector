@@ -1093,10 +1093,14 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
   def testCallShouldReturnCorrectSchema(): Unit = {
     val callDf: DataFrame = ss.read.format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
-      .option("query", "CALL db.info() YIELD id, name, creationDate")
+      .option("query", "CALL db.info() YIELD id, name RETURN *")
       .load()
 
-    callDf.show()
+    val res = callDf.select("name")
+      .collectAsList()
+      .get(0)
+
+    assertEquals(res.getString(0), "neo4j")
   }
 
   @Test

@@ -150,16 +150,8 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
   }
 
   def structForQuery(): StructType = {
-    val queryValue = if (options.query.value.startsWith("CALL")) {
-      options.query.value.substring("CALL".length)
-    }
-    else {
-      s"{ ${options.query.value} }"
-    }
-
     val query =
-      s"""CALL $queryValue
-         |RETURN *
+      s"""${options.query.value}
          |ORDER BY rand()
          |LIMIT ${options.schemaMetadata.flattenLimit}
          |""".stripMargin
