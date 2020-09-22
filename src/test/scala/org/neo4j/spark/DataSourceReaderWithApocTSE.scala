@@ -821,6 +821,20 @@ class DataSourceReaderWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
     assertEquals(100, partitionedDf.collect().map(_.getAs[Long]("<rel.id>")).toSet.size)
   }
 
+  @Test()
+  def testCallShouldReturnCorrectSchema(): Unit = {
+    val callDf: DataFrame = ss.read.format(classOf[DataSource].getName)
+      .option("url", SparkConnectorScalaSuiteWithApocIT.server.getBoltUrl)
+      .option("query", "CALL db.info() YIELD id, name RETURN *")
+      .load()
+
+    val res = callDf.select("name")
+      .collectAsList()
+      .get(0)
+
+    assertEquals(res.getString(0), "neo4j")
+  }
+
   private def initTest(query: String): DataFrame = {
     SparkConnectorScalaSuiteWithApocIT.session()
       .writeTransaction(

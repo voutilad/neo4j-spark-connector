@@ -39,6 +39,7 @@ object SparkConnectorScalaSuiteIT {
       conf = new SparkConf().setAppName("neoTest")
         .setMaster("local[*]")
       ss = SparkSession.builder.config(conf).getOrCreate()
+      ss.sparkContext.setLogLevel("ERROR")
       driver = GraphDatabase.driver(server.getBoltUrl, AuthTokens.none())
       session()
         .readTransaction(new TransactionWork[ResultSummary] {
