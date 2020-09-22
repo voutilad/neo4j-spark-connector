@@ -356,11 +356,9 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
     }
   }
 
-  private def createIndexOrConstraint(action: OptimizationType.Value, label: String, props: Seq[String]) = {
-    if (action == OptimizationType.NONE) {
-      log.info("No optimization type provided")
-      Unit
-    } else {
+  private def createIndexOrConstraint(action: OptimizationType.Value, label: String, props: Seq[String]): Unit = action match {
+    case OptimizationType.NONE => log.info("No optimization type provided")
+    case _ => {
       val quotedLabel = label.quote()
       val quotedProps = props.map(prop => s"${Neo4jUtil.NODE_ALIAS}.${prop.quote()}").mkString(", ")
       val (querySuffix, creationType, uniqueness) = action match {
@@ -373,33 +371,32 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
       val actionName = s"spark_${creationType}_$label".quote()
       val queryPrefix = s"CREATE $creationType $actionName"
 
-      val queryCheck = """CALL db.indexes() YIELD labelsOrTypes, properties, uniqueness
-          |WHERE labelsOrTypes = $labels AND properties = $properties AND uniqueness = $uniqueness
-          |RETURN count(*) > 0 AS isPresent""".stripMargin
+      val status = try {
+        val queryCheck = """CALL db.indexes() YIELD labelsOrTypes, properties, uniqueness
+                           |WHERE labelsOrTypes = $labels AND properties = $properties AND uniqueness = $uniqueness
+                           |RETURN count(*) > 0 AS isPresent""".stripMargin
 
-      val isPresent = session.run(queryCheck, Map("labels" -> Seq(label).asJava,
+        val isPresent = session.run(queryCheck, Map("labels" -> Seq(label).asJava,
           "properties" -> props.asJava,
           "uniqueness" -> uniqueness).asJava)
-        .single()
-        .get("isPresent")
-        .asBoolean()
+          .single()
+          .get("isPresent")
+          .asBoolean()
 
-      val status = if (isPresent) {
-        "KEPT"
-      } else {
-        val query = s"$queryPrefix $querySuffix"
-        log.info(s"Performing the following schema query: $query")
-        try {
+        if (isPresent) {
+          "KEPT"
+        } else {
+          val query = s"$queryPrefix $querySuffix"
+          log.info(s"Performing the following schema query: $query")
           session.run(query)
           "CREATED"
-        } catch {
-          case e: Throwable => {
-            log.info("Cannot perform the optimization query because of the following exception:", e)
-            "ERROR"
-          }
+        }
+      } catch {
+        case e: Throwable => {
+          log.info("Cannot perform the optimization query because of the following exception:", e)
+          "ERROR"
         }
       }
-
       if (status != "ERROR") {
         log.info(s"Status for $action named $actionName with label $quotedLabel and props $quotedProps is: $status")
       }
