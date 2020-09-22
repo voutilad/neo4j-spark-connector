@@ -320,3 +320,106 @@ You can specify 3 different modes to use for saving the nodes:
 * `Overwrite`: will perform a `MERGE` on that node
 * `ErrorIfExists`: will perform a `CREATE`
 * `Match`: will perform a `MATCH`
+
+
+=== Schema Optimization Operations
+
+The spark connector supports schema optimization operations via:
+
+* index
+* constraints
+* set of schema queries
+
+that will be executed *before* the import process will start in order to speed-up the import itself.
+
+You can set the optimization via `schema.optimization.type` option that takes three values:
+
+* `INDEX`: it creates only indexes on provided nodes
+* `NODE_CONSTRAINTS`: it creates only indexes on provided nodes
+* `QUERY`: it perform a series of schema queries separated by `;`
+
+and it works only when you're merging nodes.
+
+==== Index Creation
+
+Following an example of how to create indexes while you're creating nodes
+
+----
+ds.write
+      .format(classOf[DataSource].getName)
+      .mode(SaveMode.Overwrite)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("labels", ":Person:Customer")
+      .option("node.keys", "surname")
+      .option("schema.optimization.type", "INDEX")
+      .save()
+----
+
+This will create, before the import starts, the following schema query:
+
+----
+CREATE INDEX ON :Person(surname)
+----
+
+*So please into consideration that the first label is used for the index creation*
+
+
+==== Constraint Creation
+
+Following an example of how to create indexes while you're creating nodes
+
+----
+ds.write
+      .format(classOf[DataSource].getName)
+      .mode(SaveMode.Overwrite)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("labels", ":Person:Customer")
+      .option("node.keys", "surname")
+      .option("schema.optimization.type", "NODE_CONSTRAINTS")
+      .save()
+----
+
+This will create, before the import starts, the following schema query:
+
+----
+CREATE CONSTRAINT ON (p:Person) ASSERT (p.surname) IS UNIQUE
+----
+
+*So please into consideration that the first label is used for the index creation*
+
+=== Script Option
+
+The script option allow you to execute a series of preparation script before Spark
+Job execution, the result of the last query can be reused in combination with the
+`query` ingestion mode as it follows
+
+----
+val ds = Seq(SimplePerson("Andrea", "Santurbano")).toDS()
+
+ds.write
+  .format(classOf[DataSource].getName)
+  .mode(SaveMode.ErrorIfExists)
+  .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+  .option("query", "CREATE (n:Person{fullName: event.name + ' ' + event.surname, age: scriptResult[0].age})")
+  .option("script",
+    """CREATE INDEX ON :Person(surname);
+      |CREATE CONSTRAINT ON (p:Product)
+      | ASSERT (p.name, p.sku)
+      | IS NODE KEY;
+      |RETURN 36 AS age;
+      |""".stripMargin)
+  .save()
+----
+
+Before the import starts, the connector will run the content of the `script` option
+and the result of the last query will be injected into the `query`; in the end the full
+query executed by the connector while is ingesting the data will be
+
+----
+WITH $scriptResult AS scriptResult
+UNWIND $events AS event
+CREATE (n:Person{fullName: event.name + ' ' + event.surname, age: scriptResult[0].age})
+----
+
+where `scriptResult` is the result from the last query contained into the `script` options
+that is `RETURN 36 AS age;`

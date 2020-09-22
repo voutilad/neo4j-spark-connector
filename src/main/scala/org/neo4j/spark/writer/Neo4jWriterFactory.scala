@@ -9,6 +9,7 @@ import org.neo4j.spark.Neo4jOptions
 class Neo4jDataWriterFactory(jobId: String,
                              structType: StructType,
                              saveMode: SaveMode,
-                             options: Neo4jOptions) extends DataWriterFactory[InternalRow] {
-  override def createDataWriter(partitionId: Int, taskId: Long, epochId: Long): DataWriter[InternalRow] = new Neo4jDataWriter(jobId, partitionId, structType, saveMode, options)
+                             options: Neo4jOptions,
+                             scriptResult: java.util.List[java.util.Map[String, AnyRef]]) extends DataWriterFactory[InternalRow] {
+  override def createDataWriter(partitionId: Int, taskId: Long, epochId: Long): DataWriter[InternalRow] = new Neo4jDataWriter(jobId, partitionId, structType, saveMode, options, scriptResult)
 }
