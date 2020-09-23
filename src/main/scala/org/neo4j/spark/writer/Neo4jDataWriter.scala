@@ -35,7 +35,7 @@ class Neo4jDataWriter(jobId: String,
 
   private val retries = new CountDownLatch(options.transactionMetadata.retries)
 
-  val query: String = new Neo4jQueryService(options, new Neo4jQueryWriteStrategy(NodeWriteMode.fromSaveMode(saveMode))).createQuery()
+  val query: String = new Neo4jQueryService(options, new Neo4jQueryWriteStrategy(saveMode)).createQuery()
 
   override def write(record: InternalRow): Unit = {
     batch.add(mappingService.convert(record, structType))
