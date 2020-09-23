@@ -54,10 +54,16 @@ For <<bookmark-write-node,Node>> type
 * `SaveMode.ErrorIfExists`: this will build a `CREATE` query
 * `SaveMode.Overwrite`: this will build a `MERGE` query
 
+[NOTE]
+For `SaveMode.Overwrite` mode you *need to have unique constrains on the keys*.
+
 For <<bookmark-write-rel,Relationship>> type
 
 * `SaveMode.ErrorIfExists`: this will build a `CREATE` query
 * `SaveMode.Append`: this will build a `MERGE` query
+
+[NOTE]
+For `SaveMode.Append` mode you *need to have unique constrains on the keys*.
 
 In both cases the default SaveMode is `ErrorIfExists`.
 
@@ -465,7 +471,7 @@ df.write
 ----
 
 Here you must specify which columns of your Dataframe will be used as keys to match the nodes.
-You control this with the options `relationship.source.node.keys` and `relationship.target.node.keys`, specifying a comma-separated list of `key:value` pairs,
+You control this with the option `relationship.source.node.keys` and `relationship.target.node.keys`, specifying a comma-separated list of `key:value` pairs,
 where the key is the dataframe column name, and the value is the node property name.
 
 The generated query will be:
@@ -530,7 +536,7 @@ The value of `instrument` column will be used as value for `Instrument` property
 `MERGE (target:Instrument {name: event.target.instrument})`
 
 Here you must specify which columns of your Dataframe will be written in the source node and in the target node properties.
-You can do this with the options `relationship.source.node.properties` and `relationship.target.node.properties`,
+You can do this with the option `relationship.source.node.properties` and `relationship.target.node.properties`,
 specifying a comma-separated list of `key:value` pairs, where the key is the dataframe column name,
 and the value is the node property name.
 
@@ -581,6 +587,8 @@ You can specify 3 different modes to use for saving the nodes:
 * `ErrorIfExists`: will perform a `CREATE`
 * `Match`: will perform a `MATCH`
 
+[NOTE]
+For `Overwrite` mode you *must to have unique constrains on the keys*.
 
 === Schema Optimization Operations
 
