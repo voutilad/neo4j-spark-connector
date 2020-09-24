@@ -6,14 +6,14 @@ import org.junit.{Assume, Before, BeforeClass, Test}
 import org.neo4j.driver.{SessionConfig, Transaction, TransactionWork}
 import org.neo4j.driver.summary.ResultSummary
 
-object DataSourceReader4xTSE {
+object DataSourceReaderNeo4j4xTSE {
   @BeforeClass
   def checkNeo4jVersion() {
     Assume.assumeFalse(TestUtil.neo4jVersion().startsWith("3.5"))
   }
 }
 
-class DataSourceReader4xTSE extends SparkConnectorScalaBaseTSE {
+class DataSourceReaderNeo4j4xTSE extends SparkConnectorScalaBaseTSE {
 
   @Test
   def testMultiDbJoin(): Unit = {
