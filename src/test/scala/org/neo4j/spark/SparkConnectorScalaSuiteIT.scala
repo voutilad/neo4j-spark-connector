@@ -1,20 +1,19 @@
 package org.neo4j.spark
 
-import org.apache.spark.sql.SparkSession
 import org.apache.spark.SparkConf
+import org.apache.spark.sql.SparkSession
 import org.junit.runner.RunWith
 import org.junit.runners.Suite
 import org.junit.{AfterClass, Assume, BeforeClass}
 import org.neo4j.Neo4jContainerExtension
-import org.neo4j.driver.summary.ResultSummary
 import org.neo4j.driver._
-import org.neo4j.spark.SparkConnectorScalaSuiteWithApocIT.{driver, session}
+import org.neo4j.driver.summary.ResultSummary
 import org.neo4j.spark.service.SchemaServiceTSE
 import org.neo4j.spark.util.Neo4jUtil
 
 
 object SparkConnectorScalaSuiteIT {
-  val server: Neo4jContainerExtension = new Neo4jContainerExtension("neo4j:4.0.8-enterprise")
+  val server: Neo4jContainerExtension = new Neo4jContainerExtension(s"neo4j:${TestUtil.neo4jVersion()}-enterprise")
     .withNeo4jConfig("dbms.security.auth_enabled", "false")
     .withEnv("NEO4J_ACCEPT_LICENSE_AGREEMENT", "yes")
     .withDatabases(Seq("db1", "db2"))
@@ -39,7 +38,9 @@ object SparkConnectorScalaSuiteIT {
       conf = new SparkConf().setAppName("neoTest")
         .setMaster("local[*]")
       ss = SparkSession.builder.config(conf).getOrCreate()
-      ss.sparkContext.setLogLevel("ERROR")
+      if (TestUtil.isTravis()) {
+        ss.sparkContext.setLogLevel("ERROR")
+      }
       driver = GraphDatabase.driver(server.getBoltUrl, AuthTokens.none())
       session()
         .readTransaction(new TransactionWork[ResultSummary] {
@@ -83,6 +84,8 @@ object SparkConnectorScalaSuiteIT {
 @Suite.SuiteClasses(Array(
   classOf[SchemaServiceTSE],
   classOf[DataSourceReaderTSE],
-  classOf[DataSourceWriterTSE]
+  classOf[DataSourceReaderNeo4j4xTSE],
+  classOf[DataSourceWriterTSE],
+  classOf[DataSourceWriterNeo4j4xTSE]
 ))
 class SparkConnectorScalaSuiteIT {}
