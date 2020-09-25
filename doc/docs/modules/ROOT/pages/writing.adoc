@@ -49,6 +49,10 @@ Will insert 10 nodes into Neo4j via Spark, and each of these will have:
 In order to persist data into Neo4j the Spark Connector supports two save modes that will
 work only if `UNIQUE` or `NODE KEY` constraints are defined into Neo4j for the given properties.
 
+[NOTE]
+These SaveMode examples apply to the Scala class `org.apache.spark.sql.SaveMode`.  For PySpark, simply
+use a static string with the name of the SaveMode.  So instead of `SaveMode.Overwrite`, use `"Overwrite"` for pyspark.
+
 For <<bookmark-write-node,Node>> type
 
 * `SaveMode.ErrorIfExists`: this will build a `CREATE` query
@@ -66,6 +70,8 @@ For <<bookmark-write-rel,Relationship>> type
 For `SaveMode.Append` mode you *need to have unique constrains on the keys*.
 
 In both cases the default SaveMode is `ErrorIfExists`.
+
+=== Using Save Mode with PySpark
 
 == Options
 

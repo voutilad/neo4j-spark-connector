@@ -136,13 +136,71 @@ MATCH path=(p:Person { name: "Andrea" })-[r:KNOWS*]->(o:Person)
 RETURN length(path) as pathLength, p.name as p1Name, o.name as p2Name
 ```
 
-== Parallelism
+== Improving Performance
+
+To get the best possible performance reading from (and particularly writing to) Neo4j, make sure you've gone
+through this checklist:
+
+1. Tune your Batch Size
+2. Tune your Neo4j Memory Configuration
+3. Have the right indexes
+4. Tune your parallelism
+
+Each of the following sections describes these in detail.
+
+=== Tune your Batch Size
+
+Writing data to Neo4j happens transactionally in batches; if we want to write 1 million nodes, we might break
+that into 40 batches of 25,000.  The batch size of the connector is controlled by the `batch.size` option and
+is set to a fairly low, conservative level.  _This is likely too low for many applications and can be improved
+with better knowledge of your data_.
+
+Batch size tradeoff is as follows:
+
+* The bigger the batch size, the better the overall ingest performance, because it means fewer transactions,
+and less overall transactional overhead.
+* When batch sizes become too large, so that Neo4j's heap memory cannot accomodate them, it can cause out of
+memory errors on the server and cause failures.
+
+[NOTE]
+**Best write throughput comes when you use the largest batch size you can, while staying in the range of memory
+available on the server**.
+
+It's impossible to pick a single batch size that works for everyone, because how much memory your transactions
+take up depends on the number of properties & relationships, and other factors.  A good general aggressive value
+to try is around 20,000 - but you can increase this number if your data is small, or if you have a lot of memory
+on the server.  Lower the number if it's a small database server, or the data your pushing has many large 
+properties.
+
+=== Tune your Neo4j Memory Configuration
+
+In the link:https://neo4j.com/developer/guide-performance-tuning/[Neo4j Performance Tuning Guide], important
+advice is given on how to size the heap and page cache of the server.  What's important for Spark is this:
+
+* Heap affects how big transactions can get.  The bigger the heap, the larger the batch size you can use.
+* Page cache affects how much of your database stays resident in RAM at any given time.  Page caches which
+are much smaller than your database will cause performance to suffer.
+
+=== Have the Right Indexes
+
+At the Neo4j Cypher level, it's very common to use the Spark connector in a way that generates `MERGE` queries.
+In Neo4j, this looks up a node by some "key" and then creates it only if it does not already exist.
+
+[NOTE]
+**It is strongly recommended to assert indexes or constraints on any graph property that you use as part of 
+`node.keys`, `relationship.source.node.keys`, `relationship.target.node.keys` or other similar key options**
+
+A common source of poor performance is to write Spark code that generates `MERGE` cypher, or otherwise tries
+to look data up in Neo4j without the appropriate database indexes.  In this case, the Neo4j server ends up looking
+through much more data than necessary to satisfy the query, and performance suffers.
+
+=== Tune Your Parallelism
 
 Spark is fundamentally about partitioning and paralleism; the go-to technique is to split a batch of
 data into partitions for each machine to work on in parallel.   In Neo4j, parallelism works very differently, which
 we will describe in this chapter.
 
-=== Write Parallelism in Neo4j
+==== Write Parallelism in Neo4j
 
 [NOTE]
 **For most writes to Neo4j, it is strongly recommended to repartition your dataframe to 1 partition only**
@@ -172,7 +230,7 @@ The relationship write will lock the "Andrea" node - and these writes cannot con
 a result, you may not gain performance by parallelizing more, if threads have to wait for each other's locks.  In 
 extreme cases with too much parallelism, Neo4j may reject the writes with lock contention errors.
 
-=== Dataset Partitioning
+==== Dataset Partitioning
 
 [NOTE]
 **You can use as many partitions as there are cores in the Neo4j server, if you have properly partitioned your data to avoid Neo4j locks**
@@ -188,7 +246,8 @@ inference techniques that help ease this mapping.  Paying close attention to how
 explain different scenarios.
 
 The two core techniques are:
-* `CALL apoc.meta.(node|rel)TypeProperties()`
+
+* APOC
 * Sampling
 
 === APOC
@@ -199,10 +258,15 @@ metadata in your graph, and provide information such as the type of properties, 
 You may try these calls yourself on your Neo4j database if you wish: simply execute:
 
 ```cypher
-CALL apoc.meta.nodeTypeProperties()
+CALL apoc.meta.nodeTypeProperties();
+CALL apoc.meta.relTypeProperties();
 ```
 
 And inspect the results.  These results are how the Neo4j Connector for Apache Spark represents the metadata of nodes & relationships read into DataFrames.
+
+This approach uses a configurable sampling technique that looks through many (but not all) instances in the database to build a profile of the valid
+values that exist within properties.  If the schema that is produced is not what is expected, take care to inspect the underlying data to ensure it has a consistent
+property set across all nodes of a label, or investigate tuning the sampling approach.
 
 === Automatic Sampling
 
