@@ -61,8 +61,23 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
       .list
       .asScala
       .filter(record => !record.get("propertyName").isNull && !record.get("propertyName").isEmpty)
-      .map(record => StructField(record.get("propertyName").asString,
-        cypherToSparkType(record.get("propertyTypes").asList.get(0).toString)))
+      .map(record => {
+        val fieldTypesList = record.get("propertyTypes").asList
+        val fieldType = if (fieldTypesList.size() > 1) {
+          log.warn(
+            s"""
+              |The field ${record.get("propertyName")} has different types: ${record.get("propertyTypes").asList.toString}
+              |Every value will be casted to string.
+              |""".stripMargin)
+          "String"
+        }
+        else {
+          fieldTypesList.get(0).toString
+        }
+
+        StructField(record.get("propertyName").asString,
+          cypherToSparkType(fieldType))
+      })
   }
 
   private def retrieveSchema(query: String,
