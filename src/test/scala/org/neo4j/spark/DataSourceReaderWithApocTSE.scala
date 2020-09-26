@@ -757,7 +757,7 @@ class DataSourceReaderWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
       .option("relationship.target.labels", ":Product")
       .load()
 
-    val res = df.collectAsList()
+    val res = df.sort("`source.id`").collectAsList()
 
     assertEquals("3", res.get(0).get(4))
     assertEquals("1", res.get(0).get(7))
