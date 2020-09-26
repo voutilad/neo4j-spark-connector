@@ -40,3 +40,17 @@ exceptions can result and a transaction will fail.
 In general, the solution is to repartition the dataframe prior to writing it to Neo4j, to avoid
 multiple partitioned writes from locking the same nodes & relationships.
 
+== I'm getting a cast error like UTF8String cannot be cast to Long. How do I solve it?
+
+You might be getting error like:
+
+```
+java.lang.ClassCastException: org.apache.spark.unsafe.types.UTF8String cannot be cast to java.lang.Long
+```
+
+or similar, with different types.
+
+This is typically due to a field having different types on the same nodes label.
+You can solve it by adding APOC to your Neo4j installation; this will remove the error but
+all the values for that field will be casted to String. This because Spark is not schema free,
+and need each column to always have the same type.
