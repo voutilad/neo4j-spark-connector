@@ -61,8 +61,23 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
       .list
       .asScala
       .filter(record => !record.get("propertyName").isNull && !record.get("propertyName").isEmpty)
-      .map(record => StructField(record.get("propertyName").asString,
-        cypherToSparkType(record.get("propertyTypes").asList.get(0).toString)))
+      .map(record => {
+        val fieldTypesList = record.get("propertyTypes").asList
+        val fieldType = if (fieldTypesList.size() > 1) {
+          log.warn(
+            s"""
+              |The field ${record.get("propertyName")} has different types: ${record.get("propertyTypes").asList.toString}
+              |Every value will be casted to string.
+              |""".stripMargin)
+          "String"
+        }
+        else {
+          fieldTypesList.get(0).toString
+        }
+
+        StructField(record.get("propertyName").asString,
+          cypherToSparkType(fieldType))
+      })
   }
 
   private def retrieveSchema(query: String,
@@ -71,15 +86,29 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
     session.run(query, params).list.asScala
       .flatMap(extractFunction)
       .groupBy(_._1)
+      .mapValues(_.map(_._2))
       .map(t => options.schemaMetadata.strategy match {
         case SchemaStrategy.SAMPLE => {
-          val value = t._2.head._2
-          val cypherType = if (options.query.queryType == QueryType.QUERY) {
-            normalizedClassName(value)
-          } else {
-            normalizedClassNameFromGraphEntity(value)
+          val types = t._2.map(value => {
+            if (options.query.queryType == QueryType.QUERY) {
+              normalizedClassName(value)
+            } else {
+              normalizedClassNameFromGraphEntity(value)
+            }
+          }).toSet
+
+          if (types.size > 1) {
+            log.warn(
+              s"""
+                 |The field ${t._1} has different types: ${types.toString}
+                 |Every value will be casted to string.
+                 |""".stripMargin)
+            StructField(t._1, DataTypes.StringType)
           }
-          StructField(t._1, cypherToSparkType(cypherType, value))
+          else {
+            val value = t._2.head
+            StructField(t._1, cypherToSparkType(types.head, value))
+          }
         }
         case SchemaStrategy.STRING => StructField(t._1, DataTypes.StringType)
       })

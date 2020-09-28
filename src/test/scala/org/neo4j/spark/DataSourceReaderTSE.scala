@@ -46,6 +46,16 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
   }
 
   @Test
+  def testReadNodeWithFieldWithDifferentTypes(): Unit = {
+    val df: DataFrame = initTest("CREATE (p1:Person {field: [12,34]}), (p2:Person {field: 123})")
+
+    val res = df.collectAsList()
+
+    assertEquals("[12,34]", res.get(0).get(2))
+    assertEquals("123", res.get(1).get(2))
+  }
+
+  @Test
   def testReadNodeWithString(): Unit = {
     val name: String = "John"
     val df: DataFrame = initTest(s"CREATE (p:Person {name: '$name'})")
@@ -711,6 +721,40 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
     assertEquals(10, repartitionedDf.rdd.getNumPartitions)
     val numNode = repartitionedDf.collect().length
     assertEquals(100, numNode)
+  }
+
+  @Test
+  def testRelationshipsDifferentFieldValues(): Unit = {
+    val fixtureQuery: String =
+      s"""CREATE (pr1:Product {id: '1'})
+         |CREATE (pr2:Product {id: 2})
+         |CREATE (pe1:Person {id: '3'})
+         |CREATE (pe2:Person {id: 4})
+         |CREATE (pe1)-[:BOUGHT]->(pr1)
+         |CREATE (pe2)-[:BOUGHT]->(pr2)
+         |RETURN *
+    """.stripMargin
+
+    SparkConnectorScalaSuiteIT.session()
+      .writeTransaction(
+        new TransactionWork[ResultSummary] {
+          override def execute(tx: Transaction): ResultSummary = tx.run(fixtureQuery).consume()
+        })
+
+    val df: DataFrame = ss.read.format(classOf[DataSource].getName)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("relationship.nodes.map", "false")
+      .option("relationship", "BOUGHT")
+      .option("relationship.source.labels", ":Person")
+      .option("relationship.target.labels", ":Product")
+      .load()
+
+    val res = df.sort("`source.id`").collectAsList()
+
+    assertEquals("3", res.get(0).get(4))
+    assertEquals("1", res.get(0).get(7))
+    assertEquals("4", res.get(1).get(4))
+    assertEquals("2", res.get(1).get(7))
   }
 
   @Test
