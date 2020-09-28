@@ -88,13 +88,24 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
       .groupBy(_._1)
       .map(t => options.schemaMetadata.strategy match {
         case SchemaStrategy.SAMPLE => {
-          val value = t._2.head._2
-          val cypherType = if (options.query.queryType == QueryType.QUERY) {
-            normalizedClassName(value)
-          } else {
-            normalizedClassNameFromGraphEntity(value)
+          val types = t._2.groupBy(v => normalizedClassName(v._2))
+          if (types.size > 1) {
+            log.warn(
+              s"""
+                 |The field ${t._1} has different types: ${types.toString}
+                 |Every value will be casted to string.
+                 |""".stripMargin)
+            StructField(t._1, DataTypes.StringType)
           }
-          StructField(t._1, cypherToSparkType(cypherType, value))
+          else {
+            val value = t._2.head._2
+            val cypherType = if (options.query.queryType == QueryType.QUERY) {
+              normalizedClassName(value)
+            } else {
+              normalizedClassNameFromGraphEntity(value)
+            }
+            StructField(t._1, cypherToSparkType(cypherType, value))
+          }
         }
         case SchemaStrategy.STRING => StructField(t._1, DataTypes.StringType)
       })
