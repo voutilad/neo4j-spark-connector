@@ -54,3 +54,5 @@ This is typically due to a field having different types on the same nodes label.
 You can solve it by adding APOC to your Neo4j installation; this will remove the error but
 all the values for that field will be casted to String. This because Spark is not schema free,
 and need each column to always have the same type.
+
+You can read more <<quickstart.adoc#bookmark-read-known-problem, here>>.

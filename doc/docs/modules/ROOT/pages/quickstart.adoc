@@ -201,6 +201,7 @@ spark.read.format("org.neo4j.spark.DataSource")
 As you can see, the struct returned by the query is made of strings
 that you can then be casted Spark's getters (ie: `getLong`).
 
+[[bookmark-read-known-problem]]
 ===== Known Problem
 
 Being Neo4j a schema less database, this scenario may occur:
