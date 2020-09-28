@@ -86,9 +86,17 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
     session.run(query, params).list.asScala
       .flatMap(extractFunction)
       .groupBy(_._1)
+      .mapValues(_.map(_._2))
       .map(t => options.schemaMetadata.strategy match {
         case SchemaStrategy.SAMPLE => {
-          val types = t._2.groupBy(v => normalizedClassName(v._2))
+          val types = t._2.map(value => {
+            if (options.query.queryType == QueryType.QUERY) {
+              normalizedClassName(value)
+            } else {
+              normalizedClassNameFromGraphEntity(value)
+            }
+          }).toSet
+
           if (types.size > 1) {
             log.warn(
               s"""
@@ -98,13 +106,8 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
             StructField(t._1, DataTypes.StringType)
           }
           else {
-            val value = t._2.head._2
-            val cypherType = if (options.query.queryType == QueryType.QUERY) {
-              normalizedClassName(value)
-            } else {
-              normalizedClassNameFromGraphEntity(value)
-            }
-            StructField(t._1, cypherToSparkType(cypherType, value))
+            val value = t._2.head
+            StructField(t._1, cypherToSparkType(types.head, value))
           }
         }
         case SchemaStrategy.STRING => StructField(t._1, DataTypes.StringType)
