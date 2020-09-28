@@ -656,6 +656,7 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
 
     val df = ss.read.format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("relationship.nodes.map", "true")
       .option("relationship", "KNOWS")
       .option("relationship.source.labels", "Person")
       .option("relationship.target.labels", "Person")
@@ -762,6 +763,7 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
 
     val partitionedDf = ss.read.format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("relationship.nodes.map", "true")
       .option("relationship", "BOUGHT")
       .option("relationship.source.labels", ":Person")
       .option("relationship.target.labels", ":Product")
@@ -895,6 +897,7 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
 
     val df: DataFrame = ss.read.format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("relationship.nodes.map", "true")
       .option("relationship", "BOUGHT")
       .option("relationship.source.labels", ":Person")
       .option("relationship.target.labels", ":Product")
