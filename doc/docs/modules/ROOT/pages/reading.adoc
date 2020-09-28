@@ -97,7 +97,7 @@ so please use it carefully.
 |`relationship.nodes.map`
 |If true return `source` and `target` nodes as Map<String, String>, otherwise we flatten the properties by returning
 every single node property as column prefixed by `source` or `target`
-|`true`
+|`false`
 |No
 
 |`relationship.source.labels`
