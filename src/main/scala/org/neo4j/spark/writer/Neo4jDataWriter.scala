@@ -44,7 +44,7 @@ class Neo4jDataWriter(jobId: String,
         writeBatch()
       }
       catch {
-        case e: Exception => log.error(s"Unhandled exception: ${e.getMessage}")
+        case e: Exception => log.error(e.getMessage)
       }
     }
   }
