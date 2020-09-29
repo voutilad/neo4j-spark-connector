@@ -211,12 +211,12 @@ Being Neo4j a schema less database, this scenario may occur:
 CREATE (p1:Person {age: "32"}), (p2:Person {age: 23})
 ----
 
-Where the same field, on the same node label has two different types.
+Where the same field, on the same node label, has two different types.
 
 Spark doesn't like it since the dataframe requires a schema,
 meaning each column of the dataframe needs to have its own type.
 
-If you don't have APOC installed on your Neo4j instance, you will get errors like this:
+If you don't have APOC installed on your Neo4j instance, you're most likely to be exposed to errors like this:
 
 [source]
 ----
@@ -225,15 +225,25 @@ java.lang.ClassCastException: org.apache.spark.unsafe.types.UTF8String cannot be
 
 In this case you can either clean up and normalize your data, or install APOC.
 
-This last solution will cause every value of attributes affected by this problem to be cast to String.
+APOC will cause every value of attributes affected by this problem to be cast to String.
 
-You will also see a warning in your log letting you know what happened:
+[NOTE]
+This solution is not error-proof, you might still get the errors. Behind the scenes the Connector
+uses link:https://neo4j.com/labs/apoc/4.1/overview/apoc.meta/apoc.meta.nodeTypeProperties/[apoc.meta.nodeTypeProperties]
+and link:https://neo4j.com/labs/apoc/4.1/overview/apoc.meta/apoc.meta.relTypeProperties/[apoc.meta.relTypeProperties]
+to sample the data.
+
+When the casting operation happens, you will prompted this warning in your log letting you know what happened:
 
 [source]
 ----
 The field "age" has different types: [String, Long]
 Every value will be casted to string.
 ----
+
+The safest solution is to clean your data, but we understand that is not always possible.
+This is why we introduced the option `schema.strategy`, that you can set to `string` to get all the values
+converted to string.
 
 === Partitioning
 
