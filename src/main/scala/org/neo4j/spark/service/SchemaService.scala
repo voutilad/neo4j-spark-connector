@@ -47,7 +47,7 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
       retrieveSchemaFromApoc(query, params)
     } catch {
       case e: ClientException =>
-        log.warn("Switching to query schema resolution because of the following exception:", e)
+        logSchemaResolutionChange(e)
         // TODO get back to Cypher DSL when rand function will be available
         val query =
           s"""MATCH (${Neo4jUtil.NODE_ALIAS}:${labels.map(_.quote()).mkString(":")})
@@ -168,7 +168,7 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
       retrieveSchemaFromApoc(query, params)
     } catch {
       case e: ClientException =>
-        log.warn("Switching to query schema resolution because of the following exception:", e)
+        logSchemaResolutionChange(e)
         // TODO get back to Cypher DSL when rand function will be available
         val query =
           s"""MATCH (${Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS}:${options.relationshipMetadata.source.labels.map(_.quote()).mkString(":")})
@@ -526,6 +526,13 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
           }
         }
       })
+  }
+
+  private def logSchemaResolutionChange(e: ClientException): Unit = {
+    log.warn(s"Switching to query schema resolution")
+    if(!e.code().equals("Neo.ClientError.Procedure.ProcedureNotFound")) {
+      log.warn(s"For the following exception", e)
+    }
   }
 
   override def close(): Unit = {

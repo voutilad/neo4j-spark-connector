@@ -706,6 +706,40 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
     assertEquals("Guitar", res.get(3).getString(7))
   }
 
+// df: leaving this for the reviewers, wasn't able to recreate the deadlock issue
+//
+//  @Test
+//  def `should give better errors if transaction fails`(): Unit = {
+//    val df = List.fill(200)(("John Bonham", "Drums")).toDF("name", "instrument")
+//
+//    df.write
+//      .format(classOf[DataSource].getName)
+//      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+//      .option("relationship", "PLAYS")
+//      .option("relationship.source.save.mode", "ErrorIfExists")
+//      .option("relationship.target.save.mode", "ErrorIfExists")
+//      .option("relationship.save.strategy", "keys")
+//      .option("relationship.source.labels", ":Musician")
+//      .option("relationship.source.node.keys", "name:name")
+//      .option("relationship.target.labels", ":Instrument")
+//      .option("relationship.target.node.keys", "instrument:name")
+//      .save()
+//
+//    df.write
+//      .format(classOf[DataSource].getName)
+//      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+//      .option("partitions", "2")
+//      .option("relationship", "PLAYS_2")
+//      .option("relationship.source.save.mode", "Overwrite")
+//      .option("relationship.target.save.mode", "Overwrite")
+//      .option("relationship.save.strategy", "keys")
+//      .option("relationship.source.labels", ":Musician")
+//      .option("relationship.source.node.keys", "name:name")
+//      .option("relationship.target.labels", ":Instrument")
+//      .option("relationship.target.node.keys", "instrument_2:name")
+//      .save()
+//  }
+
   @Test
   def `should write relations with KEYS mode with props`(): Unit = {
     val musicDf = Seq(

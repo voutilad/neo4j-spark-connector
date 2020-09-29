@@ -8,7 +8,7 @@ import org.apache.spark.sql.SaveMode
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.sources.v2.writer.{DataWriter, WriterCommitMessage}
 import org.apache.spark.sql.types.StructType
-import org.neo4j.driver.exceptions.{Neo4jException, ServiceUnavailableException, SessionExpiredException}
+import org.neo4j.driver.exceptions.{ClientException, Neo4jException, ServiceUnavailableException, SessionExpiredException, TransientException}
 import org.neo4j.driver.{Session, Transaction, Values}
 import org.neo4j.spark.service.{MappingService, Neo4jQueryService, Neo4jQueryStrategy, Neo4jQueryWriteStrategy, Neo4jWriteMappingStrategy}
 import org.neo4j.spark.util.Neo4jUtil
@@ -40,7 +40,12 @@ class Neo4jDataWriter(jobId: String,
   override def write(record: InternalRow): Unit = {
     batch.add(mappingService.convert(record, structType))
     if (batch.size() == options.transactionMetadata.batchSize) {
-      writeBatch
+      try {
+        writeBatch()
+      }
+      catch {
+        case e: Exception => log.error(s"Unhandled exception: ${e.getMessage}")
+      }
     }
   }
 
