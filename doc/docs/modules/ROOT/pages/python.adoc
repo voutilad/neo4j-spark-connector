@@ -1,0 +1,73 @@
+= Using with Pyspark / Python
+
+[abstract]
+--
+This chapter provides an information on using the Neo4j Connector for Apache Spark with Python
+--
+
+This connector uses the link:https://jaceklaskowski.gitbooks.io/mastering-spark-sql/content/spark-sql-data-source-api-v2.html[DataSource V2 API] in
+Spark.
+
+With a properly configured pyspark interpreter, you should be able to use python to call the connector and do any/all spark
+work.  
+
+Here, we present examples of what the API looks like in scala versus Python, to aid adaptation of any code examples you might have, and get
+started quickly.
+
+This first listing is a simple program that reads all "Person" nodes out of a Neo4j instance into a dataframe, in Scala.
+
+[source,scala]
+----
+import org.apache.spark.sql.{SaveMode, SparkSession}
+
+val spark = SparkSession.builder().getOrCreate()
+
+spark.read.format("org.neo4j.spark.DataSource")
+  .option("url", "bolt://localhost:7687")
+  .option("labels", "Person:Customer:Confirmed")
+  .load()
+----
+
+Here is the same program in Python:
+
+[source,python]
+----
+spark.read.format("org.neo4j.spark.DataSource") \
+  .option("url", "bolt://localhost:7687") \
+  .option("labels", "Person:Customer:Confirmed") \
+  .load()
+----
+
+For the most part, the API is the same, and we are only adapting the syntax for Python, by adding backslashes to allow line continuance,
+and avoid running into Python's indentation rules.
+
+== API Differences
+
+Some common API constants may need to be referred to as strings in the pyspark API.  Consider these two examples in Scala & Python,
+focusing on the `SaveMode`.
+
+[source,scala]
+----
+import org.apache.spark.sql.{SaveMode, SparkSession}
+
+df.write
+  .format("org.neo4j.spark.DataSource")
+  .mode(SaveMode.ErrorIfExists)
+  .option("url", "bolt://localhost:7687")
+  .option("labels", ":Person")
+  .save()
+----
+
+The same program in python is very similar, again just with language syntax differences, but note the "mode":
+
+[source,python]
+----
+import org.apache.spark.sql.{SaveMode, SparkSession}
+
+df.write \
+  .format("org.neo4j.spark.DataSource") \
+  .mode("ErrorIfExists") \
+  .option("url", "bolt://localhost:7687") \
+  .option("labels", ":Person") \
+  .save()
+----

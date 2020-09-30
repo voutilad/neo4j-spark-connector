@@ -7,8 +7,8 @@
     <groupId>neo4j-contrib</groupId>
     <artifactId>neo4j-spark-connector-docs</artifactId>
     <version>1.0.0</version>
-    <name>Neo4j Spark Connector - Docs</name>
-    <description>Neo4j Spark Connector - Documentation</description>
+    <name>Neo4j Connector for Apache Spark - Docs</name>
+    <description>Neo4j Connector for Apache Spark - Documentation</description>
 
     <parent>
         <groupId>neo4j-contrib</groupId>

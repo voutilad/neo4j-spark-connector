@@ -4,7 +4,7 @@
 
 [abstract]
 --
-This chapter describes considerations around using Neo4j Spark Connector with Neo4j Enterprise Causal Cluster.
+This chapter describes considerations around using Neo4j Connector for Apache Spark with Neo4j Enterprise Causal Cluster.
 --
 
 == Overview
@@ -23,6 +23,3 @@ Sometimes there will be remote applications that talk to Neo4j via official driv
 streams functionality.  Best practices in these cases are:
 
 * Always use a `neo4j+s://` driver URI when communicating with the cluster in the client application.
-* Use link:https://neo4j.com/docs/driver-manual/current/sessions-transactions/#driver-transactions[Explicit Write Transactions] in
-your client application when using procedure calls such as `CALL streams.consume` to ensure that the routing
-driver routes the query to the leader.

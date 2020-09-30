@@ -1,5 +1,5 @@
 
-= Neo4j Spark Connector v{docs-version}
+= Neo4j Connector for Apache Spark v{docs-version}
 :toc:
 :toclevels: 5
 :sectids:
@@ -14,7 +14,7 @@ License: link:{common-license-page-uri}[Creative Commons 4.0]
 
 [abstract]
 --
-This is the user guide for Neo4j Spark Connector version {docs-version}, authored by the Neo4j Labs Team.
+This is the user guide for Neo4j Connector for Apache Spark version {docs-version}, authored by the Neo4j Labs Team.
 --
 
 The guide covers the following areas:

@@ -8,7 +8,7 @@ Get started fast for common scenarios, using Neo4j Streams plugin or Kafka Conne
 --
 endif::env-docs[]
 
-=== Neo4j Spark Connector Plugin
+=== Neo4j Connector for Apache Spark Plugin
 
 ==== Install the Plugin
 

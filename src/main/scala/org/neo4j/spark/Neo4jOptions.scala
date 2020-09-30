@@ -274,7 +274,7 @@ object Neo4jOptions {
   val ENCRYPTION_TRUST_STRATEGY = "encryption.trust.strategy"
   val ENCRYPTION_CA_CERTIFICATE_PATH = "encryption.ca.certificate.path"
   val CONNECTION_MAX_LIFETIME_MSECS = "connection.max.lifetime.msecs"
-  val CONNECTION_LIVENESS_CHECK_TIMEOUT = "connection.liveness.timeout.msec"
+  val CONNECTION_LIVENESS_CHECK_TIMEOUT = "connection.liveness.timeout.msecs"
   val CONNECTION_ACQUISITION_TIMEOUT_MSECS = "connection.acquisition.timeout.msecs"
   val CONNECTION_TIMEOUT_MSECS = "connection.timeout.msecs"
 

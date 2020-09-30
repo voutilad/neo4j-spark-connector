@@ -47,12 +47,12 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
 
   @Test
   def testReadNodeWithFieldWithDifferentTypes(): Unit = {
-    val df: DataFrame = initTest("CREATE (p1:Person {field: [12,34]}), (p2:Person {field: 123})")
+    val df: DataFrame = initTest("CREATE (p1:Person {id: 1, field: [12,34]}), (p2:Person {id: 2, field: 123})")
 
-    val res = df.collectAsList()
+    val res = df.orderBy("id").collectAsList()
 
-    assertEquals("[12,34]", res.get(0).get(2))
-    assertEquals("123", res.get(1).get(2))
+    assertEquals("[12,34]", res.get(0).get(3))
+    assertEquals("123", res.get(1).get(3))
   }
 
   @Test
