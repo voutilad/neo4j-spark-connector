@@ -40,23 +40,18 @@ class Neo4jDataWriter(jobId: String,
   override def write(record: InternalRow): Unit = {
     batch.add(mappingService.convert(record, structType))
     if (batch.size() == options.transactionMetadata.batchSize) {
-      try {
-        writeBatch()
-      }
-      catch {
-        case e: Exception => log.error(e.getMessage)
-      }
+      writeBatch()
     }
   }
 
   private def writeBatch(): Unit = {
-    if (session == null || !session.isOpen) {
-      session = driverCache.getOrCreate().session(options.session.toNeo4jSession)
-    }
-    if (transaction == null || !transaction.isOpen) {
-      transaction = session.beginTransaction()
-    }
     try {
+      if (session == null || !session.isOpen) {
+        session = driverCache.getOrCreate().session(options.session.toNeo4jSession)
+      }
+      if (transaction == null || !transaction.isOpen) {
+        transaction = session.beginTransaction()
+      }
       log.info(
         s"""Writing a batch of ${batch.size()} elements to Neo4j,
            |for jobId=$jobId and partitionId=$partitionId
@@ -93,15 +88,23 @@ class Neo4jDataWriter(jobId: String,
           close
           writeBatch
         } else {
-          throw neo4jTransientException
+          logAndThrowException(neo4jTransientException)
         }
       }
-      case e: Exception => {
-        log.error("Cannot commit the transaction because of the following exception:", e)
-        throw e
-      }
+      case e: Exception => logAndThrowException(e)
     }
     Unit
+  }
+
+  private def logAndThrowException(e: Exception): Unit = {
+    if (e.isInstanceOf[ClientException]) {
+      log.error(s"Cannot commit the transaction because: ${e.getMessage}")
+    }
+    else {
+      log.error("Cannot commit the transaction because the following exception", e)
+    }
+
+    throw e
   }
 
   override def commit(): WriterCommitMessage = {
