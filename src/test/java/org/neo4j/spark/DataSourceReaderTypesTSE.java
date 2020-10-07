@@ -5,13 +5,14 @@ import org.apache.spark.sql.Row;
 import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema;
 import org.junit.Test;
 
-import java.sql.Time;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.sql.Date;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
 
@@ -269,7 +270,20 @@ public class DataSourceReaderTypesTSE extends SparkConnectorScalaBaseTSE {
         assertEquals(44.222, res.get(1).get(3));
     }
 
+    @Test
+    public void testReadNodeWithMap() {
+        Dataset<Row> df = ss().read().format(DataSource.class.getName())
+                .option("url", SparkConnectorScalaSuiteIT.server().getBoltUrl())
+                .option("query", "RETURN {a: 1, b: '3'} AS map")
+                .load();
 
+        Map<Object, Object> map = df.select("map").collectAsList().get(0).getJavaMap(0);
+        Map<String, String> expectedMap = new HashMap<>();
+        expectedMap.put("a", "1");
+        expectedMap.put("b", "3");
+
+        assertEquals(expectedMap, map);
+    }
 
     Dataset<Row> initTest(String query) {
         SparkConnectorScalaSuiteIT.session()
