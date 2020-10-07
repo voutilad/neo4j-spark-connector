@@ -26,6 +26,18 @@ link:https://community.neo4j.com/[The Neo4j Community] site is a great place to 
 The source code is offered under the terms of the Apache 2.0 open source license.  You are free
 to download, modify, and redistribute the connector; however Neo4j support will apply only to official builds provided by Neo4j.
 
+== Is this software connected to Morpheus or Cypher for Apache Spark (CAPS)?
+
+No.  There is no shared code or approach between the two, and they take very different approaches.  Cypher for Apache Spark/Morpheus took the approach of providing an interpreter 
+that could execute Cypher queries within the Spark environment, and provided a native graph representation for Spark.  By contrast, this connector does not provide that
+functionality, and focuses on doing reads and writes back and forth between Neo4j & Spark.  Via this connector, all Cypher code is executed strictly within Neo4j.  The spark
+environment operates in terms of DataFrames as it always did, and this connector does not provide graph API primitives for Spark.
+
+== Can this connector be used for pre-processing of data and loading into Neo4j?
+
+Yes.  This connector enables spark to be used as a good method of loading data directly into Neo4j.  See link:architecture.adoc[the architecture section] for a detailed discussion of
+"Normalized Loading" vs. "Cypher Destructuring" and guidance on different approaches for how to do performant data loads into Neo4j.
+
 == My writes are failing due to Deadlock Exceptions
 
 In some cases, Neo4j will reject write transactions due to a deadlock exception that you may see in the stacktrace.
