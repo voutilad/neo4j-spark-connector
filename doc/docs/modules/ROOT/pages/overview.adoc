@@ -23,11 +23,20 @@ and Scala.
 
 == Compatibility
 
+=== Neo4j Compatibility
 This connector works with Neo4j 3.5, and the entire 4+ series of Neo4j, whether run as a single instance,
-in causal cluster mode, or run as a managed service in Neo4j Aura.
+in causal cluster mode, or run as a managed service in Neo4j Aura.  The connector does not rely on enterprise features, and as
+such will work with Neo4j Community as well, with the appropriate version number.
 
 [NOTE]
-**Neo4j versions prior to 3.5 are not supported and not guaranteed to work**
+**Neo4j versions prior to 3.5 are not supported**
+
+=== Spark Compatibility
+This connector works with Apache Spark 2.4 and above, but will not work with Spark 3.0+ because of different incompatible APIs for Data sources.
+
+=== Scala Compatibility
+This connector works with Scala 2.11 and 2.12.  Because of the differences in the APIs, *different JAR files are needed* depending on your
+scala version.  Ensure that you have the appropriate JAR file for your environment.
 
 == Availability
 
