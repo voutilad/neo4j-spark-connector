@@ -5,7 +5,7 @@ import org.junit.runners.Suite;
 
 @RunWith(Suite.class)
 @Suite.SuiteClasses({
-
+    DataSourceReaderTypesTSE.class
 })
 public class SparkConnectorSuiteIT extends SparkConnectorScalaSuiteIT {
 }
