@@ -33,7 +33,11 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
 
   private def structForNode(labels: Seq[String] = options.nodeMetadata.labels): StructType = {
     var structFields: mutable.Buffer[StructField] = (try {
-        val query = "CALL apoc.meta.nodeTypeProperties({ includeLabels: $labels })"
+        val query =
+          """CALL apoc.meta.nodeTypeProperties({ includeLabels: $labels })
+            |YIELD propertyName, propertyTypes
+            |RETURN DISTINCT propertyName, propertyTypes
+            |""".stripMargin
         val params = Map[String, AnyRef]("labels" -> labels.asJava)
           .asJava
         retrieveSchemaFromApoc(query, params)

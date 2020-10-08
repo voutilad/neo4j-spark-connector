@@ -11,6 +11,7 @@ import org.neo4j.driver.summary.ResultSummary
 import org.neo4j.driver.{SessionConfig, Transaction, TransactionWork}
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 
 class DataSourceReaderWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
 
@@ -765,6 +766,48 @@ class DataSourceReaderWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
     assertEquals("1", res.get(0).get(7))
     assertEquals("4", res.get(1).get(4))
     assertEquals("2", res.get(1).get(7))
+  }
+
+  @Test
+  def testShouldReturnSamePropertiesForNodesWithMultipleLabels(): Unit = {
+    val fixtureQuery: String =
+      s"""CREATE (actor:Person:Actor {name: 'Keanu Reeves', born: 1964, actor: true})
+         |CREATE (soccerPlayer:Person:SoccerPlayer {name: 'Zlatan Ibrahimović', born: 1981, soccerPlayer: true})
+         |CREATE (writer:Person:Writer {name: 'Philip K. Dick', born: 1928, writer: true})
+    """.stripMargin
+
+    SparkConnectorScalaSuiteWithApocIT.session()
+      .writeTransaction(
+        new TransactionWork[ResultSummary] {
+          override def execute(tx: Transaction): ResultSummary = tx.run(fixtureQuery).consume()
+        })
+
+    val df: DataFrame = ss.read.format(classOf[DataSource].getName)
+      .option("url", SparkConnectorScalaSuiteWithApocIT.server.getBoltUrl)
+      .option("labels", "Person")
+      .load()
+      .sort("`<id>`")
+
+    val cols = df.columns.toSeq.sorted
+    val expectedCols = Seq("name", "born", "actor",
+        "soccerPlayer", "writer", "<id>", "<labels>")
+      .sorted
+    assertEquals(expectedCols, cols)
+
+    val data = df.collect().toSeq
+      .map(row => expectedCols.filterNot(_ == "<id>").map(col => {
+        row.getAs[Any](col) match {
+          case array: Array[String] => array.toList
+          case null => null
+          case other: Any => other
+        }
+      }))
+    val expectedData = Seq(
+      Seq(mutable.WrappedArray.make(Array("Person", "Actor")), true, 1964, "Keanu Reeves", null, null),
+      Seq(mutable.WrappedArray.make(Array("Person", "SoccerPlayer")), null, 1981, "Zlatan Ibrahimović", true, null),
+      Seq(mutable.WrappedArray.make(Array("Person", "Writer")), null, 1928, "Philip K. Dick", null, true)
+    ).toBuffer
+    assertEquals(expectedData, data)
   }
 
   @Test
