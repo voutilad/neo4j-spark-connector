@@ -174,11 +174,11 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
   }
 
   def structForQuery(): StructType = {
-    val query = s"""${options.query.value}
+    val query = s"""${queryReadStrategy.createStatementForQuery(options)}
          |ORDER BY rand()
          |LIMIT ${options.schemaMetadata.flattenLimit}
          |""".stripMargin
-    val params = Collections.emptyMap[String, AnyRef]()
+    val params = Collections.singletonMap[String, AnyRef](Neo4jQueryStrategy.VARIABLE_SCRIPT_RESULT, Collections.emptyList())
     val structFields = retrieveSchema(query, params, { record => record.asMap.asScala.toMap })
     StructType(structFields)
   }
@@ -555,12 +555,14 @@ object SchemaService {
   def normalizedClassName(value: AnyRef): String = value match {
     case list: java.util.List[_] => "Array"
     case map: java.util.Map[String, _] => "Map"
+    case null => "String"
     case _ => value.getClass.getSimpleName
   }
 
   // from nodes and relationships we cannot have maps as properties and elements in collections are the same type
   def normalizedClassNameFromGraphEntity(value: AnyRef): String = value match {
     case list: java.util.List[_] => s"${list.get(0).getClass.getSimpleName}Array"
+    case null => "String"
     case _ => value.getClass.getSimpleName
   }
 

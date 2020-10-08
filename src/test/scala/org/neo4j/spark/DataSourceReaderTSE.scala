@@ -2,6 +2,7 @@ package org.neo4j.spark
 
 import java.sql.Timestamp
 import java.time.{LocalDateTime, OffsetDateTime, ZoneOffset}
+import java.util.Collections
 
 import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema
 import org.apache.spark.sql.{DataFrame, Row}
@@ -1094,6 +1095,25 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
       .load
 
     assertEquals(2, df.count())
+  }
+
+  @Test
+  def testShouldPassTheScriptResult(): Unit = {
+    val df = ss.read
+      .format(classOf[DataSource].getName)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("script", "RETURN 'foo' AS val")
+      .option("query", "UNWIND range(1,2) as id RETURN id AS val, scriptResult[0].val AS script")
+      .option("partitions", 2)
+      .option("query.count", 2)
+      .load
+      .orderBy("val")
+    val data = df.collect()
+      .map(row => (row.getAs[String]("script"),
+        row.getAs[Long]("val")))
+      .toSeq
+    val expected = Seq(("foo", 1), ("foo", 2))
+    assertEquals(expected, data)
   }
 
   private def initTest(query: String): DataFrame = {

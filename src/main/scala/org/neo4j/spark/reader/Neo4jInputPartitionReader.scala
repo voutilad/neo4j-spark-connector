@@ -5,8 +5,8 @@ import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.sources.v2.reader.{InputPartition, InputPartitionReader}
 import org.apache.spark.sql.types.StructType
-import org.neo4j.driver.{Record, Session, Transaction}
-import org.neo4j.spark.service.{MappingService, Neo4jQueryReadStrategy, Neo4jQueryService, Neo4jReadMappingStrategy, PartitionSkipLimit}
+import org.neo4j.driver.{Record, Session, Transaction, Values}
+import org.neo4j.spark.service.{MappingService, Neo4jQueryReadStrategy, Neo4jQueryService, Neo4jQueryStrategy, Neo4jReadMappingStrategy, PartitionSkipLimit}
 import org.neo4j.spark.util.Neo4jUtil
 import org.neo4j.spark.{DriverCache, Neo4jOptions}
 
@@ -16,7 +16,8 @@ class Neo4jInputPartitionReader(private val options: Neo4jOptions,
                                 private val filters: Array[Filter],
                                 private val schema: StructType,
                                 private val jobId: String,
-                                private val partitionSkipLimit: PartitionSkipLimit) extends InputPartition[InternalRow]
+                                private val partitionSkipLimit: PartitionSkipLimit,
+                                private val scriptResult: java.util.List[java.util.Map[String, AnyRef]]) extends InputPartition[InternalRow]
   with InputPartitionReader[InternalRow]
   with Logging {
 
@@ -32,14 +33,16 @@ class Neo4jInputPartitionReader(private val options: Neo4jOptions,
   private val mappingService = new MappingService(new Neo4jReadMappingStrategy(options), options)
 
   override def createPartitionReader(): InputPartitionReader[InternalRow] = new Neo4jInputPartitionReader(options, filters, schema,
-    jobId, partitionSkipLimit)
+    jobId, partitionSkipLimit, scriptResult)
 
   def next: Boolean = {
     if (result == null) {
       session = driverCache.getOrCreate().session(options.session.toNeo4jSession)
       transaction = session.beginTransaction()
       log.info(s"Running the following query on Neo4j: $query")
-      result = transaction.run(query).asScala
+      result = transaction.run(query, Values
+        .value(Map[String, AnyRef](Neo4jQueryStrategy.VARIABLE_SCRIPT_RESULT -> scriptResult).asJava))
+        .asScala
     }
 
     result.hasNext

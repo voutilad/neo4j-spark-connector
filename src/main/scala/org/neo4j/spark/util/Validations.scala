@@ -110,7 +110,9 @@ object Validations {
             s"You need to set the ${Neo4jOptions.RELATIONSHIP_TARGET_LABELS} option")
         }
         case QueryType.QUERY => {
-          ValidationUtil.isTrue(schemaService.isValidQuery(neo4jOptions.query.value, org.neo4j.driver.summary.QueryType.READ_ONLY),
+          ValidationUtil.isTrue(schemaService.isValidQuery(s"""WITH [] as ${Neo4jQueryStrategy.VARIABLE_SCRIPT_RESULT}
+                  |${neo4jOptions.query.value}
+                  |""".stripMargin, org.neo4j.driver.summary.QueryType.READ_ONLY),
             "Please provide a valid READ query")
           if (neo4jOptions.queryMetadata.queryCount.nonEmpty) {
             if (!Neo4jUtil.isLong(neo4jOptions.queryMetadata.queryCount)) {
@@ -120,6 +122,8 @@ object Validations {
           }
         }
       }
+      neo4jOptions.script.foreach(query => ValidationUtil.isTrue(schemaService.isValidQuery(query),
+        s"The following query inside the `${Neo4jOptions.SCRIPT}` is not valid, please check the syntax: $query"))
     } finally {
       schemaService.close()
       cache.close()
