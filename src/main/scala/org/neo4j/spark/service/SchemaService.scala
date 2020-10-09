@@ -8,7 +8,7 @@ import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.types.{DataType, DataTypes, StructField, StructType}
 import org.neo4j.driver.exceptions.ClientException
 import org.neo4j.driver.types.Entity
-import org.neo4j.driver.{Record, Session, Transaction, TransactionWork}
+import org.neo4j.driver.{Record, Session, Transaction, TransactionWork, Value}
 import org.neo4j.spark.service.SchemaService.{cypherToSparkType, normalizedClassName, normalizedClassNameFromGraphEntity}
 import org.neo4j.spark.util.Neo4jImplicits.{CypherImplicits, EntityImplicits}
 import org.neo4j.spark.util.{Neo4jUtil, ValidationUtil}
@@ -21,7 +21,9 @@ import scala.collection.mutable.ArrayBuffer
 object PartitionSkipLimit {
   val EMPTY = PartitionSkipLimit(0, -1, -1)
 }
+
 case class PartitionSkipLimit(partitionNumber: Int, skip: Long, limit: Long)
+
 case class Neo4jVersion(name: String, versions: Seq[String], edition: String)
 
 class SchemaService(private val options: Neo4jOptions, private val driverCache: DriverCache, private val filters: Array[Filter] = Array.empty)
@@ -33,26 +35,29 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
 
   private def structForNode(labels: Seq[String] = options.nodeMetadata.labels): StructType = {
     var structFields: mutable.Buffer[StructField] = (try {
+      val query =
+        """CALL apoc.meta.nodeTypeProperties({ includeLabels: $labels })
+          |YIELD propertyName, propertyTypes
+          |WITH DISTINCT propertyName, propertyTypes
+          |WITH propertyName, collect(propertyTypes) AS propertyTypes
+          |RETURN propertyName, reduce(acc = [], elem IN propertyTypes | acc + elem) AS propertyTypes
+          |""".stripMargin
+      val params = Map[String, AnyRef]("labels" -> labels.asJava)
+        .asJava
+      retrieveSchemaFromApoc(query, params)
+    } catch {
+      case e: ClientException =>
+        log.warn("Switching to query schema resolution because of the following exception:", e)
+        // TODO get back to Cypher DSL when rand function will be available
         val query =
-          """CALL apoc.meta.nodeTypeProperties({ includeLabels: $labels })
-            |YIELD propertyName, propertyTypes
-            |RETURN DISTINCT propertyName, propertyTypes
-            |""".stripMargin
-        val params = Map[String, AnyRef]("labels" -> labels.asJava)
-          .asJava
-        retrieveSchemaFromApoc(query, params)
-      } catch {
-        case e: ClientException =>
-          log.warn("Switching to query schema resolution because of the following exception:", e)
-          // TODO get back to Cypher DSL when rand function will be available
-          val query = s"""MATCH (${Neo4jUtil.NODE_ALIAS}:${labels.map(_.quote()).mkString(":")})
-            |RETURN ${Neo4jUtil.NODE_ALIAS}
-            |ORDER BY rand()
-            |LIMIT ${options.schemaMetadata.flattenLimit}
-            |""".stripMargin
-          val params = Collections.emptyMap[String, AnyRef]()
-          retrieveSchema(query, params, { record => record.get(Neo4jUtil.NODE_ALIAS).asNode.asMap.asScala.toMap })
-      })
+          s"""MATCH (${Neo4jUtil.NODE_ALIAS}:${labels.map(_.quote()).mkString(":")})
+             |RETURN ${Neo4jUtil.NODE_ALIAS}
+             |ORDER BY rand()
+             |LIMIT ${options.schemaMetadata.flattenLimit}
+             |""".stripMargin
+        val params = Collections.emptyMap[String, AnyRef]()
+        retrieveSchema(query, params, { record => record.get(Neo4jUtil.NODE_ALIAS).asNode.asMap.asScala.toMap })
+    })
       .sortBy(t => t.name)
 
     structFields += StructField(Neo4jUtil.INTERNAL_LABELS_FIELD, DataTypes.createArrayType(DataTypes.StringType), nullable = true)
@@ -66,17 +71,20 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
       .asScala
       .filter(record => !record.get("propertyName").isNull && !record.get("propertyName").isEmpty)
       .map(record => {
-        val fieldTypesList = record.get("propertyTypes").asList
-        val fieldType = if (fieldTypesList.size() > 1) {
-          log.warn(
-            s"""
-              |The field ${record.get("propertyName")} has different types: ${record.get("propertyTypes").asList.toString}
-              |Every value will be casted to string.
-              |""".stripMargin)
+        val fieldTypesList = record.get("propertyTypes")
+          .asList(new java.util.function.Function[Value, String]() {
+            override def apply(v: Value): String = v.asString()
+          })
+          .asScala
+        val fieldType: String = if (fieldTypesList.size > 1) {
+          log.warn(s"""
+               |The field ${record.get("propertyName")} has different types: $fieldTypesList
+               |Every value will be casted to string.
+               |""".stripMargin)
           "String"
         }
         else {
-          fieldTypesList.get(0).toString
+          fieldTypesList(0)
         }
 
         StructField(record.get("propertyName").asString,
@@ -146,42 +154,40 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
     }
 
     structFields ++= (try {
+      val query =
+        """CALL apoc.meta.relTypeProperties({ includeRels: $rels }) YIELD sourceNodeLabels, targetNodeLabels,
+          | propertyName, propertyTypes
+          |WITH *
+          |WHERE sourceNodeLabels = $sourceLabels AND targetNodeLabels = $targetLabels
+          |RETURN *
+          |""".stripMargin
+      val params = Map[String, AnyRef]("rels" -> Seq(options.relationshipMetadata.relationshipType).asJava,
+        "sourceLabels" -> options.relationshipMetadata.source.labels.asJava,
+        "targetLabels" -> options.relationshipMetadata.target.labels.asJava)
+        .asJava
+      retrieveSchemaFromApoc(query, params)
+    } catch {
+      case e: ClientException =>
+        log.warn("Switching to query schema resolution because of the following exception:", e)
+        // TODO get back to Cypher DSL when rand function will be available
         val query =
-          """CALL apoc.meta.relTypeProperties({ includeRels: $rels }) YIELD sourceNodeLabels, targetNodeLabels,
-            | propertyName, propertyTypes
-            |WITH *
-            |WHERE sourceNodeLabels = $sourceLabels AND targetNodeLabels = $targetLabels
-            |RETURN *
-            |""".stripMargin
-        val params = Map[String, AnyRef]("rels" -> Seq(options.relationshipMetadata.relationshipType).asJava,
-            "sourceLabels" -> options.relationshipMetadata.source.labels.asJava,
-            "targetLabels" -> options.relationshipMetadata.target.labels.asJava)
-          .asJava
-        retrieveSchemaFromApoc(query, params)
-      } catch {
-        case e: ClientException =>
-          log.warn("Switching to query schema resolution because of the following exception:", e)
-          // TODO get back to Cypher DSL when rand function will be available
-          val query = s"""MATCH (${Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS}:${options.relationshipMetadata.source.labels.map(_.quote()).mkString(":")})
-            |MATCH (${Neo4jUtil.RELATIONSHIP_TARGET_ALIAS}:${options.relationshipMetadata.target.labels.map(_.quote()).mkString(":")})
-            |MATCH (${Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS})-[${Neo4jUtil.RELATIONSHIP_ALIAS}:${options.relationshipMetadata.relationshipType}]->(${Neo4jUtil.RELATIONSHIP_TARGET_ALIAS})
-            |RETURN ${Neo4jUtil.RELATIONSHIP_ALIAS}
-            |ORDER BY rand()
-            |LIMIT ${options.schemaMetadata.flattenLimit}
-            |""".stripMargin
-          val params = Collections.emptyMap[String, AnyRef]()
-          retrieveSchema(query, params, { record => record.get(Neo4jUtil.RELATIONSHIP_ALIAS).asRelationship.asMap.asScala.toMap })
-      })
+          s"""MATCH (${Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS}:${options.relationshipMetadata.source.labels.map(_.quote()).mkString(":")})
+             |MATCH (${Neo4jUtil.RELATIONSHIP_TARGET_ALIAS}:${options.relationshipMetadata.target.labels.map(_.quote()).mkString(":")})
+             |MATCH (${Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS})-[${Neo4jUtil.RELATIONSHIP_ALIAS}:${options.relationshipMetadata.relationshipType}]->(${Neo4jUtil.RELATIONSHIP_TARGET_ALIAS})
+             |RETURN ${Neo4jUtil.RELATIONSHIP_ALIAS}
+             |ORDER BY rand()
+             |LIMIT ${options.schemaMetadata.flattenLimit}
+             |""".stripMargin
+        val params = Collections.emptyMap[String, AnyRef]()
+        retrieveSchema(query, params, { record => record.get(Neo4jUtil.RELATIONSHIP_ALIAS).asRelationship.asMap.asScala.toMap })
+    })
       .map(field => StructField(s"rel.${field.name}", field.dataType, field.nullable, field.metadata))
       .sortBy(t => t.name)
     StructType(structFields)
   }
 
   def structForQuery(): StructType = {
-    val query = s"""${queryReadStrategy.createStatementForQuery(options)}
-         |ORDER BY rand()
-         |LIMIT ${options.schemaMetadata.flattenLimit}
-         |""".stripMargin
+    val query = queryReadStrategy.createStatementForQuery(options)
     val params = Collections.singletonMap[String, AnyRef](Neo4jQueryStrategy.VARIABLE_SCRIPT_RESULT, Collections.emptyList())
     val structFields = retrieveSchema(query, params, { record => record.asMap.asScala.toMap })
     StructType(structFields)
@@ -203,7 +209,8 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
     val query = if (filters.isEmpty) {
       options.nodeMetadata.labels
         .map(_.quote())
-        .map(label => s"""
+        .map(label =>
+          s"""
              |MATCH (:$label)
              |RETURN count(*) AS count""".stripMargin)
         .mkString(" UNION ALL ")
@@ -223,14 +230,16 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
     val query = if (filters.isEmpty) {
       val sourceQueries = options.relationshipMetadata.source.labels
         .map(_.quote())
-        .map(label => s"""MATCH (:$label)-[${Neo4jUtil.RELATIONSHIP_ALIAS}:${options.relationshipMetadata.relationshipType.quote()}]->()
-                         |RETURN count(${Neo4jUtil.RELATIONSHIP_ALIAS}) AS count
-                         |""".stripMargin)
+        .map(label =>
+          s"""MATCH (:$label)-[${Neo4jUtil.RELATIONSHIP_ALIAS}:${options.relationshipMetadata.relationshipType.quote()}]->()
+             |RETURN count(${Neo4jUtil.RELATIONSHIP_ALIAS}) AS count
+             |""".stripMargin)
       val targetQueries = options.relationshipMetadata.target.labels
         .map(_.quote())
-        .map(label => s"""MATCH ()-[${Neo4jUtil.RELATIONSHIP_ALIAS}:${options.relationshipMetadata.relationshipType.quote()}]->(:$label)
-                         |RETURN count(${Neo4jUtil.RELATIONSHIP_ALIAS}) AS count
-                         |""".stripMargin)
+        .map(label =>
+          s"""MATCH ()-[${Neo4jUtil.RELATIONSHIP_ALIAS}:${options.relationshipMetadata.relationshipType.quote()}]->(:$label)
+             |RETURN count(${Neo4jUtil.RELATIONSHIP_ALIAS}) AS count
+             |""".stripMargin)
       (sourceQueries ++ targetQueries)
         .mkString(" UNION ALL ")
     } else {
@@ -424,11 +433,12 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
           case OptimizationType.INDEX => s"CREATE INDEX $actionName"
           case OptimizationType.NODE_CONSTRAINTS => s"CREATE CONSTRAINT $actionName"
         }
-        val queryCheck = s"""CALL db.indexes() YIELD $labelIndexFieldName, properties, $uniqueFieldName
-                           |WHERE $labelIndexFieldName = ${'$'}labels
-                           |AND properties = ${'$'}properties
-                           |AND $uniqueFieldName = ${'$'}uniqueness
-                           |RETURN count(*) > 0 AS isPresent""".stripMargin
+        val queryCheck =
+          s"""CALL db.indexes() YIELD $labelIndexFieldName, properties, $uniqueFieldName
+             |WHERE $labelIndexFieldName = ${'$'}labels
+             |AND properties = ${'$'}properties
+             |AND $uniqueFieldName = ${'$'}uniqueness
+             |RETURN count(*) > 0 AS isPresent""".stripMargin
         val isPresent = session.run(queryCheck, Map("labels" -> Seq(label).asJava,
           "properties" -> props.asJava,
           "uniqueness" -> uniqueness).asJava)
@@ -495,7 +505,7 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
       .flatten
       .toSeq
     session
-      .writeTransaction(new TransactionWork[util.List[java.util.Map[String, AnyRef]]]{
+      .writeTransaction(new TransactionWork[util.List[java.util.Map[String, AnyRef]]] {
         override def execute(transaction: Transaction): util.List[util.Map[String, AnyRef]] = {
           others.size match {
             case 0 => Collections.emptyList()

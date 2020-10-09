@@ -786,7 +786,7 @@ class DataSourceReaderWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
       .option("url", SparkConnectorScalaSuiteWithApocIT.server.getBoltUrl)
       .option("labels", "Person")
       .load()
-      .sort("`<id>`")
+      .sort("name")
 
     val cols = df.columns.toSeq.sorted
     val expectedCols = Seq("name", "born", "actor",
@@ -804,8 +804,49 @@ class DataSourceReaderWithApocTSE extends SparkConnectorScalaBaseWithApocTSE {
       }))
     val expectedData = Seq(
       Seq(mutable.WrappedArray.make(Array("Person", "Actor")), true, 1964, "Keanu Reeves", null, null),
-      Seq(mutable.WrappedArray.make(Array("Person", "SoccerPlayer")), null, 1981, "Zlatan Ibrahimović", true, null),
-      Seq(mutable.WrappedArray.make(Array("Person", "Writer")), null, 1928, "Philip K. Dick", null, true)
+      Seq(mutable.WrappedArray.make(Array("Person", "Writer")), null, 1928, "Philip K. Dick", null, true),
+        Seq(mutable.WrappedArray.make(Array("Person", "SoccerPlayer")), null, 1981, "Zlatan Ibrahimović", true, null)
+    ).toBuffer
+    assertEquals(expectedData, data)
+  }
+
+  @Test
+  def testShouldReturnSamePropertiesForNodesWithMultipleLabelsAndDifferentValues(): Unit = {
+    val fixtureQuery: String =
+      s"""CREATE (:Person { prop: 25 }),
+         |(:Person:Player { prop: "hello" }),
+         |(:Person:Player:Weirdo { prop: true })
+    """.stripMargin
+
+    SparkConnectorScalaSuiteWithApocIT.session()
+      .writeTransaction(
+        new TransactionWork[ResultSummary] {
+          override def execute(tx: Transaction): ResultSummary = tx.run(fixtureQuery).consume()
+        })
+
+    val df: DataFrame = ss.read.format(classOf[DataSource].getName)
+      .option("url", SparkConnectorScalaSuiteWithApocIT.server.getBoltUrl)
+      .option("labels", "Person")
+      .load()
+      .sort("prop")
+
+    val cols = df.columns.toSeq.sorted
+    val expectedCols = Seq("prop", "<id>", "<labels>")
+      .sorted
+    assertEquals(expectedCols, cols)
+
+    val data = df.collect().toSeq
+      .map(row => expectedCols.filterNot(_ == "<id>").map(col => {
+        row.getAs[Any](col) match {
+          case array: Array[String] => array.toList
+          case null => null
+          case other: Any => other
+        }
+      }))
+    val expectedData = Seq(
+      Seq(mutable.WrappedArray.make(Array("Person")), "25"),
+      Seq(mutable.WrappedArray.make(Array("Person", "Player")), "hello"),
+      Seq(mutable.WrappedArray.make(Array("Person", "Player", "Weirdo")), "true")
     ).toBuffer
     assertEquals(expectedData, data)
   }
