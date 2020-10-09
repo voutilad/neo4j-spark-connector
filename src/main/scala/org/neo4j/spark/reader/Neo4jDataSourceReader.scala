@@ -53,8 +53,7 @@ class Neo4jDataSourceReader(private val options: DataSourceOptions, private val 
   }
 
   private def createPartitions(schema: StructType) = {
-    // execute the scripts:
-    // we get the skip/limit for each partition
+    // we get the skip/limit for each partition and execute the "script"
     val (partitionSkipLimitList, scriptResult) = callSchemaService { schemaService =>
       (schemaService.skipLimitFromPartition(), schemaService.execute(neo4jOptions.script)) }
     // we generate a partition for each element
