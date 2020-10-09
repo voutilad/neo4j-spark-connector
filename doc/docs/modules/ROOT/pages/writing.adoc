@@ -287,8 +287,8 @@ The generated query will be
 [source,cypher]
 ----
 UNWIND $events AS event
-MERGE (n:`Person`:`Customer` {name: event.name, surname: event.surname})
-SET n += event
+MERGE (n:`Person`:`Customer` {name: event.keys.name, surname: event.keys.surname})
+SET n += event.properties
 ----
 
 Here you must specify which columns of your Dataframe will be used as keys to match the nodes.
