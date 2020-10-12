@@ -1098,6 +1098,36 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
   }
 
   @Test
+  def testEmptyDataset(): Unit = {
+    val df = ss.read
+      .format(classOf[DataSource].getName)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("query", "MATCH (e:ID_DO_NOT_EXIST) RETURN id(e) as f, 1 as g")
+      .load
+
+    df.show()
+  }
+
+  @Test
+  def testColumnSorted(): Unit = {
+    SparkConnectorScalaSuiteIT.session()
+      .writeTransaction(
+        new TransactionWork[ResultSummary] {
+          override def execute(tx: Transaction): ResultSummary = tx.run("CREATE (i1:Instrument{name: 'Drums', id: 1}), (i2:Instrument{name: 'Guitar', id: 2})").consume()
+        })
+
+    val df = ss.read
+      .format(classOf[DataSource].getName)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("query", "MATCH (i:Instrument) RETURN id(i) as internal_id, i.id as id, i.name as name, i.name")
+      .load
+
+    assertEquals(0L, df.collectAsList().get(0).get(0))
+    assertEquals(1L, df.collectAsList().get(0).get(1))
+    assertEquals("Drums", df.collectAsList().get(0).get(2))
+  }
+
+  @Test
   def testShouldPassTheScriptResult(): Unit = {
     val df = ss.read
       .format(classOf[DataSource].getName)

@@ -2,6 +2,7 @@ package org.neo4j.spark.service
 
 import java.util
 import java.util.Collections
+import java.util.function.BiConsumer
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.sources.Filter
@@ -190,7 +191,36 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
     val query = queryReadStrategy.createStatementForQuery(options)
     val params = Collections.singletonMap[String, AnyRef](Neo4jQueryStrategy.VARIABLE_SCRIPT_RESULT, Collections.emptyList())
     val structFields = retrieveSchema(query, params, { record => record.asMap.asScala.toMap })
-    StructType(structFields)
+
+    val result = session.run(s"EXPLAIN ${options.query.value}").consume()
+      val plan = result.plan()
+
+      val columns = if (plan.arguments().containsKey("Details")) {
+        plan.arguments()
+          .get("Details")
+          .asString()
+          .replaceAll("\"", "")
+          .split(',')
+          .map(_.trim)
+      }
+      else {
+        plan.children().get(0).arguments().get("Expressions").asString().replaceAll("[\"{}]", "")
+          .split(',')
+          .map(_.split(':'))
+          .map(m => m.head -> m.tail)
+          .toMap
+          .keySet
+          .map(_.trim)
+          .toArray
+      }
+
+    val sortedStructFields = if (structFields.isEmpty) {
+      columns.map(StructField(_, DataTypes.StringType))
+    } else {
+      columns.map(c => structFields.find(_.name.equals(c)).get)
+    }
+
+    StructType(sortedStructFields)
   }
 
   def struct(): StructType = {
