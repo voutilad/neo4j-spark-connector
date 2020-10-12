@@ -379,6 +379,7 @@ class DataSourceWriterNeo4j4xTSE extends SparkConnectorScalaBaseTSE {
       .option("relationship.source.labels", ":Person")
       .option("relationship.target.labels", ":Product")
       .load()
+      .orderBy("`source.id`", "`target.id`")
 
     dfOriginal.write
       .format(classOf[DataSource].getName)
@@ -403,6 +404,7 @@ class DataSourceWriterNeo4j4xTSE extends SparkConnectorScalaBaseTSE {
       .option("relationship.source.labels", ":Person")
       .option("relationship.target.labels", ":Product")
       .load()
+      .orderBy("`source.id`", "`target.id`")
 
     for (i <- 0 until 1) {
       assertEquals(

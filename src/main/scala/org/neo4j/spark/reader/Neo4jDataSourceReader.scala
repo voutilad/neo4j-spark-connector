@@ -21,9 +21,10 @@ class Neo4jDataSourceReader(private val options: DataSourceOptions, private val 
   private val neo4jOptions: Neo4jOptions = new Neo4jOptions(options.asMap())
     .validate(options => Validations.read(options, jobId))
 
-
-  override def readSchema(): StructType = callSchemaService { schemaService => schemaService
+  private val structType = callSchemaService { schemaService => schemaService
     .struct() }
+
+  override def readSchema(): StructType = structType
 
   private def callSchemaService[T](function: SchemaService => T): T = {
     val driverCache = new DriverCache(neo4jOptions.connection, jobId)
@@ -52,13 +53,13 @@ class Neo4jDataSourceReader(private val options: DataSourceOptions, private val 
   }
 
   private def createPartitions(schema: StructType) = {
-    // we get the skip/limit for each partition
-    val partitionSkipLimitList = callSchemaService { schemaService => schemaService
-      .skipLimitFromPartition() }
+    // we get the skip/limit for each partition and execute the "script"
+    val (partitionSkipLimitList, scriptResult) = callSchemaService { schemaService =>
+      (schemaService.skipLimitFromPartition(), schemaService.execute(neo4jOptions.script)) }
     // we generate a partition for each element
     partitionSkipLimitList
       .map(partitionSkipLimit => new Neo4jInputPartitionReader(neo4jOptions, filters, schema, jobId,
-        partitionSkipLimit))
+        partitionSkipLimit, scriptResult))
   }
 
   override def pushFilters(filtersArray: Array[Filter]): Array[Filter] = {

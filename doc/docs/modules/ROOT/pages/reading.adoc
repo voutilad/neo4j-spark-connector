@@ -162,6 +162,37 @@ in these cases we suggest trying with the option `schema.strategy` set to `strin
 Read query *must always* return some data (read: *must always* have a return statement).
 If you use store procedures remember to `YIELD` and then `RETURN` data.
 
+==== Script Option
+
+The script option allow you to execute a series of preparation script before Spark
+Job execution, the result of the last query can be reused in combination with the
+`query` read mode as it follows
+
+----
+import org.apache.spark.sql.SparkSession
+
+val spark = SparkSession.builder().getOrCreate()
+
+spark.read.format("org.neo4j.spark.DataSource")
+  .option("url", "bolt://localhost:7687")
+  .option("script", "RETURN 'foo' AS val")
+  .option("query", "UNWIND range(1,2) as id RETURN id AS val, scriptResult[0].val AS script")
+  .load()
+  .show()
+----
+
+Before the extraction from Neo4j starts, the connector will run the content of the `script` option
+and the result of the last query will be injected into the `query`.
+
+.Result of the above code
+|===
+|val|script
+
+|1|foo
+|2|foo
+|===
+
+
 ==== Schema
 The first 10 (or any number specified by the `schema.flatten.limit` option) results will be flattened and the schema will be created from those properties.
 

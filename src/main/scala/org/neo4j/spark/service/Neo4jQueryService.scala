@@ -94,17 +94,20 @@ class Neo4jQueryWriteStrategy(private val saveMode: SaveMode) extends Neo4jQuery
 }
 
 class Neo4jQueryReadStrategy(filters: Array[Filter] = Array.empty[Filter],
-                             partitionSkipLimit: PartitionSkipLimit = PartitionSkipLimit(0, -1, -1)) extends Neo4jQueryStrategy {
+                             partitionSkipLimit: PartitionSkipLimit = PartitionSkipLimit.EMPTY) extends Neo4jQueryStrategy {
   private val renderer: Renderer = Renderer.getDefaultRenderer
 
-  override def createStatementForQuery(options: Neo4jOptions): String =
-    if (partitionSkipLimit.skip != -1 && partitionSkipLimit.limit != -1) {
+  override def createStatementForQuery(options: Neo4jOptions): String = {
+    val limitedQuery = if (partitionSkipLimit.skip != -1 && partitionSkipLimit.limit != -1) {
       s"""${options.query.value}
         |SKIP ${partitionSkipLimit.skip} LIMIT ${partitionSkipLimit.limit}
         |""".stripMargin
     } else {
       options.query.value
     }
+    s"""WITH ${"$"}scriptResult AS ${Neo4jQueryStrategy.VARIABLE_SCRIPT_RESULT}
+       |$limitedQuery""".stripMargin
+  }
 
   override def createStatementForRelationships(options: Neo4jOptions): String = {
     val sourceNode = createNode(Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS, options.relationshipMetadata.source.labels)
