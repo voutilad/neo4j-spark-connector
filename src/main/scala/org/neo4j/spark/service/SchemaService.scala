@@ -193,7 +193,7 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
     val params = Collections.singletonMap[String, AnyRef](Neo4jQueryStrategy.VARIABLE_SCRIPT_RESULT, Collections.emptyList())
     val structFields = retrieveSchema(query, params, { record => record.asMap.asScala.toMap })
 
-    val result = session.run(s"EXPLAIN ${options.query.value}").consume()
+    val result = session.run(s"EXPLAIN $query").consume()
     val plan = result.plan()
 
     val columns = if (plan.arguments().containsKey("Details")) {
