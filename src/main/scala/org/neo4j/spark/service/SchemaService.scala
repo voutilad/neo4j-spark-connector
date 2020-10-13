@@ -209,6 +209,7 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
 
       lastChild.operatorType() match {
         case "EagerAggregation" => lastChild.identifiers().asScala.toArray
+        case "ProcedureCall" => plan.identifiers().asScala.toArray
         case _ =>
           val expressions = lastChild.arguments().get("Expressions").asString()
 
