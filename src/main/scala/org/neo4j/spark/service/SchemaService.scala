@@ -2,7 +2,6 @@ package org.neo4j.spark.service
 
 import java.util
 import java.util.Collections
-import java.util.function.BiConsumer
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.sources.Filter
@@ -14,6 +13,8 @@ import org.neo4j.spark.service.SchemaService.{cypherToSparkType, normalizedClass
 import org.neo4j.spark.util.Neo4jImplicits.{CypherImplicits, EntityImplicits}
 import org.neo4j.spark.util.{Neo4jUtil, ValidationUtil}
 import org.neo4j.spark.{DriverCache, Neo4jOptions, OptimizationType, QueryType, SchemaStrategy}
+import org.json4s._
+import org.json4s.jackson.JsonMethods._
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -193,26 +194,29 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
     val structFields = retrieveSchema(query, params, { record => record.asMap.asScala.toMap })
 
     val result = session.run(s"EXPLAIN ${options.query.value}").consume()
-      val plan = result.plan()
+    val plan = result.plan()
 
-      val columns = if (plan.arguments().containsKey("Details")) {
-        plan.arguments()
-          .get("Details")
-          .asString()
-          .replaceAll("\"", "")
-          .split(',')
-          .map(_.trim)
+    val columns = if (plan.arguments().containsKey("Details")) {
+      plan.arguments()
+        .get("Details")
+        .asString()
+        .replaceAll("\"", "")
+        .split(',')
+        .map(_.trim)
+    }
+    else {
+      val lastChild = plan.children().get(0)
+
+      lastChild.operatorType() match {
+        case "EagerAggregation" => lastChild.identifiers().asScala.toArray
+        case _ =>
+          val expressions = lastChild.arguments().get("Expressions").asString()
+
+          val firstLevelExpressions = "\\{(.*?)}".r.replaceAllIn(expressions.substring(1,expressions.length-1),"_")
+
+          "([^,:]*?):".r.findAllMatchIn(firstLevelExpressions).map(_.group(1).trim).toArray
       }
-      else {
-        plan.children().get(0).arguments().get("Expressions").asString().replaceAll("[\"{}]", "")
-          .split(',')
-          .map(_.split(':'))
-          .map(m => m.head -> m.tail)
-          .toMap
-          .keySet
-          .map(_.trim)
-          .toArray
-      }
+    }
 
     val sortedStructFields = if (structFields.isEmpty) {
       columns.map(StructField(_, DataTypes.StringType))
