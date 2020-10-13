@@ -222,7 +222,7 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
     val sortedStructFields = if (structFields.isEmpty) {
       columns.map(StructField(_, DataTypes.StringType))
     } else {
-      columns.map(c => structFields.find(_.name.equals(c)).get)
+      columns.map(c => structFields.find(_.name.quote().equals(c.quote())).get)
     }
 
     StructType(sortedStructFields)
