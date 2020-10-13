@@ -2,14 +2,12 @@ package org.neo4j.spark
 
 import java.sql.Timestamp
 import java.time.{LocalDateTime, OffsetDateTime, ZoneOffset}
-import java.util.Collections
-
 import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema
 import org.apache.spark.sql.{DataFrame, Row}
 import org.junit.Assert._
 import org.junit.Test
 import org.neo4j.driver.summary.ResultSummary
-import org.neo4j.driver.{SessionConfig, Transaction, TransactionWork}
+import org.neo4j.driver.{Transaction, TransactionWork}
 
 import scala.collection.JavaConverters._
 
@@ -1105,7 +1103,8 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
       .option("query", "MATCH (e:ID_DO_NOT_EXIST) RETURN id(e) as f, 1 as g")
       .load
 
-    df.show()
+    assertEquals(0, df.count())
+    assertEquals(Set("f", "g"), df.columns.toSet)
   }
 
   @Test
@@ -1124,6 +1123,7 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
 
     assertEquals(1L, df.collectAsList().get(0).get(1))
     assertEquals("Drums", df.collectAsList().get(0).get(2))
+    assertEquals(Set("internal_id", "id", "name", "i.name"), df.columns.toSet)
   }
 
   @Test
@@ -1143,26 +1143,30 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
           override def execute(tx: Transaction): ResultSummary = tx.run(fixtureQuery).consume()
         })
 
-    ss.read.format(classOf[DataSource].getName)
+    val df = ss.read.format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
       .option("query",
         """MATCH (p:Person)-[b:BOUGHT]->(pr:Product)
           |RETURN id(p) AS personId, id(pr) AS productId, {quantity: b.quantity, when: b.when} AS map, "some string" as someString, {anotherField: "201"} as map2""".stripMargin)
       .option("schema.strategy", "string")
       .load()
-      .show()
+
+    assertEquals(Set("personId", "productId", "map", "someString", "map2"), df.columns.toSet)
+    assertEquals(100, df.count())
   }
 
   @Test
   def testComplexReturnStatementNoValues(): Unit = {
-    ss.read.format(classOf[DataSource].getName)
+    val df = ss.read.format(classOf[DataSource].getName)
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
       .option("query",
         """MATCH (p:Person)-[b:BOUGHT]->(pr:Product)
           |RETURN id(p) AS personId, id(pr) AS productId, {quantity: b.quantity, when: b.when} AS map, "some string" as someString, {anotherField: "201", and: 1} as map2""".stripMargin)
       .option("schema.strategy", "string")
       .load()
-      .show()
+
+    assertEquals(Set("personId", "productId", "map", "someString", "map2"), df.columns.toSet)
+    assertEquals(0, df.count())
   }
 
   @Test

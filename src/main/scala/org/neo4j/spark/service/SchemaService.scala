@@ -13,8 +13,6 @@ import org.neo4j.spark.service.SchemaService.{cypherToSparkType, normalizedClass
 import org.neo4j.spark.util.Neo4jImplicits.{CypherImplicits, EntityImplicits}
 import org.neo4j.spark.util.{Neo4jUtil, ValidationUtil}
 import org.neo4j.spark.{DriverCache, Neo4jOptions, OptimizationType, QueryType, SchemaStrategy}
-import org.json4s._
-import org.json4s.jackson.JsonMethods._
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -193,10 +191,24 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
     val params = Collections.singletonMap[String, AnyRef](Neo4jQueryStrategy.VARIABLE_SCRIPT_RESULT, Collections.emptyList())
     val structFields = retrieveSchema(query, params, { record => record.asMap.asScala.toMap })
 
-    val result = session.run(s"EXPLAIN $query").consume()
-    val plan = result.plan()
+    val columns = getReturnedColumns(query)
 
-    val columns = if (plan.arguments().containsKey("Details")) {
+    val sortedStructFields = if (structFields.isEmpty) {
+      // df: we arrived here because there are no data returned by the query
+      // so we want to return an empty dataset which schema is equals to the columns
+      // specified by the RETURN statement
+      columns.map(StructField(_, DataTypes.StringType))
+    } else {
+      columns.map(c => structFields.find(_.name.quote().equals(c.quote())).get)
+    }
+
+    StructType(sortedStructFields)
+  }
+
+  private def getReturnedColumns(query: String): Array[String] = {
+    val plan = session.run(s"EXPLAIN $query").consume().plan()
+
+    if (plan.arguments().containsKey("Details")) {
       plan.arguments()
         .get("Details")
         .asString()
@@ -218,14 +230,6 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
           "([^,:]*?):".r.findAllMatchIn(firstLevelExpressions).map(_.group(1).trim).toArray
       }
     }
-
-    val sortedStructFields = if (structFields.isEmpty) {
-      columns.map(StructField(_, DataTypes.StringType))
-    } else {
-      columns.map(c => structFields.find(_.name.quote().equals(c.quote())).get)
-    }
-
-    StructType(sortedStructFields)
   }
 
   def struct(): StructType = {
