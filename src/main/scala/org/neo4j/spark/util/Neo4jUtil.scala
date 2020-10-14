@@ -10,11 +10,10 @@ import com.fasterxml.jackson.databind.{JsonSerializer, ObjectMapper, SerializerP
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{GenericRowWithSchema, UnsafeArrayData, UnsafeMapData, UnsafeRow}
 import org.apache.spark.sql.catalyst.util.{ArrayBasedMapData, ArrayData, DateTimeUtils}
-import org.apache.spark.sql.sources.{And, EqualNullSafe, EqualTo, Filter, GreaterThan, GreaterThanOrEqual, In, IsNotNull, IsNull, LessThan, LessThanOrEqual, Not, Or, StringContains, StringEndsWith, StringStartsWith}
+import org.apache.spark.sql.sources._
 import org.apache.spark.sql.types._
 import org.apache.spark.unsafe.types.UTF8String
-import org.neo4j.cypherdsl.core.{Condition, Cypher, Functions}
-import org.neo4j.driver.internal.{InternalIsoDuration, InternalNode, InternalPoint2D, InternalPoint3D, InternalRelationship}
+import org.neo4j.cypherdsl.core.{Condition, Cypher}
 import org.neo4j.driver.internal._
 import org.neo4j.driver.types.{Entity, Path}
 import org.neo4j.driver.{Session, Transaction, Values}
@@ -157,8 +156,12 @@ object Neo4jUtil {
   }
 
   def convertFromSpark(value: Any, schema: StructField = null): AnyRef = value match {
-    case date: java.sql.Date => convertFromSpark(date.toLocalDate)
-    case timestamp: java.sql.Timestamp => convertFromSpark(timestamp.toInstant.atZone(ZoneOffset.UTC))
+    case date: java.sql.Date => convertFromSpark(date.toLocalDate, schema)
+    case timestamp: java.sql.Timestamp => convertFromSpark(timestamp.toInstant.atZone(ZoneOffset.UTC), schema)
+    case intValue: Int if schema != null && schema.dataType == DataTypes.DateType => convertFromSpark(DateTimeUtils
+      .toJavaDate(intValue), schema)
+    case longValue: Long if schema != null && schema.dataType == DataTypes.TimestampType => convertFromSpark(DateTimeUtils
+      .toJavaTimestamp(longValue), schema)
     case unsafeRow: UnsafeRow => {
       val structType = extractStructType(schema.dataType)
       val row = new GenericRowWithSchema(unsafeRow.toSeq(structType).toArray, structType)

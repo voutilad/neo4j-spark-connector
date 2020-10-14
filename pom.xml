@@ -82,7 +82,7 @@
         <profile>
             <id>neo4j-4.1</id>
             <properties>
-                <neo4j.version>4.1.1</neo4j.version>
+                <neo4j.version>4.1.2</neo4j.version>
             </properties>
         </profile>
         <profile>
