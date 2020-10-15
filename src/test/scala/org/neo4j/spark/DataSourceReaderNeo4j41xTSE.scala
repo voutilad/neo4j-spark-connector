@@ -9,7 +9,8 @@ import org.neo4j.driver.{SessionConfig, Transaction, TransactionWork}
 object DataSourceReaderNeo4j41xTSE {
   @BeforeClass
   def checkNeo4jVersion() {
-    Assume.assumeTrue(TestUtil.neo4jVersion().startsWith("4.1"))
+    val neo4jVersion = TestUtil.neo4jVersion()
+    Assume.assumeTrue(!neo4jVersion.startsWith("3.5") && !neo4jVersion.startsWith("4.0"))
   }
 }
 
