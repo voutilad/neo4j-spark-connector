@@ -1,5 +1,7 @@
 package org.neo4j.spark
 
+import java.time.ZoneOffset
+
 import org.apache.commons.lang3.exception.ExceptionUtils
 import org.apache.spark.SparkException
 import org.apache.spark.sql.{DataFrame, SaveMode, SparkSession}
@@ -59,7 +61,17 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .filter(r => r.get("foo").hasType(neo4jType))
       .map(r => r.asMap().asScala)
       .toSet
-    val expected = ds.collect().map(row => Map("foo" -> row.getAs[T]("foo")))
+    val expected = ds.collect()
+      .map(row => Map("foo" -> {
+        val foo = row.getAs[T]("foo")
+        foo match {
+          case sqlDate: java.sql.Date => sqlDate
+            .toLocalDate
+          case sqlTimestamp: java.sql.Timestamp => sqlTimestamp.toInstant
+            .atZone(ZoneOffset.UTC)
+          case _ => foo
+        }
+      }))
       .toSet
     assertEquals(expected, records)
   }
@@ -114,6 +126,27 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
       .toDF("foo")
 
     testType[Int](ds, InternalTypeSystem.TYPE_SYSTEM.INTEGER())
+  }
+
+  @Test
+  def `should write nodes with date values into Neo4j`(): Unit = {
+    val total = 5
+    val ds = (1 to total)
+      .map(i => java.sql.Date.valueOf("2020-01-0" + i))
+      .toDF("foo")
+
+    testType[java.sql.Date](ds, InternalTypeSystem.TYPE_SYSTEM.DATE())
+  }
+
+  @Test
+  def `should write nodes with timestamp values into Neo4j`(): Unit = {
+    val total = 5
+    val ds = (1 to total)
+      .map(i => java.sql.Timestamp.valueOf(s"2020-01-0${i} 11:11:11.11"))
+      .toDF("foo")
+    ds.show
+
+    testType[java.sql.Timestamp](ds, InternalTypeSystem.TYPE_SYSTEM.DATE_TIME())
   }
 
   @Test
