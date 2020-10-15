@@ -190,7 +190,46 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
     val query = queryReadStrategy.createStatementForQuery(options)
     val params = Collections.singletonMap[String, AnyRef](Neo4jQueryStrategy.VARIABLE_SCRIPT_RESULT, Collections.emptyList())
     val structFields = retrieveSchema(query, params, { record => record.asMap.asScala.toMap })
-    StructType(structFields)
+
+    val columns = getReturnedColumns(query)
+
+    val sortedStructFields = if (structFields.isEmpty) {
+      // df: we arrived here because there are no data returned by the query
+      // so we want to return an empty dataset which schema is equals to the columns
+      // specified by the RETURN statement
+      columns.map(StructField(_, DataTypes.StringType))
+    } else {
+      columns.map(c => structFields.find(_.name.quote().equals(c.quote())).get)
+    }
+
+    StructType(sortedStructFields)
+  }
+
+  private def getReturnedColumns(query: String): Array[String] = {
+    val plan = session.run(s"EXPLAIN $query").consume().plan()
+
+    if (plan.arguments().containsKey("Details")) {
+      plan.arguments()
+        .get("Details")
+        .asString()
+        .replaceAll("\"", "")
+        .split(',')
+        .map(_.trim)
+    }
+    else {
+      val lastChild = plan.children().get(0)
+
+      lastChild.operatorType() match {
+        case "EagerAggregation" => lastChild.identifiers().asScala.toArray
+        case "ProcedureCall" => plan.identifiers().asScala.toArray
+        case _ =>
+          val expressions = lastChild.arguments().get("Expressions").asString()
+
+          val firstLevelExpressions = "\\{(.*?)}".r.replaceAllIn(expressions.substring(1,expressions.length-1),"_")
+
+          "([^,:]*?):".r.findAllMatchIn(firstLevelExpressions).map(_.group(1).trim).toArray
+      }
+    }
   }
 
   def struct(): StructType = {

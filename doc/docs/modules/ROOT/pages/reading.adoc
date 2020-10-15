@@ -196,6 +196,30 @@ and the result of the last query will be injected into the `query`.
 ==== Schema
 The first 10 (or any number specified by the `schema.flatten.limit` option) results will be flattened and the schema will be created from those properties.
 
+If the query returns no data the sampling won't be possible.
+In these case the connector will create a schema from the return statement and every column will be of type String.
+This won't cause any problems since you won't have any data in your dataset.
+
+For example, say you have this query:
+[source]
+----
+MATCH (n:NON_EXISTENT_LABEL) RETURN id(n) as id, n.name, n.age
+----
+
+The created schema will be
+
+|===
+|Column|Type
+
+|id|String
+|n.name|String
+|n.age|String
+|===
+
+[NOTE]
+The returned column order is not guarantee to match the RETURN statement for Neo4j 3.* and Neo4j 4.0.
+Starting from Neo4j 4.1 it the order will be the same.
+
 [[bookmark-read-node]]
 === Node
 
