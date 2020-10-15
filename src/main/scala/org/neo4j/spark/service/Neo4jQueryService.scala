@@ -66,8 +66,14 @@ class Neo4jQueryWriteStrategy(private val saveMode: SaveMode) extends Neo4jQuery
     val sourceQueryPart = createQueryPart(sourceKeyword, sourceLabels, sourceKeys, Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS)
     val targetQueryPart = createQueryPart(targetKeyword, targetLabels, targetKeys, Neo4jUtil.RELATIONSHIP_TARGET_ALIAS)
 
+    val withQueryPart = if (sourceKeyword != "MATCH" && targetKeyword == "MATCH")
+      "\nWITH source, event"
+    else {
+      ""
+    }
+
     s"""UNWIND ${"$"}events AS ${Neo4jQueryStrategy.VARIABLE_EVENT}
-       |$sourceQueryPart
+       |$sourceQueryPart$withQueryPart
        |$targetQueryPart
        |$relationshipKeyword (${Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS})-[${Neo4jUtil.RELATIONSHIP_ALIAS}:${relationship}]->(${Neo4jUtil.RELATIONSHIP_TARGET_ALIAS})
        |SET ${Neo4jUtil.RELATIONSHIP_ALIAS} += ${Neo4jQueryStrategy.VARIABLE_EVENT}.${Neo4jUtil.RELATIONSHIP_ALIAS}.${Neo4jWriteMappingStrategy.PROPERTIES}
