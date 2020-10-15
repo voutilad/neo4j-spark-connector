@@ -6,7 +6,8 @@ import org.apache.commons.lang3.exception.ExceptionUtils
 import org.apache.spark.SparkException
 import org.apache.spark.sql.{DataFrame, SaveMode, SparkSession}
 import org.junit.Assert._
-import org.junit.Test
+import org.junit.{Ignore, Test}
+import org.neo4j.driver.exceptions.ClientException
 import org.neo4j.driver.internal.types.InternalTypeSystem
 import org.neo4j.driver.internal.{InternalPoint2D, InternalPoint3D}
 import org.neo4j.driver.summary.ResultSummary
@@ -737,6 +738,40 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
 
     assertEquals("John Scofield", res.get(3).getString(4))
     assertEquals("Guitar", res.get(3).getString(7))
+  }
+
+  @Test
+  @Ignore("trying to recreate the deadlock issue")
+  def `should give better errors if transaction fails`(): Unit = {
+    val df = List.fill(200)(("John Bonham", "Drums")).toDF("name", "instrument")
+
+    df.write
+      .format(classOf[DataSource].getName)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("relationship", "PLAYS")
+      .option("relationship.source.save.mode", "ErrorIfExists")
+      .option("relationship.target.save.mode", "ErrorIfExists")
+      .option("relationship.save.strategy", "keys")
+      .option("relationship.source.labels", ":Musician")
+      .option("relationship.source.node.keys", "name:name")
+      .option("relationship.target.labels", ":Instrument")
+      .option("relationship.target.node.keys", "instrument:name")
+      .save()
+
+    df.write
+      .format(classOf[DataSource].getName)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("transaction.retries", 0)
+      .option("partitions", "10")
+      .option("relationship", "PLAYS")
+      .option("relationship.source.save.mode", "Overwrite")
+      .option("relationship.target.save.mode", "Overwrite")
+      .option("relationship.save.strategy", "keys")
+      .option("relationship.source.labels", ":Musician")
+      .option("relationship.source.node.keys", "name:name")
+      .option("relationship.target.labels", ":Instrument")
+      .option("relationship.target.node.keys", "instrument:name")
+      .save()
   }
 
   @Test
