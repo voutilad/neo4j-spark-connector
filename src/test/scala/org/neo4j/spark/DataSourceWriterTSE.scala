@@ -11,7 +11,7 @@ import org.neo4j.driver.internal.types.InternalTypeSystem
 import org.neo4j.driver.internal.{InternalPoint2D, InternalPoint3D}
 import org.neo4j.driver.summary.ResultSummary
 import org.neo4j.driver.types.{IsoDuration, Type}
-import org.neo4j.driver.{Result, SessionConfig, Transaction, TransactionWork}
+import org.neo4j.driver.{Result, Transaction, TransactionWork}
 
 import scala.collection.JavaConverters._
 import scala.util.Random
@@ -142,9 +142,8 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
   def `should write nodes with timestamp values into Neo4j`(): Unit = {
     val total = 5
     val ds = (1 to total)
-      .map(i => java.sql.Timestamp.valueOf(s"2020-01-0${i} 11:11:11.11"))
+      .map(i => java.sql.Timestamp.valueOf(s"2020-01-0$i 11:11:11.11"))
       .toDF("foo")
-    ds.show
 
     testType[java.sql.Timestamp](ds, InternalTypeSystem.TYPE_SYSTEM.DATE_TIME())
   }
@@ -1091,5 +1090,84 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
     assertEquals(2, constraintCount)
     SparkConnectorScalaSuiteIT.session().run("DROP INDEX ON :Person(surname)")
     SparkConnectorScalaSuiteIT.session().run("DROP CONSTRAINT ON (p:Product) ASSERT (p.name, p.sku) IS NODE KEY")
+  }
+
+  @Test
+  def `should work create source node and match target node`() {
+    val data = Seq(
+      (12, "John Bonham", "Drums"),
+      (19, "John Mayer", "Guitar"),
+      (32, "John Scofield", "Guitar"),
+      (15, "John Butler", "Guitar")
+    )
+    SparkConnectorScalaSuiteIT.session().run("CREATE " + data
+      .map(_._3)
+      .toSet[String]
+      .map(instrument => s"(:Instrument{name: '$instrument'})")
+      .mkString(", "))
+    val musicDf = data.toDF("experience", "name", "instrument")
+
+    musicDf.write
+      .format("org.neo4j.spark.DataSource")
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("relationship", "PLAYS")
+      .option("relationship.save.strategy", "keys")
+      .option("relationship.source.save.mode", "ErrorIfExists")
+      .option("relationship.source.labels", ":Musician")
+      .option("relationship.source.node.keys", "name")
+      .option("relationship.target.save.mode", "match")
+      .option("relationship.target.labels", ":Instrument")
+      .option("relationship.target.node.keys", "instrument:name")
+      .save
+
+    val count = SparkConnectorScalaSuiteIT.session().run(
+      """MATCH p = (:Musician)-[:PLAYS]->(:Instrument)
+        |RETURN count(p) AS count""".stripMargin)
+      .single()
+      .get("count")
+      .asLong()
+
+    assertEquals(data.size, count)
+  }
+
+  @Test
+  def `should work match source node and merge target node`() {
+    SparkConnectorScalaSuiteIT.session().run("CREATE CONSTRAINT ON (m:Musician) ASSERT (m.name) IS UNIQUE")
+    val data = Seq(
+      (12, "John Bonham", "Drums"),
+      (19, "John Mayer", "Guitar"),
+      (32, "John Scofield", "Guitar"),
+      (15, "John Butler", "Guitar")
+    )
+    SparkConnectorScalaSuiteIT.session().run("CREATE " + data
+      .map(_._2)
+      .toSet[String]
+      .map(name => s"(:Musician{name: '$name'})")
+      .mkString(", "))
+    val musicDf = data.toDF("experience", "name", "instrument")
+
+    musicDf.write
+      .format("org.neo4j.spark.DataSource")
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("relationship", "PLAYS")
+      .option("relationship.save.strategy", "keys")
+      .option("relationship.source.save.mode", "match")
+      .option("relationship.source.labels", ":Musician")
+      .option("relationship.source.node.keys", "name")
+      .option("relationship.target.save.mode", "overwrite")
+      .option("relationship.target.labels", ":Instrument")
+      .option("relationship.target.node.keys", "instrument:name")
+      .save
+
+    val count = SparkConnectorScalaSuiteIT.session().run(
+      """MATCH p = (:Musician)-[:PLAYS]->(:Instrument)
+        |RETURN count(p) AS count""".stripMargin)
+      .single()
+      .get("count")
+      .asLong()
+
+    assertEquals(data.size, count)
+
+    SparkConnectorScalaSuiteIT.session().run("DROP CONSTRAINT ON (m:Musician) ASSERT (m.name) IS UNIQUE")
   }
 }
