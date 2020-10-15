@@ -57,7 +57,7 @@ and need each column to always have the same type.
 
 You can read more <<quickstart.adoc#bookmark-read-known-problem, here>>.
 
-== The returned columns are not in the same ordere as I specified in the query
+== The returned columns are not in the same order as I specified in the query
 
 Unfortunately this is a known issue and is there for Neo4j 3.* and Neo4j 4.0.
 With Neo4j 4.1+ you will get the same order as specified in the return statement.
