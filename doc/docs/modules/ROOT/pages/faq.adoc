@@ -69,13 +69,6 @@ and need each column to always have the same type.
 
 You can read more <<quickstart.adoc#bookmark-read-known-problem, here>>.
 
-== I'm getting a "Please provide a valid READ query" even though my query is correct
-
-This is most likely due to a SKIP/LIMIT at the end of your query.
-Limiting queries is not a valid approach with this connector.
-You can although still using SKIP/LIMIT in the middle of your query.
-To limit the returned results please use `query.count` <<reading.adoc#bookmark-limit-query,option>>.
-
 == The returned columns are not in the same order as I specified in the query
 
 Unfortunately this is a known issue and is there for Neo4j 3.* and Neo4j 4.0.
