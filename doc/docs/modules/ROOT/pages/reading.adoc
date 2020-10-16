@@ -220,6 +220,29 @@ The created schema will be
 The returned column order is not guarantee to match the RETURN statement for Neo4j 3.* and Neo4j 4.0.
 Starting from Neo4j 4.1 it the order will be the same.
 
+[[bookmark-limit-query]]
+==== Limit the results
+
+Since partitioning is done by using LIMIT/SKIP you should not limit the result yourself.
+
+To achieve this you can use `query.count` option (more on it <<quickstart.adoc#bookmark-parallelize,here>>)
+by specifying the number of records you want to limit your dataset.
+
+[source,scala]
+----
+import org.apache.spark.sql.{SaveMode, SparkSession}
+
+val spark = SparkSession.builder().getOrCreate()
+
+spark.read.format("org.neo4j.spark.DataSource")
+  .option("url", "bolt://localhost:7687")
+  .option("query", "MATCH (n:MY_ONE_THOUSAND_NODES_LABEL) RETURN n")
+  .option("query.count", "100")
+  .load()
+----
+
+If you limit your query you will get an error since the limit is already added by the partitioning system.
+
 [[bookmark-read-node]]
 === Node
 

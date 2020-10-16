@@ -28,7 +28,7 @@ to download, modify, and redistribute the connector; however Neo4j support will 
 
 == Is this software connected to Morpheus or Cypher for Apache Spark (CAPS)?
 
-No.  There is no shared code or approach between the two, and they take very different approaches.  Cypher for Apache Spark/Morpheus took the approach of providing an interpreter 
+No.  There is no shared code or approach between the two, and they take very different approaches.  Cypher for Apache Spark/Morpheus took the approach of providing an interpreter
 that could execute Cypher queries within the Spark environment, and provided a native graph representation for Spark.  By contrast, this connector does not provide that
 functionality, and focuses on doing reads and writes back and forth between Neo4j & Spark.  Via this connector, all Cypher code is executed strictly within Neo4j.  The spark
 environment operates in terms of DataFrames as it always did, and this connector does not provide graph API primitives for Spark.
@@ -68,6 +68,12 @@ all the values for that field will be casted to String. This because Spark is no
 and need each column to always have the same type.
 
 You can read more <<quickstart.adoc#bookmark-read-known-problem, here>>.
+
+== I'm getting a "Please provide a valid READ query" even though my query is correct
+
+This is most likely due to a SKIP/LIMIT at the end of your query.
+Limiting queries is not a valid approach with this connector.
+To limit the returned results please use `query.count` <<reading.adoc#bookmark-limit-query,option>>.
 
 == The returned columns are not in the same order as I specified in the query
 
