@@ -228,6 +228,9 @@ Since partitioning is done by using LIMIT/SKIP you should not limit the result y
 To achieve this you can use `query.count` option (more on it <<quickstart.adoc#bookmark-parallelize,here>>)
 by specifying the number of records you want to limit your dataset.
 
+Please don't use SKIP/LIMIT at the end of your query.
+Using it _in the middle_ of the query is still ok.
+
 [source,scala]
 ----
 import org.apache.spark.sql.{SaveMode, SparkSession}
