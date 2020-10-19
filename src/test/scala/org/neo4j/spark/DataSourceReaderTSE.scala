@@ -1250,6 +1250,7 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
       .option("query", "MATCH (p:Product) WITH p\nLIMIT 10\nRETURN p")
       .option("partitions", 2)
+      .option("query.count", 20)
       .load
 
     assertEquals(10, df.count())
