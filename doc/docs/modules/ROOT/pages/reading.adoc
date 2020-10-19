@@ -223,28 +223,39 @@ Starting from Neo4j 4.1 it the order will be the same.
 [[bookmark-limit-query]]
 ==== Limit the results
 
-Since partitioning is done by using LIMIT/SKIP you should not limit the result yourself.
+This connector does not permit using SKIP or LIMIT at the end of a Cypher query.
+Attempts to do this will result in errors, such as the message "SKIP/LIMIT are not allowed at the end of the query".
 
-To achieve this you can use `query.count` option (more on it <<quickstart.adoc#bookmark-parallelize,here>>)
-by specifying the number of records you want to limit your dataset.
+This is not supported because internally, the connector uses SKIP/LIMIT pagination to break read sets up into multiple partitions, to support partitioned reads.
+As a result, user-provided SKIP/LIMIT clashes with what the connector itself adds to your query to support parallelism.
 
-Please don't use SKIP/LIMIT at the end of your query.
-Using it _in the middle_ of the query is still ok.
+There is a work-around though; you can still accomplish the same by using SKIP/LIMIT internal inside of the query, rather than after the final RETURN block of the query.
 
-[source,scala]
+Here's a simple example.
+This first query will be rejected, and will fail:
+
+[source,cypher]
 ----
-import org.apache.spark.sql.{SaveMode, SparkSession}
-
-val spark = SparkSession.builder().getOrCreate()
-
-spark.read.format("org.neo4j.spark.DataSource")
-  .option("url", "bolt://localhost:7687")
-  .option("query", "MATCH (n:MY_ONE_THOUSAND_NODES_LABEL) RETURN n")
-  .option("query.count", "100")
-  .load()
+MATCH (p:Person)
+RETURN p.name as name
+ORDER BY name
+LIMIT 10
 ----
 
-If you limit your query you will get an error since the limit is already added by the partitioning system.
+This same query though can be reformulated and will still work.
+
+[source,cypher]
+----
+MATCH (p:Person)
+WITH p.name as name
+ORDER BY name
+LIMIT 10
+RETURN p.name
+----
+
+The queries return the exact same data, but only the second one is usable with the spark connector, and partition-able, because of the WITH clause, and the simple final RETURN clause. If you choose to reformulate queries to use "internal SKIP/LIMIT" take careful notice of ordering operations to guarantee the same result set.
+
+You may also use the `query.count` option rather than reformulating your query (more on it <<quickstart.adoc#bookmark-parallelize,here>>).
 
 [[bookmark-read-node]]
 === Node
