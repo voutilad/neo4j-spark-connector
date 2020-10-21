@@ -193,6 +193,10 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
 
     val columns = getReturnedColumns(query)
 
+    if (columns.isEmpty && structFields.isEmpty) {
+      throw new ClientException("Unable to compute the resulting schema; this may mean your result set is empty or your version of Neo4j does not permit schema inference for empty sets")
+    }
+
     if (columns.isEmpty) {
       return StructType(structFields)
     }
