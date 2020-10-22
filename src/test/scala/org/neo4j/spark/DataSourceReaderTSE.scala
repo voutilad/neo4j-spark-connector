@@ -1209,6 +1209,46 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
   }
 
   @Test
+  def testShouldFailWithExplicitErrorIfLowercaseSkipLimitIsUsedAtTheEndOfTheQuery(): Unit = {
+    try {
+      ss.read
+        .format(classOf[DataSource].getName)
+        .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+        .option("query", "MATCH (n:Label) RETURN id(n) as id limit 100 skip 2")
+        .option("partitions", 2)
+        .option("query.count", 2)
+        .load
+        .show()
+    }
+    catch {
+      case iae: IllegalArgumentException => {
+        assertTrue(iae.getMessage.equals("SKIP/LIMIT are not allowed at the end of the query"))
+      }
+      case _ => fail(s"should be thrown a ${classOf[IllegalArgumentException].getName}")
+    }
+  }
+
+  @Test
+  def testShouldFailWithExplicitErrorIfRandomcaseSkipLimitIsUsedAtTheEndOfTheQuery(): Unit = {
+    try {
+      ss.read
+        .format(classOf[DataSource].getName)
+        .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+        .option("query", "MATCH (n:Label) RETURN id(n) as id LiMIt 100 skIp 2")
+        .option("partitions", 2)
+        .option("query.count", 2)
+        .load
+        .show()
+    }
+    catch {
+      case iae: IllegalArgumentException => {
+        assertTrue(iae.getMessage.equals("SKIP/LIMIT are not allowed at the end of the query"))
+      }
+      case _ => fail(s"should be thrown a ${classOf[IllegalArgumentException].getName}")
+    }
+  }
+
+  @Test
   def testShouldFailWithExplicitErrorIfSkipLimitIsUsedAtTheEndOfTheQueryWithMultilineQuery(): Unit = {
     try {
       ss.read
