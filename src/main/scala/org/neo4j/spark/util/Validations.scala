@@ -110,6 +110,8 @@ object Validations {
             s"You need to set the ${Neo4jOptions.RELATIONSHIP_TARGET_LABELS} option")
         }
         case QueryType.QUERY => {
+          ValidationUtil.isFalse(neo4jOptions.query.value.matches("(?si).*(LIMIT \\d+|SKIP ?\\d+)\\s*\\z"),
+            "SKIP/LIMIT are not allowed at the end of the query")
           ValidationUtil.isTrue(schemaService.isValidQuery(s"""WITH [] as ${Neo4jQueryStrategy.VARIABLE_SCRIPT_RESULT}
                   |${neo4jOptions.query.value}
                   |""".stripMargin, org.neo4j.driver.summary.QueryType.READ_ONLY),

@@ -193,6 +193,14 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
 
     val columns = getReturnedColumns(query)
 
+    if (columns.isEmpty && structFields.isEmpty) {
+      throw new ClientException("Unable to compute the resulting schema; this may mean your result set is empty or your version of Neo4j does not permit schema inference for empty sets")
+    }
+
+    if (columns.isEmpty) {
+      return StructType(structFields)
+    }
+
     val sortedStructFields = if (structFields.isEmpty) {
       // df: we arrived here because there are no data returned by the query
       // so we want to return an empty dataset which schema is equals to the columns
@@ -223,11 +231,16 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
         case "EagerAggregation" => lastChild.identifiers().asScala.toArray
         case "ProcedureCall" => plan.identifiers().asScala.toArray
         case _ =>
-          val expressions = lastChild.arguments().get("Expressions").asString()
+          try {
+            val expressions = lastChild.arguments().get("Expressions").asString()
+            val firstLevelExpressions = "\\{(.*?)}".r.replaceAllIn(expressions.substring(1,expressions.length-1),"_")
 
-          val firstLevelExpressions = "\\{(.*?)}".r.replaceAllIn(expressions.substring(1,expressions.length-1),"_")
-
-          "([^,:]*?):".r.findAllMatchIn(firstLevelExpressions).map(_.group(1).trim).toArray
+            "([^,:]*?):".r.findAllMatchIn(firstLevelExpressions).map(_.group(1).trim).toArray
+          } catch {
+            case e: Exception =>
+              log.warn(s"I was unable to understand the returned column using EXPLAIN due to '${e.getMessage}'")
+              Array.empty
+          }
       }
     }
   }
