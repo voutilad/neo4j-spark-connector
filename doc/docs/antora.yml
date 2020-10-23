@@ -1,6 +1,6 @@
-name: neo4j-spark-docs
-version: 1.0.0
-title: Neo4j Spark Docs
+name: spark
+version: master
+title: Neo4j Spark Connector
 start_page: ROOT:index.adoc
 nav:
   - modules/ROOT/nav.adoc
