@@ -3,7 +3,7 @@ package org.neo4j.spark
 import java.util.concurrent.ConcurrentHashMap
 import java.util.{Collections, function}
 
-import org.neo4j.driver.{Driver, GraphDatabase}
+import org.neo4j.driver.{Driver, GraphDatabase, Session, SessionConfig}
 import org.neo4j.spark.DriverCache.{cache, jobIdCache}
 import org.neo4j.spark.util.Neo4jUtil
 

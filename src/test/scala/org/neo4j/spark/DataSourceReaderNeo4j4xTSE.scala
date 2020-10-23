@@ -1,8 +1,10 @@
 package org.neo4j.spark
 
+import org.apache.spark.SparkException
 import org.apache.spark.sql.DataFrame
-import org.junit.Assert.assertEquals
+import org.junit.Assert.{assertEquals, assertTrue, fail}
 import org.junit.{Assume, Before, BeforeClass, Test}
+import org.neo4j.driver.exceptions.ClientException
 import org.neo4j.driver.{SessionConfig, Transaction, TransactionWork}
 import org.neo4j.driver.summary.ResultSummary
 
@@ -115,4 +117,23 @@ class DataSourceReaderNeo4j4xTSE extends SparkConnectorScalaBaseTSE {
     assertEquals(res.getString(0), "neo4j")
   }
 
+  @Test
+  def testShouldThrowClearErrorIfAWrongDbIsSpecified(): Unit = {
+    try {
+      ss.read.format(classOf[DataSource].getName)
+        .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+        .option("database", "not_existing_db")
+        .option("labels", "MATCH (h:Household) RETURN id(h)")
+        .load()
+        .show()
+    }
+    catch {
+      case clientException: ClientException => {
+        assertTrue(clientException.getMessage.equals(
+          "Database does not exist. Database name: 'not_existing_db'."
+        ))
+      }
+      case generic => fail(s"should be thrown a ${classOf[SparkException].getName}, got ${generic.getClass} instead")
+    }
+  }
 }

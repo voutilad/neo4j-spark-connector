@@ -14,18 +14,19 @@ object DataSourceReaderNeo4j35xTSE {
 
 class DataSourceReaderNeo4j35xTSE extends SparkConnectorScalaBaseTSE {
   @Test
-  def testShouldThrowClearErrorIfACanComputeTheSchema(): Unit = {
+  def testShouldThrowClearErrorIfADbIsSpecified(): Unit = {
     try {
       ss.read.format(classOf[DataSource].getName)
         .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
-        .option("query", "MATCH (i:DO_NOT_EXIST) RETURN i")
+        .option("database", "db1")
+        .option("labels", "MATCH (h:Household) RETURN id(h)")
         .load()
         .show()
     }
     catch {
       case clientException: ClientException => {
         assertTrue(clientException.getMessage.equals(
-          "Unable to compute the resulting schema; this may mean your result set is empty or your version of Neo4j does not permit schema inference for empty sets"
+          "Database name parameter for selecting database is not supported in Bolt Protocol Version 3.0. Database name: 'db1'"
         ))
       }
       case generic => fail(s"should be thrown a ${classOf[SparkException].getName}, got ${generic.getClass} instead")

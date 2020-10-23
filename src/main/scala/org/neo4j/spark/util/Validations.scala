@@ -2,7 +2,7 @@ package org.neo4j.spark.util
 
 import org.apache.spark.sql.SaveMode
 import org.apache.spark.sql.types.StructType
-import org.neo4j.driver.AccessMode
+import org.neo4j.driver.{AccessMode, Session}
 import org.neo4j.spark.service.{Neo4jQueryStrategy, SchemaService}
 import org.neo4j.spark.util.Neo4jImplicits.StructTypeImplicit
 import org.neo4j.spark._
@@ -15,6 +15,7 @@ object Validations {
     val cache = new DriverCache(neo4jOptions.connection, jobId)
     val schemaService = new SchemaService(neo4jOptions, cache)
     try {
+      validateConnection(cache.getOrCreate().session(neo4jOptions.session.toNeo4jSession))
       neo4jOptions.query.queryType match {
         case QueryType.QUERY => {
           ValidationUtil.isTrue(schemaService.isValidQuery(
@@ -94,6 +95,7 @@ object Validations {
     val cache = new DriverCache(neo4jOptions.connection, jobId)
     val schemaService = new SchemaService(neo4jOptions, cache)
     try {
+      validateConnection(cache.getOrCreate().session(neo4jOptions.session.toNeo4jSession))
       neo4jOptions.query.queryType match {
         case QueryType.LABELS => {
           ValidationUtil.isNotEmpty(neo4jOptions.nodeMetadata.labels,
@@ -129,6 +131,15 @@ object Validations {
     } finally {
       schemaService.close()
       cache.close()
+    }
+  }
+
+  def validateConnection(session: Session): Unit = {
+    try {
+      session.run("EXPLAIN RETURN 1").consume()
+    }
+    finally {
+      session.close()
     }
   }
 }
