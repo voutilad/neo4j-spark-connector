@@ -66,7 +66,7 @@ For complete details on type handling, consult the xref::types.adoc[Neo4j-Spark 
 |Type |Struct
 
 |Duration
-a|[small]
+a|
 ----
 Struct(Array(
     ("type", DataTypes.StringType, false),
@@ -79,7 +79,7 @@ Struct(Array(
 ----
 
 |Point
-a|[small]
+a|
 ----
 Struct(Array(
     ("type", DataTypes.StringType, false),
@@ -91,7 +91,7 @@ Struct(Array(
 ----
 
 |Time
-a|[small]
+a|
 ----
 Struct(Array(
     ("type", DataTypes.StringType, false),
