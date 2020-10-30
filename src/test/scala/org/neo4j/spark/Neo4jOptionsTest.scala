@@ -134,6 +134,17 @@ class Neo4jOptionsTest {
   }
 
   @Test
+  def testPushDownColumnIsDisabled(): Unit = {
+    val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
+    options.put(Neo4jOptions.URL, "bolt://localhost")
+    options.put("pushdown.columns.enabled", "false")
+
+    val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
+
+    assertFalse(neo4jOptions.pushdownColumnsEnabled)
+  }
+
+  @Test
   def testDriverDefaults(): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")

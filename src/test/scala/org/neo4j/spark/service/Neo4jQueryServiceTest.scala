@@ -1,10 +1,10 @@
-package org.neo4j.spark
+package org.neo4j.spark.service
 
 import org.apache.spark.sql.SaveMode
-import org.apache.spark.sql.sources.{And, EqualNullSafe, EqualTo, Filter, GreaterThanOrEqual, LessThan, Not, Or, StringEndsWith, StringStartsWith}
+import org.apache.spark.sql.sources._
 import org.junit.Assert._
 import org.junit.Test
-import org.neo4j.spark.service.{Neo4jQueryReadStrategy, Neo4jQueryService, Neo4jQueryWriteStrategy}
+import org.neo4j.spark.{Neo4jOptions, QueryType}
 
 class Neo4jQueryServiceTest {
 
@@ -30,6 +30,66 @@ class Neo4jQueryServiceTest {
     val query: String = new Neo4jQueryService(neo4jOptions, new Neo4jQueryReadStrategy).createQuery()
 
     assertEquals("MATCH (n:`Person`:`Player`:`Midfield`) RETURN n", query)
+  }
+
+  @Test
+  def testNodeLabelWithNoSelectedColumns(): Unit = {
+    val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
+    options.put(Neo4jOptions.URL, "bolt://localhost")
+    options.put(QueryType.LABELS.toString.toLowerCase, "Person")
+    val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
+
+    val query: String = new Neo4jQueryService(
+      neo4jOptions,
+      new Neo4jQueryReadStrategy(Array.empty[Filter], PartitionSkipLimit.EMPTY, Seq())
+    ).createQuery()
+
+    assertEquals("MATCH (n:`Person`) RETURN n", query)
+  }
+
+  @Test
+  def testNodeOneLabelWithOneSelectedColumn(): Unit = {
+    val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
+    options.put(Neo4jOptions.URL, "bolt://localhost")
+    options.put(QueryType.LABELS.toString.toLowerCase, "Person")
+    val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
+
+    val query: String = new Neo4jQueryService(
+      neo4jOptions,
+      new Neo4jQueryReadStrategy(Array.empty[Filter], PartitionSkipLimit.EMPTY, Seq("name"))
+    ).createQuery()
+
+    assertEquals("MATCH (n:`Person`) RETURN n.name AS name", query)
+  }
+
+  @Test
+  def testNodeOneLabelWithMultipleColumnSelected(): Unit = {
+    val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
+    options.put(Neo4jOptions.URL, "bolt://localhost")
+    options.put(QueryType.LABELS.toString.toLowerCase, "Person")
+    val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
+
+    val query: String = new Neo4jQueryService(
+      neo4jOptions,
+      new Neo4jQueryReadStrategy(Array.empty[Filter], PartitionSkipLimit.EMPTY, List("name", "bornDate"))
+    ).createQuery()
+
+    assertEquals("MATCH (n:`Person`) RETURN n.name AS name, n.bornDate AS bornDate", query)
+  }
+
+  @Test
+  def testNodeOneLabelWithInternalIdSelected(): Unit = {
+    val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
+    options.put(Neo4jOptions.URL, "bolt://localhost")
+    options.put(QueryType.LABELS.toString.toLowerCase, "Person")
+    val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
+
+    val query: String = new Neo4jQueryService(
+      neo4jOptions,
+      new Neo4jQueryReadStrategy(Array.empty[Filter], PartitionSkipLimit.EMPTY, List("<id>"))
+    ).createQuery()
+
+    assertEquals("MATCH (n:`Person`) RETURN id(n) AS `<id>`", query)
   }
 
   @Test
@@ -100,6 +160,69 @@ class Neo4jQueryServiceTest {
   }
 
   @Test
+  def testRelationshipWithOneColumnSelected(): Unit = {
+    val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
+    options.put(Neo4jOptions.URL, "bolt://localhost")
+    options.put("relationship", "KNOWS")
+    options.put("relationship.nodes.map", "false")
+    options.put("relationship.source.labels", "Person")
+    options.put("relationship.target.labels", "Person")
+    val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
+
+    val query: String = new Neo4jQueryService(neo4jOptions, new Neo4jQueryReadStrategy(
+      Array[Filter](),
+      PartitionSkipLimit.EMPTY,
+      List("source.name")
+    )).createQuery()
+
+    assertEquals("MATCH (source:`Person`) " +
+      "MATCH (target:`Person`) " +
+      "MATCH (source)-[rel:`KNOWS`]->(target) RETURN source.name AS `source.name`", query)
+  }
+
+  @Test
+  def testRelationshipWithMoreColumnSelected(): Unit = {
+    val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
+    options.put(Neo4jOptions.URL, "bolt://localhost")
+    options.put("relationship", "KNOWS")
+    options.put("relationship.nodes.map", "false")
+    options.put("relationship.source.labels", "Person")
+    options.put("relationship.target.labels", "Person")
+    val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
+
+    val query: String = new Neo4jQueryService(neo4jOptions, new Neo4jQueryReadStrategy(
+      Array[Filter](),
+      PartitionSkipLimit.EMPTY,
+      List("source.name", "<source.id>")
+    )).createQuery()
+
+    assertEquals("MATCH (source:`Person`) " +
+      "MATCH (target:`Person`) " +
+      "MATCH (source)-[rel:`KNOWS`]->(target) RETURN source.name AS `source.name`, id(source) AS `<source.id>`", query)
+  }
+
+  @Test
+  def testRelationshipWithMoreColumnsSelected(): Unit = {
+    val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
+    options.put(Neo4jOptions.URL, "bolt://localhost")
+    options.put("relationship", "KNOWS")
+    options.put("relationship.nodes.map", "false")
+    options.put("relationship.source.labels", "Person")
+    options.put("relationship.target.labels", "Person")
+    val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
+
+    val query: String = new Neo4jQueryService(neo4jOptions, new Neo4jQueryReadStrategy(
+      Array[Filter](),
+      PartitionSkipLimit.EMPTY,
+      List("source.name", "source.id", "rel.someprops", "target.date")
+    )).createQuery()
+
+    assertEquals("MATCH (source:`Person`) " +
+      "MATCH (target:`Person`) " +
+      "MATCH (source)-[rel:`KNOWS`]->(target) RETURN source.name AS `source.name`, source.id AS `source.id`, rel.someprops AS `rel.someprops`, target.date AS `target.date`", query)
+  }
+
+  @Test
   def testRelationshipFilterEqualTo(): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")
@@ -117,7 +240,7 @@ class Neo4jQueryServiceTest {
 
     assertEquals("MATCH (source:`Person`) " +
       "MATCH (target:`Person`) " +
-      "MATCH (source)-[rel:`KNOWS`]->(target) WHERE source.name = 'John Doe' RETURN source, rel, target", query)
+      "MATCH (source)-[rel:`KNOWS`]->(target) WHERE source.name = 'John Doe' RETURN rel, source AS source, target AS target", query)
   }
 
   @Test
@@ -138,7 +261,30 @@ class Neo4jQueryServiceTest {
 
     assertEquals("MATCH (source:`Person`) " +
       "MATCH (target:`Person`) " +
-      "MATCH (source)-[rel:`KNOWS`]->(target) WHERE (source.name = 'John Doe' OR target.name = 'John Doe') RETURN source, rel, target", query)
+      "MATCH (source)-[rel:`KNOWS`]->(target) WHERE (source.name = 'John Doe' OR target.name = 'John Doe') RETURN rel, source AS source, target AS target", query)
+  }
+
+  @Test
+  def testRelationshipAndFilterEqualTo(): Unit = {
+    val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
+    options.put(Neo4jOptions.URL, "bolt://localhost")
+    options.put("relationship", "KNOWS")
+    options.put("relationship.nodes.map", "true")
+    options.put("relationship.source.labels", "Person")
+    options.put("relationship.target.labels", "Person")
+    val neo4jOptions: Neo4jOptions = new Neo4jOptions(options)
+
+    val filters: Array[Filter] = Array[Filter](
+      EqualTo("source.id", "14"),
+      EqualTo("target.id", "16")
+    )
+
+    val query: String = new Neo4jQueryService(neo4jOptions, new Neo4jQueryReadStrategy(filters)).createQuery()
+
+    assertEquals(
+      "MATCH (source:`Person`) MATCH (target:`Person`) MATCH (source)-[rel:`KNOWS`]->(target) " +
+        "WHERE (source.id = '14' AND target.id = '16') " +
+        "RETURN rel, source AS source, target AS target", query)
   }
 
   @Test
@@ -188,7 +334,7 @@ class Neo4jQueryServiceTest {
       "WHERE ((source.name = 'John Doe' OR target.name = 'John Doraemon' OR source.name = 'Jane Doe') " +
       "AND (target.age = 34 OR target.age = 18) " +
       "AND rel.score = 12) " +
-      "RETURN source, rel, target", query)
+      "RETURN rel, source AS source, target AS target", query)
   }
 
   @Test
@@ -215,7 +361,7 @@ class Neo4jQueryServiceTest {
       "WHERE ((source.name = 'John Doe' OR target.name = 'John Doraemon' OR source.name = 'Jane Doe') " +
       "AND (target.age = 34 OR target.age = 18) " +
       "AND rel.score = 12) " +
-      "RETURN source, rel, target", query)
+      "RETURN rel, source AS source, target AS target", query)
   }
 
   @Test

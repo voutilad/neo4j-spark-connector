@@ -1123,9 +1123,11 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
       .option("query", "MATCH (i:Instrument) RETURN id(i) as internal_id, i.id as id, i.name as name, i.name")
       .load
+      .sort("id")
 
-    assertEquals(1L, df.collectAsList().get(0).get(1))
-    assertEquals("Drums", df.collectAsList().get(0).get(2))
+    val row = df.collectAsList().get(0)
+    assertEquals(1L, row.get(1))
+    assertEquals("Drums", row.get(2))
     assertEquals(Set("internal_id", "id", "name", "i.name"), df.columns.toSet)
   }
 
@@ -1297,6 +1299,212 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
       .load
 
     assertEquals(10, df.count())
+  }
+
+  @Test
+  def testShouldReturnJustTheSelectedFieldWithNode(): Unit = {
+    val total = 100
+    val fixtureQuery: String =
+      s"""UNWIND range(1, $total) as id
+         |CREATE (pr:Product {id: id, name: 'Product ' + id})
+         |RETURN *
+    """.stripMargin
+
+    SparkConnectorScalaSuiteIT.session()
+      .writeTransaction(
+        new TransactionWork[ResultSummary] {
+          override def execute(tx: Transaction): ResultSummary = tx.run(fixtureQuery).consume()
+        })
+
+    val df = ss.read
+      .format(classOf[DataSource].getName)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("labels", "Product")
+      .load
+      .select("name")
+
+    df.count()
+
+    assertEquals(Set("name"), df.columns.toSet)
+  }
+
+  @Test
+  def testShouldReturnJustTheSelectedFieldWithNodeAndWeirdColumnName(): Unit = {
+    val total = 100
+    val fixtureQuery: String =
+      s"""UNWIND range(1, $total) as id
+         |CREATE (pr:Product {id: id, `(╯°□°)╯︵ ┻━┻`: 'Product ' + id})
+         |RETURN *
+    """.stripMargin
+
+    SparkConnectorScalaSuiteIT.session()
+      .writeTransaction(
+        new TransactionWork[ResultSummary] {
+          override def execute(tx: Transaction): ResultSummary = tx.run(fixtureQuery).consume()
+        })
+
+    val df = ss.read
+      .format(classOf[DataSource].getName)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("labels", "Product")
+      .load
+      .select("`(╯°□°)╯︵ ┻━┻`")
+
+    df.count()
+
+    assertEquals(Set("(╯°□°)╯︵ ┻━┻"), df.columns.toSet)
+  }
+
+  @Test
+  def testShouldReturnJustTheSelectedFieldWithRelationship(): Unit = {
+    val total = 100
+    val fixtureQuery: String =
+      s"""UNWIND range(1, $total) as id
+         |CREATE (pr:Product {id: id * rand(), name: 'Product ' + id})
+         |CREATE (pe:Person {id: id, fullName: 'Person ' + id})
+         |CREATE (pe)-[:BOUGHT{when: rand(), quantity: rand() * 1000}]->(pr)
+         |RETURN *
+    """.stripMargin
+
+    SparkConnectorScalaSuiteIT.session()
+      .writeTransaction(
+        new TransactionWork[ResultSummary] {
+          override def execute(tx: Transaction): ResultSummary = tx.run(fixtureQuery).consume()
+        })
+
+    val df = ss.read
+      .format(classOf[DataSource].getName)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("relationship", "BOUGHT")
+      .option("relationship.source.labels", "Product")
+      .option("relationship.target.labels", "Person")
+      .load
+      .select("`source.name`", "`<source.id>`")
+
+    df.count()
+
+    assertEquals(Set("source.name", "<source.id>"), df.columns.toSet)
+  }
+
+  @Test
+  def testShouldReturnJustTheSelectedFieldWithRelationshipAndWeirdColumn(): Unit = {
+    val total = 100
+    val fixtureQuery: String =
+      s"""UNWIND range(1, $total) as id
+         |CREATE (pr:Product {id: id * rand(), `(╯°□°)╯︵ ┻━┻`: 'Product ' + id})
+         |CREATE (pe:Person {id: id, fullName: 'Person ' + id})
+         |CREATE (pe)-[:BOUGHT{when: rand(), quantity: rand() * 1000}]->(pr)
+         |RETURN *
+    """.stripMargin
+
+    SparkConnectorScalaSuiteIT.session()
+      .writeTransaction(
+        new TransactionWork[ResultSummary] {
+          override def execute(tx: Transaction): ResultSummary = tx.run(fixtureQuery).consume()
+        })
+
+    val df = ss.read
+      .format(classOf[DataSource].getName)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("relationship", "BOUGHT")
+      .option("relationship.source.labels", "Person")
+      .option("relationship.target.labels", "Product")
+      .load
+      .select("`target.(╯°□°)╯︵ ┻━┻`", "`<source.id>`")
+
+    df.count()
+
+    assertEquals(Set("target.(╯°□°)╯︵ ┻━┻", "<source.id>"), df.columns.toSet)
+  }
+
+  @Test
+  def testShouldReturnJustTheSelectedFieldWithQuery(): Unit = {
+    val total = 100
+    val fixtureQuery: String =
+      s"""UNWIND range(1, $total) as id
+         |CREATE (pr:Product {id: id * rand(), name: 'Product ' + id})
+         |CREATE (pe:Person {id: id, fullName: 'Person ' + id})
+         |CREATE (pe)-[:BOUGHT{when: rand(), quantity: rand() * 1000}]->(pr)
+         |RETURN *
+    """.stripMargin
+
+    SparkConnectorScalaSuiteIT.session()
+      .writeTransaction(
+        new TransactionWork[ResultSummary] {
+          override def execute(tx: Transaction): ResultSummary = tx.run(fixtureQuery).consume()
+        })
+
+    val df = ss.read
+      .format(classOf[DataSource].getName)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("query", "MATCH (p:Product) RETURN p.name as name")
+      .option("partitions", 2)
+      .option("query.count", 20)
+      .load
+      .select("name")
+
+    df.count()
+
+    assertEquals(Set("name"), df.columns.toSet)
+  }
+
+  @Test
+  def testShouldReturnJustTheSelectedFieldWithFilter(): Unit = {
+    val total = 100
+    val fixtureQuery: String =
+      s"""UNWIND range(1, $total) as id
+         |CREATE (pr:Product {id: id, name: 'Product ' + id})
+         |RETURN *
+    """.stripMargin
+
+    SparkConnectorScalaSuiteIT.session()
+      .writeTransaction(
+        new TransactionWork[ResultSummary] {
+          override def execute(tx: Transaction): ResultSummary = tx.run(fixtureQuery).consume()
+        })
+
+    val df = ss.read
+      .format(classOf[DataSource].getName)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("labels", "Product")
+      .load
+      .filter("name = 'Product 1'")
+
+    df.count()
+
+    assertEquals(Set("<id>", "<labels>", "name", "id"), df.columns.toSet)
+  }
+
+  @Test
+  def testShouldReturnJustTheSelectedFieldWithRelationshipWithFilter(): Unit = {
+    val total = 100
+    val fixtureQuery: String =
+      s"""UNWIND range(1, $total) as id
+         |CREATE (pr:Product {id: id * rand(), name: 'Product ' + id})
+         |CREATE (pe:Person {id: id, fullName: 'Person ' + id})
+         |CREATE (pe)-[:BOUGHT{when: rand(), quantity: rand() * 1000}]->(pr)
+         |RETURN *
+    """.stripMargin
+
+    SparkConnectorScalaSuiteIT.session()
+      .writeTransaction(
+        new TransactionWork[ResultSummary] {
+          override def execute(tx: Transaction): ResultSummary = tx.run(fixtureQuery).consume()
+        })
+
+    val df = ss.read
+      .format(classOf[DataSource].getName)
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .option("relationship", "BOUGHT")
+      .option("relationship.source.labels", "Person")
+      .option("relationship.target.labels", "Product")
+      .load
+      .filter("`target.name` = 'Product 1' AND `target.id` = '16'")
+      .select("`target.name`", "`target.id`")
+
+    df.count()
+
+    assertEquals(Set("target.name", "target.id"), df.columns.toSet)
   }
 
   private def initTest(query: String): DataFrame = {

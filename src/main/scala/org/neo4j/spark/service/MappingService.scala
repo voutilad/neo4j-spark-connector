@@ -136,15 +136,20 @@ class Neo4jWriteMappingStrategy(private val options: Neo4jOptions)
   }
 }
 
-class Neo4jReadMappingStrategy(private val options: Neo4jOptions) extends Neo4jMappingStrategy[Record, InternalRow] {
+class Neo4jReadMappingStrategy(private val options: Neo4jOptions, requiredColumns: StructType) extends Neo4jMappingStrategy[Record, InternalRow] {
 
   override def node(record: Record, schema: StructType): InternalRow = {
-    val node = record.get(Neo4jUtil.NODE_ALIAS).asNode()
-    val nodeMap = new util.HashMap[String, Any](node.asMap())
-    nodeMap.put(Neo4jUtil.INTERNAL_ID_FIELD, node.id())
-    nodeMap.put(Neo4jUtil.INTERNAL_LABELS_FIELD, node.labels())
+    if (requiredColumns.nonEmpty) {
+      query(record, schema)
+    }
+    else {
+      val node = record.get(Neo4jUtil.NODE_ALIAS).asNode()
+      val nodeMap = new util.HashMap[String, Any](node.asMap())
+      nodeMap.put(Neo4jUtil.INTERNAL_ID_FIELD, node.id())
+      nodeMap.put(Neo4jUtil.INTERNAL_LABELS_FIELD, node.labels())
 
-    mapToInternalRow(nodeMap, schema)
+      mapToInternalRow(nodeMap, schema)
+    }
   }
 
   private def mapToInternalRow(map: util.Map[String, Any],
@@ -178,29 +183,34 @@ class Neo4jReadMappingStrategy(private val options: Neo4jOptions) extends Neo4jM
   }
 
   override def relationship(record: Record, schema: StructType): InternalRow = {
-    val rel = record.get(Neo4jUtil.RELATIONSHIP_ALIAS).asRelationship()
-    val relMap = new util.HashMap[String, Any](rel.asMap())
-      .asScala
-      .map(t => (s"rel.${t._1}", t._2))
-      .asJava
-    relMap.put(Neo4jUtil.INTERNAL_REL_ID_FIELD, rel.id())
-    relMap.put(Neo4jUtil.INTERNAL_REL_TYPE_FIELD, rel.`type`())
-
-    val source = record.get(Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS).asNode()
-    val target = record.get(Neo4jUtil.RELATIONSHIP_TARGET_ALIAS).asNode()
-
-    val (sourceMap, targetMap) = if (options.relationshipMetadata.nodeMap) {
-      (mapRelNodeMapping(source, Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS),
-        mapRelNodeMapping(target, Neo4jUtil.RELATIONSHIP_TARGET_ALIAS))
-    } else {
-      (flatRelNodeMapping(source, Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS),
-        flatRelNodeMapping(target, Neo4jUtil.RELATIONSHIP_TARGET_ALIAS))
+    if (requiredColumns.nonEmpty) {
+      query(record, schema)
     }
+    else {
+      val rel = record.get(Neo4jUtil.RELATIONSHIP_ALIAS).asRelationship()
+      val relMap = new util.HashMap[String, Any](rel.asMap())
+        .asScala
+        .map(t => (s"rel.${t._1}", t._2))
+        .asJava
+      relMap.put(Neo4jUtil.INTERNAL_REL_ID_FIELD, rel.id())
+      relMap.put(Neo4jUtil.INTERNAL_REL_TYPE_FIELD, rel.`type`())
 
-    relMap.putAll(sourceMap.toMap.asJava)
-    relMap.putAll(targetMap.toMap.asJava)
+      val source = record.get(Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS).asNode()
+      val target = record.get(Neo4jUtil.RELATIONSHIP_TARGET_ALIAS).asNode()
 
-    mapToInternalRow(relMap, schema)
+      val (sourceMap, targetMap) = if (options.relationshipMetadata.nodeMap) {
+        (mapRelNodeMapping(source, Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS),
+          mapRelNodeMapping(target, Neo4jUtil.RELATIONSHIP_TARGET_ALIAS))
+      } else {
+        (flatRelNodeMapping(source, Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS),
+          flatRelNodeMapping(target, Neo4jUtil.RELATIONSHIP_TARGET_ALIAS))
+      }
+
+      relMap.putAll(sourceMap.toMap.asJava)
+      relMap.putAll(targetMap.toMap.asJava)
+
+      mapToInternalRow(relMap, schema)
+    }
   }
 
   override def query(elem: Record, schema: StructType): InternalRow = mapToInternalRow(elem.asMap(new function.Function[Value, Any] {

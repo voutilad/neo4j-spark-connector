@@ -7,6 +7,7 @@ import org.apache.spark.sql.sources.v2.reader.{InputPartition, InputPartitionRea
 import org.apache.spark.sql.types.StructType
 import org.neo4j.driver.{Record, Session, Transaction, Values}
 import org.neo4j.spark.service.{MappingService, Neo4jQueryReadStrategy, Neo4jQueryService, Neo4jQueryStrategy, Neo4jReadMappingStrategy, PartitionSkipLimit}
+import org.neo4j.spark.util.Neo4jImplicits.StructTypeImplicit
 import org.neo4j.spark.util.Neo4jUtil
 import org.neo4j.spark.{DriverCache, Neo4jOptions}
 
@@ -17,7 +18,8 @@ class Neo4jInputPartitionReader(private val options: Neo4jOptions,
                                 private val schema: StructType,
                                 private val jobId: String,
                                 private val partitionSkipLimit: PartitionSkipLimit,
-                                private val scriptResult: java.util.List[java.util.Map[String, AnyRef]]) extends InputPartition[InternalRow]
+                                private val scriptResult: java.util.List[java.util.Map[String, AnyRef]],
+                                private val requiredColumns: StructType) extends InputPartition[InternalRow]
   with InputPartitionReader[InternalRow]
   with Logging {
 
@@ -27,13 +29,13 @@ class Neo4jInputPartitionReader(private val options: Neo4jOptions,
   private val driverCache: DriverCache = new DriverCache(options.connection,
     if (partitionSkipLimit.partitionNumber > 0) s"$jobId-${partitionSkipLimit.partitionNumber}" else jobId)
 
-  private val query: String = new Neo4jQueryService(options, new Neo4jQueryReadStrategy(filters, partitionSkipLimit))
+  private val query: String = new Neo4jQueryService(options, new Neo4jQueryReadStrategy(filters, partitionSkipLimit, requiredColumns.getFieldsName))
     .createQuery()
 
-  private val mappingService = new MappingService(new Neo4jReadMappingStrategy(options), options)
+  private val mappingService = new MappingService(new Neo4jReadMappingStrategy(options, requiredColumns), options)
 
   override def createPartitionReader(): InputPartitionReader[InternalRow] = new Neo4jInputPartitionReader(options, filters, schema,
-    jobId, partitionSkipLimit, scriptResult)
+    jobId, partitionSkipLimit, scriptResult, requiredColumns)
 
   def next: Boolean = {
     if (result == null) {
