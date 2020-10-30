@@ -7,7 +7,7 @@ import java.util.concurrent.TimeUnit
 import org.apache.spark.sql.SaveMode
 import org.neo4j.driver.Config.TrustStrategy
 import org.neo4j.driver._
-import org.neo4j.spark.util.Neo4jUtil
+import org.neo4j.spark.util.{Neo4jUtil, Validations}
 
 
 class Neo4jOptions(private val parameters: java.util.Map[String, String]) extends Serializable {

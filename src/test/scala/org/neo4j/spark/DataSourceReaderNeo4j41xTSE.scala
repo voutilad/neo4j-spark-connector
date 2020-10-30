@@ -41,6 +41,7 @@ class DataSourceReaderNeo4j41xTSE extends SparkConnectorScalaBaseTSE {
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
       .option("query", "MATCH (i:Instrument) RETURN id(i) as internal_id, i.id as id, i.name as name, i.name")
       .load
+      .orderBy("id")
 
     assertEquals(1L, df.collectAsList().get(0).get(1))
     assertEquals("Drums", df.collectAsList().get(0).get(2))

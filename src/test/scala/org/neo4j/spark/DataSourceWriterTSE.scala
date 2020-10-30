@@ -99,6 +99,50 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
   }
 
   @Test
+  def testThrowsExceptionIfNoValidReadOptionIsSet(): Unit = {
+    try {
+      ss.read.format(classOf[DataSource].getName)
+        .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+        .load()
+    } catch {
+      case e: IllegalArgumentException =>
+        assertEquals("No valid option found. One of `query`, `labels`, `relationship` is required", e.getMessage)
+      case _ => fail(s"should be thrown a ${classOf[IllegalArgumentException].getName}")
+    }
+  }
+
+  @Test
+  def testThrowsExceptionIfTwoValidReadOptionAreSet(): Unit = {
+    try {
+      ss.read.format(classOf[DataSource].getName)
+        .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+        .option("labels", "Person")
+        .option("relationship", "KNOWS")
+        .load()
+    } catch {
+      case e: IllegalArgumentException =>
+        assertEquals("You need to specify just one of these options: 'labels', 'query', 'relationship'", e.getMessage)
+      case _ => fail(s"should be thrown a ${classOf[IllegalArgumentException].getName}")
+    }
+  }
+
+  @Test
+  def testThrowsExceptionIfThreeValidReadOptionAreSet(): Unit = {
+    try {
+      ss.read.format(classOf[DataSource].getName)
+        .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+        .option("labels", "Person")
+        .option("relationship", "KNOWS")
+        .option("query", "MATCH (n) RETURN n")
+        .load()
+    } catch {
+      case e: IllegalArgumentException =>
+        assertEquals("You need to specify just one of these options: 'labels', 'query', 'relationship'", e.getMessage)
+      case _ => fail(s"should be thrown a ${classOf[IllegalArgumentException].getName}")
+    }
+  }
+
+  @Test
   def `should write nodes with string values into Neo4j`(): Unit = {
     val total = 10
     val ds = (1 to total)

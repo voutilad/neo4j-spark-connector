@@ -3,18 +3,60 @@ package org.neo4j.spark
 import java.sql.Timestamp
 import java.time.{LocalDateTime, OffsetDateTime, ZoneOffset}
 
-import org.apache.spark.SparkException
 import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema
 import org.apache.spark.sql.{DataFrame, Row}
 import org.junit.Assert._
 import org.junit.Test
-import org.neo4j.driver.exceptions.ClientException
 import org.neo4j.driver.summary.ResultSummary
 import org.neo4j.driver.{Transaction, TransactionWork}
 
 import scala.collection.JavaConverters._
 
 class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
+
+  @Test
+  def testThrowsExceptionIfNoValidReadOptionIsSet(): Unit = {
+    try {
+      ss.read.format(classOf[DataSource].getName)
+        .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+        .load()
+    } catch {
+      case e: IllegalArgumentException =>
+        assertEquals("No valid option found. One of `query`, `labels`, `relationship` is required", e.getMessage)
+      case _ => fail(s"should be thrown a ${classOf[IllegalArgumentException].getName}")
+    }
+  }
+
+  @Test
+  def testThrowsExceptionIfTwoValidReadOptionAreSet(): Unit = {
+    try {
+      ss.read.format(classOf[DataSource].getName)
+        .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+        .option("labels", "Person")
+        .option("relationship", "KNOWS")
+        .load()
+    } catch {
+      case e: IllegalArgumentException =>
+        assertEquals("You need to specify just one of these options: 'labels', 'query', 'relationship'", e.getMessage)
+      case _ => fail(s"should be thrown a ${classOf[IllegalArgumentException].getName}")
+    }
+  }
+
+  @Test
+  def testThrowsExceptionIfThreeValidReadOptionAreSet(): Unit = {
+    try {
+      ss.read.format(classOf[DataSource].getName)
+        .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+        .option("labels", "Person")
+        .option("relationship", "KNOWS")
+        .option("query", "MATCH (n) RETURN n")
+        .load()
+    } catch {
+      case e: IllegalArgumentException =>
+        assertEquals("You need to specify just one of these options: 'labels', 'query', 'relationship'", e.getMessage)
+      case _ => fail(s"should be thrown a ${classOf[IllegalArgumentException].getName}")
+    }
+  }
 
   @Test
   def testReadNodeHasIdField(): Unit = {
@@ -1123,7 +1165,7 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
       .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
       .option("query", "MATCH (i:Instrument) RETURN id(i) as internal_id, i.id as id, i.name as name, i.name")
       .load
-      .sort("id")
+      .orderBy("id")
 
     val row = df.collectAsList().get(0)
     assertEquals(1L, row.get(1))

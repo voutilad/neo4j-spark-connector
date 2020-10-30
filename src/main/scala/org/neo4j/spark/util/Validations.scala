@@ -1,5 +1,6 @@
 package org.neo4j.spark.util
 
+import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SaveMode
 import org.apache.spark.sql.types.StructType
 import org.neo4j.driver.{AccessMode, Session}
@@ -7,7 +8,7 @@ import org.neo4j.spark.service.{Neo4jQueryStrategy, SchemaService}
 import org.neo4j.spark.util.Neo4jImplicits.StructTypeImplicit
 import org.neo4j.spark._
 
-object Validations {
+object Validations extends Logging {
 
   val writer: (Neo4jOptions, String, SaveMode) => Unit = { (neo4jOptions, jobId, saveMode) =>
     ValidationUtil.isFalse(neo4jOptions.session.accessMode == AccessMode.READ,
@@ -16,6 +17,9 @@ object Validations {
     val schemaService = new SchemaService(neo4jOptions, cache)
     try {
       validateConnection(cache.getOrCreate().session(neo4jOptions.session.toNeo4jSession))
+
+      checkOptionsConsistency(neo4jOptions)
+
       neo4jOptions.query.queryType match {
         case QueryType.QUERY => {
           ValidationUtil.isTrue(schemaService.isValidQuery(
@@ -96,6 +100,9 @@ object Validations {
     val schemaService = new SchemaService(neo4jOptions, cache)
     try {
       validateConnection(cache.getOrCreate().session(neo4jOptions.session.toNeo4jSession))
+
+      checkOptionsConsistency(neo4jOptions)
+
       neo4jOptions.query.queryType match {
         case QueryType.LABELS => {
           ValidationUtil.isNotEmpty(neo4jOptions.nodeMetadata.labels,
@@ -133,6 +140,49 @@ object Validations {
       cache.close()
     }
   }
+
+  /**
+   * df: this method checks for inconsistencies between provided options.
+   * Ex: if we use the QueryType.LABELS, we will ignore any relationship options.
+   *
+   * Plus it throws an exception if no QueryType is provided.
+   */
+  def checkOptionsConsistency(neo4jOptions: Neo4jOptions): Unit = {
+    if (neo4jOptions.query.value.isEmpty) {
+      throw new IllegalArgumentException("No valid option found. One of `query`, `labels`, `relationship` is required")
+    }
+
+    neo4jOptions.query.queryType match {
+      case QueryType.LABELS | QueryType.RELATIONSHIP => {
+        if(neo4jOptions.queryMetadata.queryCount.nonEmpty) {
+          ignoreOption(Neo4jOptions.QUERY_COUNT, QueryType.LABELS.toString.toLowerCase)
+        }
+      }
+      case QueryType.QUERY | QueryType.LABELS => {
+        if(neo4jOptions.relationshipMetadata.source.labels.nonEmpty) {
+          ignoreOption(Neo4jOptions.RELATIONSHIP_SOURCE_LABELS, QueryType.RELATIONSHIP.toString.toLowerCase)
+        }
+        if(neo4jOptions.relationshipMetadata.source.nodeProps.nonEmpty) {
+          ignoreOption(Neo4jOptions.RELATIONSHIP_SOURCE_NODE_PROPS, QueryType.RELATIONSHIP.toString.toLowerCase)
+        }
+        if(neo4jOptions.relationshipMetadata.source.nodeKeys.nonEmpty) {
+          ignoreOption(Neo4jOptions.RELATIONSHIP_SOURCE_NODE_KEYS, QueryType.RELATIONSHIP.toString.toLowerCase)
+        }
+        if(neo4jOptions.relationshipMetadata.target.labels.nonEmpty) {
+          ignoreOption(Neo4jOptions.RELATIONSHIP_TARGET_LABELS, QueryType.RELATIONSHIP.toString.toLowerCase)
+        }
+        if(neo4jOptions.relationshipMetadata.target.nodeProps.nonEmpty) {
+          ignoreOption(Neo4jOptions.RELATIONSHIP_TARGET_NODE_PROPS, QueryType.RELATIONSHIP.toString.toLowerCase)
+        }
+        if(neo4jOptions.relationshipMetadata.target.nodeKeys.nonEmpty) {
+          ignoreOption(Neo4jOptions.RELATIONSHIP_TARGET_NODE_KEYS, QueryType.RELATIONSHIP.toString.toLowerCase)
+        }
+      }
+    }
+  }
+
+  def ignoreOption(ignoredOption: String, primaryOption: String): Unit =
+    logWarning(s"Option `$ignoredOption` is not compatible with `$primaryOption` and will be ignored")
 
   def validateConnection(session: Session): Unit = {
     try {
