@@ -4,9 +4,9 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>neo4j-contrib</groupId>
     <packaging>jar</packaging>
-    <version>4.0.0-alpha</version>
-    <artifactId>neo4j-spark-connector</artifactId>
-    <name>neo4j-spark-connector</name>
+    <version>4.0.0</version>
+    <artifactId>neo4j-connector-apache-spark_${scala.binary.version}</artifactId>
+    <name>neo4j-connector-apache-spark</name>
     <description>Neo4j Connector for Apache Spark using the binary Bolt Driver</description>
 
     <organization>
@@ -180,7 +180,7 @@
                     <descriptorRefs>
                         <descriptorRef>jar-with-dependencies</descriptorRef>
                     </descriptorRefs>
-                    <finalName>${project.artifactId}-${scala.binary.version}-${project.version}</finalName>
+                    <finalName>${project.artifactId}-${project.version}</finalName>
                     <appendAssemblyId>false</appendAssemblyId>
                 </configuration>
             </plugin>
