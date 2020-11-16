@@ -7,6 +7,7 @@
 * xref::gds.adoc[Using with Graph Data Science]
 * xref::neo4j-cluster.adoc[Using with Neo4j Causal Cluster]
 * xref::aura.adoc[Using with Neo4j Aura]
+* xref::quick-java-example.adoc[Quick Java Example]
 * xref::architecture.adoc[Architecture Guidance for Implementing]
 * xref::types.adoc[Neo4j-Spark Data Types Reference]
 * xref::faq.adoc[Neo4j Connector for Apache Spark FAQ]
