@@ -89,8 +89,7 @@
         <profile>
             <id>neo4j-4.2</id>
             <properties>
-                <neo4j.version>4.2.0-drop07</neo4j.version>
-                <neo4j.experimental>true</neo4j.experimental>
+                <neo4j.version>4.2.0</neo4j.version>
             </properties>
         </profile>
         <profile>
