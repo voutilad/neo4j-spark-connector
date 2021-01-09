@@ -3,7 +3,6 @@ package org.neo4j.spark.util
 import java.time._
 import java.time.format.DateTimeFormatter
 import java.util.Properties
-
 import com.fasterxml.jackson.core.JsonGenerator
 import com.fasterxml.jackson.databind.module.SimpleModule
 import com.fasterxml.jackson.databind.{JsonSerializer, ObjectMapper, SerializerProvider}
@@ -16,7 +15,7 @@ import org.apache.spark.unsafe.types.UTF8String
 import org.neo4j.cypherdsl.core.{Condition, Cypher}
 import org.neo4j.driver.internal._
 import org.neo4j.driver.types.{Entity, Path}
-import org.neo4j.driver.{Session, Transaction, Values}
+import org.neo4j.driver.{Session, Transaction, Value, Values}
 import org.neo4j.spark.service.SchemaService
 import org.neo4j.spark.util.Neo4jImplicits.EntityImplicits
 import org.slf4j.Logger
@@ -168,24 +167,32 @@ object Neo4jUtil {
       convertFromSpark(row)
     }
     case struct: GenericRowWithSchema => {
-      if (struct.fieldIndex("type") == -1) {
-        Values.NULL
+      def toMap(struct: GenericRowWithSchema): Value = {
+        Values.value(
+          struct.schema.fields.map(
+            f => f.name -> Neo4jUtil.convertFromSpark(struct.getAs(f.name), f)
+          ).toMap.asJava)
       }
-      struct.getAs[UTF8String]("type").toString match {
-        case SchemaService.POINT_TYPE_2D => Values.point(struct.getAs[Number]("srid").intValue(),
-          struct.getAs[Number]("x").doubleValue(),
-          struct.getAs[Number]("y").doubleValue())
-        case SchemaService.POINT_TYPE_3D => Values.point(struct.getAs[Number]("srid").intValue(),
-          struct.getAs[Number]("x").doubleValue(),
-          struct.getAs[Number]("y").doubleValue(),
-          struct.getAs[Number]("z").doubleValue())
-        case SchemaService.DURATION_TYPE => Values.isoDuration(struct.getAs[Number]("months").longValue(),
-          struct.getAs[Number]("days").longValue(),
-          struct.getAs[Number]("seconds").longValue(),
-          struct.getAs[Number]("nanoseconds").intValue())
-        case SchemaService.TIME_TYPE_OFFSET => Values.value(OffsetTime.parse(struct.getAs[String]("value")))
-        case SchemaService.TIME_TYPE_LOCAL => Values.value(LocalTime.parse(struct.getAs[String]("value")))
-        case _ => Values.NULL // check if it's correct
+
+      try {
+        struct.getAs[UTF8String]("type").toString match {
+          case SchemaService.POINT_TYPE_2D => Values.point(struct.getAs[Number]("srid").intValue(),
+            struct.getAs[Number]("x").doubleValue(),
+            struct.getAs[Number]("y").doubleValue())
+          case SchemaService.POINT_TYPE_3D => Values.point(struct.getAs[Number]("srid").intValue(),
+            struct.getAs[Number]("x").doubleValue(),
+            struct.getAs[Number]("y").doubleValue(),
+            struct.getAs[Number]("z").doubleValue())
+          case SchemaService.DURATION_TYPE => Values.isoDuration(struct.getAs[Number]("months").longValue(),
+            struct.getAs[Number]("days").longValue(),
+            struct.getAs[Number]("seconds").longValue(),
+            struct.getAs[Number]("nanoseconds").intValue())
+          case SchemaService.TIME_TYPE_OFFSET => Values.value(OffsetTime.parse(struct.getAs[String]("value")))
+          case SchemaService.TIME_TYPE_LOCAL => Values.value(LocalTime.parse(struct.getAs[String]("value")))
+          case _ => toMap(struct)
+        }
+      } catch {
+        case _: Throwable => toMap(struct)
       }
     }
     case unsafeArray: UnsafeArrayData => {

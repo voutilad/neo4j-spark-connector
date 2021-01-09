@@ -1249,4 +1249,38 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
 
     SparkConnectorScalaSuiteIT.session().run("DROP CONSTRAINT ON (m:Musician) ASSERT (m.name) IS UNIQUE")
   }
+
+  /**
+   * https://github.com/neo4j-contrib/neo4j-spark-connector/issues/265
+   */
+  @Test
+  def `should write a custom map with query method`(): Unit = {
+    val jsonStr = """{
+                    |  "id": "df25368a-49a1-4843-9d49-dd7de700763e",
+                    |  "firstName": "Rolfe",
+                    |  "lastName": "Noyce",
+                    |  "gender": "MALE",
+                    |  "birthday": "2000-12-19T04:00:00.000+04:00",
+                    |  "email": "rnoyce1@google.co.uk",
+                    |  "arrayOfObjects": [
+                    |    {
+                    |      "objStringField1": "test1",
+                    |      "objStringField2": "test2"
+                    |    }
+                    |  ]
+                    |}""".stripMargin
+    val df = ss.read.json(Seq(jsonStr).toDS)
+
+    df.write
+      .format(classOf[DataSource].getName)
+      .format("org.neo4j.spark.DataSource")
+      .option("url", SparkConnectorScalaSuiteIT.server.getBoltUrl)
+      .mode(SaveMode.Overwrite)
+      .option("query",
+        """
+          |UNWIND event.arrayOfObjects as obj
+          |MERGE (u:User {id: event.id, firstName: event.firstName, lastName: event.lastName, gender: event.gender, birthday: event.birthday, email: event.email, userProp: obj.objStringField1})
+          |""".stripMargin)
+      .save()
+  }
 }

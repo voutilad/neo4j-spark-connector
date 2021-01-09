@@ -1,12 +1,13 @@
 package org.neo4j.spark.util
 
 
+import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema
+
 import javax.lang.model.SourceVersion
 import org.apache.spark.sql.types.{DataTypes, StructField, StructType}
 import org.neo4j.driver.types.{Entity, Node, Relationship}
 import org.neo4j.spark.service.SchemaService
 import org.apache.spark.sql.sources.{EqualNullSafe, EqualTo, Filter, GreaterThan, GreaterThanOrEqual, In, IsNotNull, IsNull, LessThan, LessThanOrEqual, Not, StringContains, StringEndsWith, StringStartsWith}
-
 import scala.collection.JavaConverters._
 
 object Neo4jImplicits {
