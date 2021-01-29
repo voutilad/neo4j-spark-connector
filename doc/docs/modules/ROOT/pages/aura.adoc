@@ -18,5 +18,5 @@ streams functionality.  Best practices in these cases are:
 
 * Always use a `neo4j+s://` driver URI when communicating with the cluster in the client application.  The optimal
 driver URI will be provided by Aura itself when you create a database
-* Consider creating a separate username/password for Spark access; avoid running all processes through the default
+* In Aura Enterprise consider creating a separate username/password for Spark access; avoid running all processes through the default
 `neo4j` account.
