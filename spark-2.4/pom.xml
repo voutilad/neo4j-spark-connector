@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <artifactId>neo4j-connector-apache-spark_${scala.binary.version}_2.4</artifactId>
+    <name>neo4j-connector-apache-spark-2.4</name>
+    <description>Spark 2.4 for Neo4j Connector for Apache Spark using the binary Bolt Driver</description>
+
+    <version>4.0.0</version>
+    <packaging>jar</packaging>
+
+    <parent>
+        <groupId>neo4j-contrib</groupId>
+        <artifactId>neo4j-connector-apache-spark</artifactId>
+        <version>4.0.0</version>
+    </parent>
+
+    <properties>
+        <spark.version>2.4.5</spark.version>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>neo4j-contrib</groupId>
+            <artifactId>neo4j-connector-apache-spark_${scala.binary.version}_common</artifactId>
+            <version>4.0.0</version>
+        </dependency>
+
+        <dependency>
+            <groupId>neo4j-contrib</groupId>
+            <artifactId>neo4j-connector-apache-spark_${scala.binary.version}_test-support</artifactId>
+            <version>4.0.0</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+</project>

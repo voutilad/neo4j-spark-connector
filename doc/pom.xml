@@ -4,20 +4,19 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>neo4j-contrib</groupId>
     <artifactId>neo4j-spark-connector-docs</artifactId>
-    <version>1.0.0</version>
-    <name>Neo4j Connector for Apache Spark - Docs</name>
+    <version>4.0.0</version>
+    <name>neo4j-connector-apache-spark-doc</name>
     <description>Neo4j Connector for Apache Spark - Documentation</description>
 
     <parent>
         <groupId>neo4j-contrib</groupId>
-        <artifactId>neo4j-spark-connector</artifactId>
-        <version>2.4.1-M1</version>
+        <artifactId>neo4j-connector-apache-spark</artifactId>
+        <version>4.0.0</version>
     </parent>
 
     <properties>
-        <docsversion>${parsedVersion.majorVersion}.${parsedVersion.minorVersion}</docsversion>
+        <docsversion>${version}</docsversion>
     </properties>
 
     <build>
