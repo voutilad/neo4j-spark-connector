@@ -14,6 +14,7 @@ you need to add Spark Packages repository and the dependency.
     <properties>
         ...
         <scala.version><!-- put your spark scala version here --></scala.version>
+        <spark.version><!-- put your spark version here --></spark.version>
         ...
     </properties>
 
@@ -21,7 +22,7 @@ you need to add Spark Packages repository and the dependency.
       <!-- list of dependencies -->
       <dependency>
         <groupId>neo4j-contrib</groupId>
-        <artifactId>neo4j-connector-apache-spark_${scala.version}</artifactId>
+        <artifactId>neo4j-connector-apache-spark_${scala.version}_${spark.version}</artifactId>
         <version>4.0.0</version>
       </dependency>
     </dependencies>

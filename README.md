@@ -22,29 +22,56 @@ This will open http://localhost:8000/ which will serve development docs.
 
 ## Building
 
-Build `target/neo4j-connector-apache-spark_2.11-4.0.0.jar` for Scala 2.11
+### Building for Spark 2.4
 
-    mvn clean package
+You can build for Spark 2.4 with both Scala 2.11 and Scala 2.12
+
+```
+./mvnw clean package -P spark-2.4 -P scala-2.11
+./mvnw clean package -P spark-2.4 -P scala-2.12
+```
+
+These commands will generate the corresponding targets
+* `spark-2.4/target/neo4j-connector-apache-spark_2.11_2.4-4.0.0.jar`
+* `spark-2.4/target/neo4j-connector-apache-spark_2.12_2.4-4.0.0.jar`
+
+
+### Building for Spark 3.0
+
+You can build for Spark 3.0 by running
+
+```
+./mvnw clean package -P spark-3.0 -P scala-2.12
+```
+
+This will generate `spark-3.0/target/neo4j-connector-apache-spark_2.12_3.0-4.0.0.jar`
 
 ## Integration with Apache Spark Applications
 
 **spark-shell, pyspark, or spark-submit**
 
-`$SPARK_HOME/bin/spark-shell --jars neo4j-connector-apache-spark_2.11-4.0.0.jar`
+`$SPARK_HOME/bin/spark-shell --jars neo4j-connector-apache-spark_2.12_3.0-4.0.0.jar`
 
-`$SPARK_HOME/bin/spark-shell --packages neo4j-contrib:neo4j-connector-apache-spark_2.11:4.0.0`
+`$SPARK_HOME/bin/spark-shell --packages neo4j-contrib:neo4j-connector-apache-spark_2.12_3.0:4.0.0`
 
 **sbt**
 
 If you use the [sbt-spark-package plugin](https://github.com/databricks/sbt-spark-package), in your sbt build file, add:
 
-```scala spDependencies += "neo4j-contrib/neo4j-connector-apache-spark_2.11:4.0.0"```
+```scala spDependencies += "neo4j-contrib/neo4j-connector-apache-spark_2.11_3.0:4.0.0"```
 
 Otherwise,
 
 ```scala
 resolvers += "Spark Packages Repo" at "http://dl.bintray.com/spark-packages/maven"
-libraryDependencies += "neo4j-contrib" % "neo4j-connector-apache-spark_2.11" % "4.0.0"
+libraryDependencies += "neo4j-contrib" % "neo4j-connector-apache-spark_2.11_2.4" % "4.0.0"
+```
+
+Or, for Spark 3.0
+
+```scala
+resolvers += "Spark Packages Repo" at "http://dl.bintray.com/spark-packages/maven"
+libraryDependencies += "neo4j-contrib" % "neo4j-connector-apache-spark_2.12_3.0" % "4.0.0"
 ```  
 
 **maven**  
@@ -55,7 +82,7 @@ In your pom.xml, add:
   <!-- list of dependencies -->
   <dependency>
     <groupId>neo4j-contrib</groupId>
-    <artifactId>neo4j-connector-apache-spark_2.11</artifactId>
+    <artifactId>neo4j-connector-apache-spark_2.11_2.4</artifactId>
     <version>4.0.0</version>
   </dependency>
 </dependencies>
@@ -67,3 +94,25 @@ In your pom.xml, add:
   </repository>
 </repositories>
 ```
+
+In case of Spark 3.0
+
+```xml
+<dependencies>
+  <!-- list of dependencies -->
+  <dependency>
+    <groupId>neo4j-contrib</groupId>
+    <artifactId>neo4j-connector-apache-spark_2.12_3.0</artifactId>
+    <version>4.0.0</version>
+  </dependency>
+</dependencies>
+<repositories>
+  <!-- list of other repositories -->
+  <repository>
+    <id>SparkPackagesRepo</id>
+    <url>http://dl.bintray.com/spark-packages/maven</url>
+  </repository>
+</repositories>
+```
+
+For more info about the available version visit https://neo4j.com/developer/spark/overview/#_compatibility

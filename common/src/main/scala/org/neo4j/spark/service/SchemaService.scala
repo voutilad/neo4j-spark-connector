@@ -7,7 +7,7 @@ import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.types.{DataType, DataTypes, StructField, StructType}
 import org.neo4j.driver.exceptions.ClientException
 import org.neo4j.driver.types.Entity
-import org.neo4j.driver.{Record, Session, Transaction, TransactionWork, Value}
+import org.neo4j.driver.{Record, Session, Transaction, TransactionWork, Value, summary}
 import org.neo4j.spark.service.SchemaService.{cypherToSparkType, normalizedClassName, normalizedClassNameFromGraphEntity}
 import org.neo4j.spark.util.Neo4jImplicits.{CypherImplicits, EntityImplicits}
 import org.neo4j.spark.util.{DriverCache, Neo4jOptions, Neo4jUtil, OptimizationType, QueryType, SchemaStrategy, ValidationUtil}
@@ -83,7 +83,7 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
           "String"
         }
         else {
-          fieldTypesList(0)
+          fieldTypesList.head
         }
 
         StructField(record.get("propertyName").asString,
@@ -191,11 +191,15 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
 
   def structForQuery(): StructType = {
     val query = queryReadStrategy.createStatementForQuery(options)
+
+    if (!isValidQuery(query, summary.QueryType.READ_ONLY)) {
+      return new StructType()
+    }
+
     val params = Collections.singletonMap[String, AnyRef](Neo4jQueryStrategy.VARIABLE_SCRIPT_RESULT, Collections.emptyList())
     val structFields = retrieveSchema(query, params, { record => record.asMap.asScala.toMap })
 
     val columns = getReturnedColumns(query)
-
     if (columns.isEmpty && structFields.isEmpty) {
       throw new ClientException("Unable to compute the resulting schema; this may mean your result set is empty or your version of Neo4j does not permit schema inference for empty sets")
     }
@@ -211,7 +215,7 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
       columns.map(StructField(_, DataTypes.StringType))
     } else {
       try {
-        columns.map(c => structFields.find(_.name.quote().equals(c.quote())).get)
+        columns.map(column => structFields.find(_.name.quote() == column.quote()).orNull).filter(_ != null)
       } catch {
         case _: Throwable => structFields.toArray
       }
@@ -258,9 +262,7 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
       case QueryType.RELATIONSHIP => structForRelationship()
       case QueryType.QUERY => structForQuery()
     }
-    ValidationUtil.isNotEmpty(struct,
-      """Cannot compute the StructType for the provided query type,
-        |please check the params or the query""".stripMargin)
+
     struct
   }
 
@@ -595,7 +597,7 @@ class SchemaService(private val options: Neo4jOptions, private val driverCache: 
   }
 
   override def close(): Unit = {
-    Neo4jUtil.closeSafety(session)
+    Neo4jUtil.closeSafety(session, log)
   }
 }
 

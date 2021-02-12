@@ -1,13 +1,11 @@
 package org.neo4j.spark.util
 
-
-import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema
-
 import javax.lang.model.SourceVersion
 import org.apache.spark.sql.types.{DataTypes, StructField, StructType}
 import org.neo4j.driver.types.{Entity, Node, Relationship}
 import org.neo4j.spark.service.SchemaService
 import org.apache.spark.sql.sources.{EqualNullSafe, EqualTo, Filter, GreaterThan, GreaterThanOrEqual, In, IsNotNull, IsNull, LessThan, LessThanOrEqual, Not, StringContains, StringEndsWith, StringStartsWith}
+
 import scala.collection.JavaConverters._
 
 object Neo4jImplicits {
@@ -16,6 +14,8 @@ object Neo4jImplicits {
     private def isValidCypherIdentifier() = SourceVersion.isIdentifier(str) && !str.trim.startsWith("$")
 
     def quote(): String = if (!isValidCypherIdentifier() && !str.trim.startsWith("`") && !str.trim.endsWith("`")) s"`$str`" else str
+
+    def unquote(): String = str.replaceAll("`", "");
 
     def removeAlias(): String = {
       val splatString = str.split('.')
@@ -91,10 +91,10 @@ object Neo4jImplicits {
     })
 
     def isAttribute(entityType: String): Boolean = {
-      getAttribute.exists(_.startsWith(entityType))
+      getAttribute.exists(_.contains(s"$entityType."))
     }
 
-    def getAttributeWithoutEntityName: Option[String] = filter.getAttribute.map(_.split('.').tail.mkString("."))
+    def getAttributeWithoutEntityName: Option[String] = filter.getAttribute.map(_.unquote().split('.').tail.mkString("."))
   }
 
   implicit class StructTypeImplicit(structType: StructType) {

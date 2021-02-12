@@ -53,7 +53,7 @@ class SparkConnectorScalaBaseWithApocTSE {
   def after() {
     if (!TestUtil.isTravis()) {
       try {
-        utils.Assert.assertEventually(new utils.Assert.ThrowingSupplier[Boolean, Exception] {
+        Assert.assertEventually(new Assert.ThrowingSupplier[Boolean, Exception] {
           override def get(): Boolean = {
             val afterConnections = SparkConnectorScalaSuiteWithApocIT.getActiveConnections
             SparkConnectorScalaSuiteWithApocIT.connections == afterConnections

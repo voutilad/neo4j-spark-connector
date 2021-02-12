@@ -6,12 +6,12 @@ import org.neo4j.driver._
 
 import java.io.File
 import java.net.URI
+import java.util.UUID
 import java.util.concurrent.TimeUnit
 import scala.collection.JavaConverters._
 
 
 class Neo4jOptions(private val parameters: java.util.Map[String, String]) extends Serializable {
-
   import Neo4jOptions._
   import QueryType._
 
@@ -167,6 +167,14 @@ class Neo4jOptions(private val parameters: java.util.Map[String, String]) extend
     validationFunction(this)
     this
   }
+
+  def getTableName: String = query.queryType match {
+    case QueryType.LABELS => s"table_${nodeMetadata.labels.mkString("-")}"
+    case QueryType.RELATIONSHIP => s"table_${relationshipMetadata.source.labels.mkString("-")}" +
+      s"_${relationshipMetadata.relationshipType}" +
+      s"_${relationshipMetadata.target.labels.mkString("-")}"
+    case _ => s"table_query_${UUID.randomUUID()}"
+  }
 }
 
 case class Neo4jApocConfig(procedureConfigMap: Map[String, AnyRef])
@@ -200,7 +208,6 @@ case class Neo4jSessionOptions(database: String, accessMode: AccessMode = Access
 
     builder.build()
   }
-
 }
 
 case class Neo4jDriverOptions(
@@ -374,6 +381,7 @@ object NodeSaveMode extends CaseInsensitiveEnumeration {
     saveMode match {
       case SaveMode.Overwrite => Overwrite
       case SaveMode.ErrorIfExists => ErrorIfExists
+      case SaveMode.Append => Append
       case _ => throw new IllegalArgumentException(s"SaveMode $saveMode not supported")
     }
   }

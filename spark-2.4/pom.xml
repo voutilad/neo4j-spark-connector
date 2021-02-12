@@ -27,7 +27,6 @@
             <artifactId>neo4j-connector-apache-spark_${scala.binary.version}_common</artifactId>
             <version>4.0.0</version>
         </dependency>
-
         <dependency>
             <groupId>neo4j-contrib</groupId>
             <artifactId>neo4j-connector-apache-spark_${scala.binary.version}_test-support</artifactId>

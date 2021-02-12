@@ -1,6 +1,4 @@
-package org.neo4j.spark.utils;
-
-//
+package org.neo4j.spark;//
 // Source code recreated from a .class file by IntelliJ IDEA
 // (powered by Fernflower decompiler)
 //

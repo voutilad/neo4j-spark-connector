@@ -28,6 +28,30 @@ class Neo4jOptionsTest {
   }
 
   @Test
+  def testRelationshipTableName(): Unit = {
+    val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
+    options.put(Neo4jOptions.URL, "bolt://localhost")
+    options.put(QueryType.RELATIONSHIP.toString.toLowerCase, "KNOWS")
+    options.put(Neo4jOptions.RELATIONSHIP_SOURCE_LABELS, "Person")
+    options.put(Neo4jOptions.RELATIONSHIP_TARGET_LABELS, "Answer")
+
+    val neo4jOptions = new Neo4jOptions(options)
+
+    assertEquals("table_Person_KNOWS_Answer", neo4jOptions.getTableName)
+  }
+
+  @Test
+  def testLabelsTableName(): Unit = {
+    val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
+    options.put(Neo4jOptions.URL, "bolt://localhost")
+    options.put("labels", "Person:Admin")
+
+    val neo4jOptions = new Neo4jOptions(options)
+
+    assertEquals("table_Person-Admin", neo4jOptions.getTableName)
+  }
+
+  @Test
   def testRelationshipNodeModesAreCaseInsensitive(): Unit = {
     val options: java.util.Map[String, String] = new java.util.HashMap[String, String]()
     options.put(Neo4jOptions.URL, "bolt://localhost")

@@ -1,4 +1,4 @@
- package org.neo4j.spark.service
+package org.neo4j.spark.service
 
 import org.apache.spark.sql.SaveMode
 import org.apache.spark.sql.sources.{And, Filter, Or}
@@ -7,7 +7,6 @@ import org.neo4j.cypherdsl.core._
 import org.neo4j.cypherdsl.core.renderer.Renderer
 import org.neo4j.spark.util.Neo4jImplicits._
 import org.neo4j.spark.util.{Neo4jOptions, Neo4jUtil, NodeSaveMode, QueryType}
-import org.neo4j.spark.util.NodeSaveMode
 
 import scala.collection.JavaConverters._
 
@@ -28,7 +27,7 @@ class Neo4jQueryWriteStrategy(private val saveMode: SaveMode) extends Neo4jQuery
   private def keywordFromSaveMode(saveMode: Any): String = {
     saveMode match {
       case NodeSaveMode.Overwrite | SaveMode.Overwrite => "MERGE"
-      case NodeSaveMode.ErrorIfExists | SaveMode.ErrorIfExists | SaveMode.Append => "CREATE"
+      case NodeSaveMode.ErrorIfExists | SaveMode.ErrorIfExists | SaveMode.Append | NodeSaveMode.Append => "CREATE"
       case NodeSaveMode.Match => "MATCH"
       case _ => throw new UnsupportedOperationException(s"SaveMode $saveMode not supported")
     }
@@ -74,7 +73,7 @@ class Neo4jQueryWriteStrategy(private val saveMode: SaveMode) extends Neo4jQuery
     s"""UNWIND ${"$"}events AS ${Neo4jQueryStrategy.VARIABLE_EVENT}
        |$sourceQueryPart$withQueryPart
        |$targetQueryPart
-       |$relationshipKeyword (${Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS})-[${Neo4jUtil.RELATIONSHIP_ALIAS}:${relationship}]->(${Neo4jUtil.RELATIONSHIP_TARGET_ALIAS})
+       |$relationshipKeyword (${Neo4jUtil.RELATIONSHIP_SOURCE_ALIAS})-[${Neo4jUtil.RELATIONSHIP_ALIAS}:$relationship]->(${Neo4jUtil.RELATIONSHIP_TARGET_ALIAS})
        |SET ${Neo4jUtil.RELATIONSHIP_ALIAS} += ${Neo4jQueryStrategy.VARIABLE_EVENT}.${Neo4jUtil.RELATIONSHIP_ALIAS}.${Neo4jWriteMappingStrategy.PROPERTIES}
        |""".stripMargin
   }
@@ -106,8 +105,8 @@ class Neo4jQueryReadStrategy(filters: Array[Filter] = Array.empty[Filter],
   override def createStatementForQuery(options: Neo4jOptions): String = {
     val limitedQuery = if (partitionSkipLimit.skip != -1 && partitionSkipLimit.limit != -1) {
       s"""${options.query.value}
-        |SKIP ${partitionSkipLimit.skip} LIMIT ${partitionSkipLimit.limit}
-        |""".stripMargin
+         |SKIP ${partitionSkipLimit.skip} LIMIT ${partitionSkipLimit.limit}
+         |""".stripMargin
     } else {
       options.query.value
     }
@@ -148,7 +147,7 @@ class Neo4jQueryReadStrategy(filters: Array[Filter] = Array.empty[Filter],
           targetNode
         }
         else {
-          throw new IllegalArgumentException(s"`${column}` is not a valid column.`")
+          throw new IllegalArgumentException(s"`$column` is not a valid column.`")
         }
 
         if (splatColumn.length == 1) {
@@ -218,13 +217,13 @@ class Neo4jQueryReadStrategy(filters: Array[Filter] = Array.empty[Filter],
 
   private def getCorrectProperty(column: String, entity: PropertyContainer): Expression = {
     column match {
-      case Neo4jUtil.INTERNAL_ID_FIELD => Functions.id(entity.asInstanceOf[Node]).as(Neo4jUtil.INTERNAL_ID_FIELD.quote())
-      case Neo4jUtil.INTERNAL_REL_ID_FIELD => Functions.id(entity.asInstanceOf[Relationship]).as(Neo4jUtil.INTERNAL_REL_ID_FIELD.quote())
-      case Neo4jUtil.INTERNAL_REL_SOURCE_ID_FIELD => Functions.id(entity.asInstanceOf[Node]).as(Neo4jUtil.INTERNAL_REL_SOURCE_ID_FIELD.quote())
-      case Neo4jUtil.INTERNAL_REL_TARGET_ID_FIELD => Functions.id(entity.asInstanceOf[Node]).as(Neo4jUtil.INTERNAL_REL_TARGET_ID_FIELD.quote())
-      case Neo4jUtil.INTERNAL_REL_TYPE_FIELD => Functions.`type`(entity.asInstanceOf[Relationship]).as(Neo4jUtil.INTERNAL_REL_TYPE_FIELD.quote())
-      case Neo4jUtil.INTERNAL_LABELS_FIELD => Functions.labels(entity.asInstanceOf[Node]).as(Neo4jUtil.INTERNAL_LABELS_FIELD.quote())
-      case name => entity.property(name.removeAlias()).as(name.quote())
+      case Neo4jUtil.INTERNAL_ID_FIELD => Functions.id(entity.asInstanceOf[Node]).as(Neo4jUtil.INTERNAL_ID_FIELD)
+      case Neo4jUtil.INTERNAL_REL_ID_FIELD => Functions.id(entity.asInstanceOf[Relationship]).as(Neo4jUtil.INTERNAL_REL_ID_FIELD)
+      case Neo4jUtil.INTERNAL_REL_SOURCE_ID_FIELD => Functions.id(entity.asInstanceOf[Node]).as(Neo4jUtil.INTERNAL_REL_SOURCE_ID_FIELD)
+      case Neo4jUtil.INTERNAL_REL_TARGET_ID_FIELD => Functions.id(entity.asInstanceOf[Node]).as(Neo4jUtil.INTERNAL_REL_TARGET_ID_FIELD)
+      case Neo4jUtil.INTERNAL_REL_TYPE_FIELD => Functions.`type`(entity.asInstanceOf[Relationship]).as(Neo4jUtil.INTERNAL_REL_TYPE_FIELD)
+      case Neo4jUtil.INTERNAL_LABELS_FIELD => Functions.labels(entity.asInstanceOf[Node]).as(Neo4jUtil.INTERNAL_LABELS_FIELD)
+      case name => entity.property(name.removeAlias()).as(name)
     }
   }
 

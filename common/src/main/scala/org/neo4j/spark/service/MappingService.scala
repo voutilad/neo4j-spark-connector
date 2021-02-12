@@ -10,7 +10,6 @@ import org.neo4j.driver.types.Node
 import org.neo4j.driver.{Record, Value, Values}
 import org.neo4j.spark.service.Neo4jWriteMappingStrategy.{KEYS, PROPERTIES}
 import org.neo4j.spark.util.{Neo4jNodeMetadata, Neo4jOptions, Neo4jUtil, QueryType, RelationshipSaveStrategy, Validations}
-import org.neo4j.spark.util.RelationshipSaveStrategy
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable

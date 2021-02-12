@@ -11,7 +11,6 @@
 
     <modules>
         <module>common</module>
-        <module>spark-2.4</module>
         <module>doc</module>
         <module>test-support</module>
     </modules>
@@ -48,15 +47,15 @@
     </licenses>
 
     <properties>
-        <scala.version>2.11.12</scala.version>
-        <scala.binary.version>2.11</scala.binary.version>
+        <scala.version>2.12.13</scala.version>
+        <scala.binary.version>2.12</scala.binary.version>
         <neo4j.version>4.0.8</neo4j.version>
         <driver.version>4.1.1</driver.version>
         <spark.version>2.4.5</spark.version>
         <neo4j.experimental>false</neo4j.experimental>
-        <testcontainers.version>1.15.1</testcontainers.version>
+        <testcontainers.version>1.15.2</testcontainers.version>
         <xbean.version>4.10</xbean.version>
-        <cypherdsl.version>2020.0.0</cypherdsl.version>
+        <cypherdsl.version>2020.1.4</cypherdsl.version>
         <node.version>v12.16.0</node.version>
         <npm.version>6.13.7</npm.version>
     </properties>
@@ -68,14 +67,50 @@
                 <scala.version>2.11.12</scala.version>
                 <scala.binary.version>2.11</scala.binary.version>
             </properties>
+        </profile>
+        <profile>
+            <id>scala-2.12</id>
+            <properties>
+                <scala.version>2.12.13</scala.version>
+                <scala.binary.version>2.12</scala.binary.version>
+            </properties>
             <activation>
                 <activeByDefault>true</activeByDefault>
             </activation>
         </profile>
         <profile>
+            <id>scala-2.13</id>
+            <properties>
+                <scala.version>2.13.4</scala.version>
+                <scala.binary.version>2.13</scala.binary.version>
+            </properties>
+        </profile>
+        <profile>
+            <id>spark-2.4</id>
+            <properties>
+                <spark.version>2.4.5</spark.version>
+            </properties>
+            <activation>
+                <activeByDefault>true</activeByDefault>
+            </activation>
+            <modules>
+                <module>spark-2.4</module>
+            </modules>
+        </profile>
+        <profile>
+            <id>spark-3.0</id>
+            <properties>
+                <spark.version>3.0.1</spark.version>
+            </properties>
+            <modules>
+                <module>spark-3.0</module>
+            </modules>
+        </profile>
+        <profile>
             <id>neo4j-4.0</id>
             <properties>
-                <neo4j.version>4.0.8</neo4j.version>
+                <neo4j.version>4.0.11</neo4j.version>
+                <neo4j.experimental>false</neo4j.experimental>
             </properties>
             <activation>
                 <activeByDefault>true</activeByDefault>
@@ -85,25 +120,21 @@
             <id>neo4j-3.5</id>
             <properties>
                 <neo4j.version>3.5.22</neo4j.version>
+                <neo4j.experimental>false</neo4j.experimental>
             </properties>
         </profile>
         <profile>
             <id>neo4j-4.1</id>
             <properties>
-                <neo4j.version>4.1.2</neo4j.version>
+                <neo4j.version>4.1.6</neo4j.version>
+                <neo4j.experimental>false</neo4j.experimental>
             </properties>
         </profile>
         <profile>
             <id>neo4j-4.2</id>
             <properties>
-                <neo4j.version>4.2.0</neo4j.version>
-            </properties>
-        </profile>
-        <profile>
-            <id>scala-2.12</id>
-            <properties>
-                <scala.version>2.12.12</scala.version>
-                <scala.binary.version>2.12</scala.binary.version>
+                <neo4j.version>4.2.3</neo4j.version>
+                <neo4j.experimental>false</neo4j.experimental>
             </properties>
         </profile>
     </profiles>
@@ -213,19 +244,6 @@
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-source-plugin</artifactId>
-                <version>2.2.1</version>
-                <executions>
-                    <execution>
-                        <id>attach-sources</id>
-                        <goals>
-                            <goal>jar</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-javadoc-plugin</artifactId>
                 <version>3.1.1</version>
                 <executions>
@@ -284,10 +302,10 @@
                     <artifactId>xbean-asm6-shaded</artifactId>
                 </exclusion>
                 <!-- uncomment for debug -->
-<!--                <exclusion>-->
-<!--                    <groupId>org.slf4j</groupId>-->
-<!--                    <artifactId>slf4j-log4j12</artifactId>-->
-<!--                </exclusion>-->
+                <!--                <exclusion>-->
+                <!--                    <groupId>org.slf4j</groupId>-->
+                <!--                    <artifactId>slf4j-log4j12</artifactId>-->
+                <!--                </exclusion>-->
             </exclusions>
         </dependency>
 
@@ -318,17 +336,12 @@
             <scope>test</scope>
         </dependency>
         <!-- uncomment for debug -->
-<!--        <dependency>-->
-<!--            <groupId>org.slf4j</groupId>-->
-<!--            <artifactId>slf4j-simple</artifactId>-->
-<!--            <version>1.7.30</version>-->
-<!--            <scope>test</scope>-->
-<!--        </dependency>-->
-        <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-annotations</artifactId>
-            <version>2.12.0</version>
-        </dependency>
+        <!--        <dependency>-->
+        <!--            <groupId>org.slf4j</groupId>-->
+        <!--            <artifactId>slf4j-simple</artifactId>-->
+        <!--            <version>1.7.30</version>-->
+        <!--            <scope>test</scope>-->
+        <!--        </dependency>-->
     </dependencies>
 
     <repositories>
