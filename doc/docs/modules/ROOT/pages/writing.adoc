@@ -216,7 +216,7 @@ Where `events` is the batch created from your dataset.
 === Node
 
 In case you use the option `labels` the Spark Connector will persist the entire Dataset as nodes.
-Depending on the `SaveMode` it will `CREATE` or `MERGE` nodes (in the last case using the `node.keys`
+Depending on the <<bookmark-save-mode,SaveMode>> it will `CREATE` or `MERGE` nodes (in the last case using the `node.keys`
 properties).
 
 The nodes will be sent to Neo4j in a batch of rows defined in the `batch.size` property and we will
@@ -368,7 +368,11 @@ SET rel += event.rel
 
 The `CREATE` keyword for the source and target nodes can be replaced by a `MERGE` or a `MATCH`.
 To control this you can use the <<bookmark-node-save-modes,node save modes>>.
+
 You can set source and target independently by using `relationship.source.save.mode` or ``relationship.target.save.mode`.
+
+These options accept a case insensitive string as a value, that can be one of `ErrorIfExists`, `Overwrite`, `Append`;
+they work in the exact same way as the <<bookmark-write-node,Node Save Modes>>.
 
 When using `MATCH` or `MERGE` you will need to specify keys that identify the nodes.
 This is what the options `relationship.source.node.keys` and `relationship.target.node.keys`.
