@@ -16,7 +16,7 @@
     </parent>
 
     <properties>
-        <docsversion>${version}</docsversion>
+        <docsversion>${project.version}</docsversion>
     </properties>
 
     <build>

@@ -32,7 +32,7 @@ object SparkConnectorScalaSuiteWithApocIT {
       try {
         server.start()
       } catch {
-        case _ => //
+        case _: Throwable => //
       }
       Assume.assumeTrue("Neo4j container is not started", server.isRunning)
       conf = new SparkConf().setAppName("neoTest")

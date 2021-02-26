@@ -107,7 +107,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
     } catch {
       case e: IllegalArgumentException =>
         assertEquals("No valid option found. One of `query`, `labels`, `relationship` is required", e.getMessage)
-      case _ => fail(s"should be thrown a ${classOf[IllegalArgumentException].getName}")
+      case _: Throwable => fail(s"should be thrown a ${classOf[IllegalArgumentException].getName}")
     }
   }
 
@@ -122,7 +122,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
     } catch {
       case e: IllegalArgumentException =>
         assertEquals("You need to specify just one of these options: 'labels', 'query', 'relationship'", e.getMessage)
-      case _ => fail(s"should be thrown a ${classOf[IllegalArgumentException].getName}")
+      case _: Throwable => fail(s"should be thrown a ${classOf[IllegalArgumentException].getName}")
     }
   }
 
@@ -138,7 +138,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
     } catch {
       case e: IllegalArgumentException =>
         assertEquals("You need to specify just one of these options: 'labels', 'query', 'relationship'", e.getMessage)
-      case _ => fail(s"should be thrown a ${classOf[IllegalArgumentException].getName}")
+      case _: Throwable => fail(s"should be thrown a ${classOf[IllegalArgumentException].getName}")
     }
   }
 
@@ -736,7 +736,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
           "All of this columns are empty in the current schema."))
         throw sparkException
       }
-      case _ => fail(s"should be thrown a ${classOf[SparkException].getName}")
+      case _: Throwable => fail(s"should be thrown a ${classOf[SparkException].getName}")
     }
   }
 
@@ -816,7 +816,7 @@ class DataSourceWriterTSE extends SparkConnectorScalaBaseTSE {
     catch {
       case e: IllegalArgumentException =>
         assertEquals("Save mode 'ErrorIfExists' is not supported on Spark 3.0, use 'Append' instead.", e.getMessage)
-      case _ => fail(s"should be thrown a ${classOf[IllegalArgumentException].getName}")
+      case _: Throwable => fail(s"should be thrown a ${classOf[IllegalArgumentException].getName}")
     }
   }
 

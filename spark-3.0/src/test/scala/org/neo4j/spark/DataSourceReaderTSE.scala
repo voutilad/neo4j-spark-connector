@@ -24,7 +24,7 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
     } catch {
       case e: IllegalArgumentException =>
         assertEquals("No valid option found. One of `query`, `labels`, `relationship` is required", e.getMessage)
-      case _ => fail(s"should be thrown a ${classOf[IllegalArgumentException].getName}")
+      case _: Throwable => fail(s"should be thrown a ${classOf[IllegalArgumentException].getName}")
     }
   }
 
@@ -40,7 +40,7 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
     } catch {
       case e: IllegalArgumentException =>
         assertEquals("You need to specify just one of these options: 'labels', 'query', 'relationship'", e.getMessage)
-      case _ => fail(s"should be thrown a ${classOf[IllegalArgumentException].getName}")
+      case _: Throwable => fail(s"should be thrown a ${classOf[IllegalArgumentException].getName}")
     }
   }
 
@@ -57,7 +57,7 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
     } catch {
       case e: IllegalArgumentException =>
         assertEquals("You need to specify just one of these options: 'labels', 'query', 'relationship'", e.getMessage)
-      case _ => fail(s"should be thrown a ${classOf[IllegalArgumentException].getName}")
+      case _: Throwable => fail(s"should be thrown a ${classOf[IllegalArgumentException].getName}")
     }
   }
 
@@ -1138,7 +1138,7 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
       case iae: IllegalArgumentException => {
         assertTrue(iae.getMessage.endsWith("Please provide a valid READ query"))
       }
-      case e => fail(s"should be thrown a ${classOf[IllegalArgumentException].getName}, e: ${e.getMessage}")
+      case e: Throwable => fail(s"should be thrown a ${classOf[IllegalArgumentException].getName}, e: ${e.getMessage}")
     }
   }
 
@@ -1270,7 +1270,7 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
       case iae: IllegalArgumentException => {
         assertTrue(iae.getMessage.equals("SKIP/LIMIT are not allowed at the end of the query"))
       }
-      case _ => fail(s"should be thrown a ${classOf[IllegalArgumentException].getName}")
+      case _: Throwable => fail(s"should be thrown a ${classOf[IllegalArgumentException].getName}")
     }
   }
 
@@ -1290,7 +1290,7 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
       case iae: IllegalArgumentException => {
         assertTrue(iae.getMessage.equals("SKIP/LIMIT are not allowed at the end of the query"))
       }
-      case _ => fail(s"should be thrown a ${classOf[IllegalArgumentException].getName}")
+      case _: Throwable => fail(s"should be thrown a ${classOf[IllegalArgumentException].getName}")
     }
   }
 
@@ -1310,7 +1310,7 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
       case iae: IllegalArgumentException => {
         assertTrue(iae.getMessage.equals("SKIP/LIMIT are not allowed at the end of the query"))
       }
-      case _ => fail(s"should be thrown a ${classOf[IllegalArgumentException].getName}")
+      case _: Throwable => fail(s"should be thrown a ${classOf[IllegalArgumentException].getName}")
     }
   }
 
@@ -1332,7 +1332,7 @@ class DataSourceReaderTSE extends SparkConnectorScalaBaseTSE {
       case iae: IllegalArgumentException => {
         assertTrue(iae.getMessage.equals("SKIP/LIMIT are not allowed at the end of the query"))
       }
-      case _ => fail(s"should be thrown a ${classOf[IllegalArgumentException].getName}")
+      case _: Throwable => fail(s"should be thrown a ${classOf[IllegalArgumentException].getName}")
     }
   }
 

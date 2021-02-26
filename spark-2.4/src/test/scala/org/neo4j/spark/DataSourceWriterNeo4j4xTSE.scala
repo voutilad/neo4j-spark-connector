@@ -503,7 +503,7 @@ class DataSourceWriterNeo4j4xTSE extends SparkConnectorScalaBaseTSE {
             |
             |The option key and value might be inverted.""".stripMargin))
       }
-      case generic => fail(s"should be thrown a ${classOf[SparkException].getName}, got ${generic.getClass} instead")
+      case generic: Throwable => fail(s"should be thrown a ${classOf[SparkException].getName}, got ${generic.getClass} instead")
     }
   }
 
@@ -540,7 +540,7 @@ class DataSourceWriterNeo4j4xTSE extends SparkConnectorScalaBaseTSE {
             |
             |The option key and value might be inverted.""".stripMargin))
       }
-      case generic => fail(s"should be thrown a ${classOf[SparkException].getName}, got ${generic.getClass} instead")
+      case generic: Throwable => fail(s"should be thrown a ${classOf[SparkException].getName}, got ${generic.getClass} instead")
     }
   }
 
@@ -570,7 +570,7 @@ class DataSourceWriterNeo4j4xTSE extends SparkConnectorScalaBaseTSE {
             |
             |The option key and value might be inverted.""".stripMargin))
       }
-      case generic => fail(s"should be thrown a ${classOf[SparkException].getName}, got ${generic.getClass} instead")
+      case generic: Throwable => fail(s"should be thrown a ${classOf[SparkException].getName}, got ${generic.getClass} instead")
     }
   }
 

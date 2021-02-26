@@ -29,7 +29,7 @@ class DataSourceReaderNeo4j35xTSE extends SparkConnectorScalaBaseTSE {
           "Database name parameter for selecting database is not supported in Bolt Protocol Version 3.0. Database name: 'db1'"
         ))
       }
-      case generic => fail(s"should be thrown a ${classOf[SparkException].getName}, got ${generic.getClass} instead")
+      case generic: Throwable => fail(s"should be thrown a ${classOf[SparkException].getName}, got ${generic.getClass} instead")
     }
   }
 }

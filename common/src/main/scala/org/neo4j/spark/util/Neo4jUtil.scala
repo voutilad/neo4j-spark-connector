@@ -42,14 +42,11 @@ object Neo4jUtil {
     "Neo.TransientError.Transaction.LockClientStopped") // use the same strategy for TransientException as in the driver
 
   def closeSafety(autoCloseable: AutoCloseable, logger: Logger = null): Unit = {
-    if (autoCloseable == null) {
-      return Unit
-    }
-
     try {
       autoCloseable match {
         case s: Session => if (s.isOpen) s.close()
         case t: Transaction => if (t.isOpen) t.close()
+        case null => Unit
         case _ => autoCloseable.close()
       }
     } catch {

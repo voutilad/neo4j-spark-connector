@@ -339,7 +339,7 @@ class DataSourceReaderNeo4j4xTSE extends SparkConnectorScalaBaseTSE {
           "Database does not exist. Database name: 'not_existing_db'."
         ))
       }
-      case generic => fail(s"should be thrown a ${classOf[SparkException].getName}, got ${generic.getClass} instead")
+      case generic: Throwable => fail(s"should be thrown a ${classOf[SparkException].getName}, got ${generic.getClass} instead")
     }
   }
 }
