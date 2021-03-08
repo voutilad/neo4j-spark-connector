@@ -24,4 +24,4 @@ driver URI will be provided by Aura itself when you create a database
 
 Aura customers connecting from Databricks may encounter SSL handshake errors due to Databricks' custom Java security settings removing certain cipher support.
 
-See the Aura knowledge base article link:https://aura.support.neo4j.com/hc/en-us/articles/1500003161121[Connecting to Aura with Databricks] for more information and for steps to configure your Databricks cluster to support connections to Aura.
+See the Aura knowledge base article link:{url-aura-kbase-databricks}[Connecting to Aura with Databricks] for more information and for steps to configure your Databricks cluster to support connections to Aura.
